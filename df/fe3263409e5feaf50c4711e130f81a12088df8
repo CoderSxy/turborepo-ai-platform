@@ -1,0 +1,14 @@
+apps/web/package.json
+  h_d083fb1648bfd3 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "dffe3263409e5feaf50c4711e130f81a12088df8",
+  "prompts": {},
+  "humans": {
+    "h_d083fb1648bfd3": {
+      "author": "sxy <545231960@qq.com>"
+    }
+  }
+}
