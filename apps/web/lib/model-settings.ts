@@ -25,6 +25,7 @@ export type LocalModelProvider = {
   apiKey: string;
   apiKeyEnv?: string;
   enabled: boolean;
+  availableModels?: string[];
 };
 
 export type LocalModelRoute = {
@@ -85,6 +86,14 @@ export type ModelConnectionTestResult = {
   message: string;
   latencyMs?: number;
   sample?: string;
+};
+
+export type ProviderModelsResult = {
+  ok: boolean;
+  status: "success" | "error" | "unsupported";
+  message: string;
+  models: string[];
+  latencyMs?: number;
 };
 
 export const MODEL_SETTINGS_STORAGE_KEY = "sxy.ai.model-settings.v1";
@@ -197,6 +206,256 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     enabled: true,
   },
   {
+    id: "google-gemini",
+    name: "Google Gemini",
+    type: "gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "GEMINI_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "moonshot",
+    name: "Moonshot",
+    type: "custom",
+    baseUrl: "https://api.moonshot.cn/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "MOONSHOT_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "minimax",
+    name: "MiniMax",
+    type: "custom",
+    baseUrl: "https://api.minimax.chat/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "MINIMAX_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "zhipu",
+    name: "智谱 GLM",
+    type: "custom",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "ZHIPU_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "bailian",
+    name: "阿里百炼",
+    type: "custom",
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "BAILIAN_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    type: "custom",
+    baseUrl: "https://openrouter.ai/api/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "OPENROUTER_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "kkaiapi",
+    name: "kkaiapi",
+    type: "custom",
+    baseUrl: "https://api.kkaiapi.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "KKAIAPI_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "new-api",
+    name: "New API (中转网关)",
+    type: "custom",
+    baseUrl: "https://your-new-api.example.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "NEW_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "siliconflow",
+    name: "硅基流动",
+    type: "custom",
+    baseUrl: "https://api.siliconflow.cn/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "SILICONFLOW_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    type: "anthropic",
+    baseUrl: "https://api.anthropic.com/v1",
+    apiFormat: "anthropic",
+    apiKey: "",
+    apiKeyEnv: "ANTHROPIC_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "mistral",
+    name: "Mistral AI",
+    type: "custom",
+    baseUrl: "https://api.mistral.ai/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "MISTRAL_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "xai",
+    name: "xAI (Grok)",
+    type: "custom",
+    baseUrl: "https://api.x.ai/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "XAI_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "volcengine",
+    name: "火山引擎 (豆包)",
+    type: "custom",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "VOLCENGINE_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "hunyuan",
+    name: "腾讯混元",
+    type: "custom",
+    baseUrl: "https://api.hunyuan.cloud.tencent.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "HUNYUAN_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "baichuan",
+    name: "百川智能",
+    type: "custom",
+    baseUrl: "https://api.baichuan-ai.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "BAICHUAN_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "stepfun",
+    name: "阶跃星辰",
+    type: "custom",
+    baseUrl: "https://api.stepfun.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "STEPFUN_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "qianfan",
+    name: "文心一言 (千帆)",
+    type: "custom",
+    baseUrl: "https://qianfan.baidubce.com/v2",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "QIANFAN_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "spark",
+    name: "讯飞星火",
+    type: "custom",
+    baseUrl: "https://spark-api-open.xf-yun.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "SPARK_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "sensechat",
+    name: "商汤日日新",
+    type: "custom",
+    baseUrl: "https://api.sensenova.cn/compatible-mode/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "SENSECHAT_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "tencent-lkeap",
+    name: "腾讯云 (lkeap)",
+    type: "custom",
+    baseUrl: "https://api.lkeap.cloud.tencent.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "TENCENT_LKEAP_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "mimo",
+    name: "小米 MiMo",
+    type: "custom",
+    baseUrl: "https://api.mimo.mi.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "MIMO_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "longcat",
+    name: "美团 LongCat",
+    type: "custom",
+    baseUrl: "https://api.longcat.chat/openai/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "LONGCAT_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "internlm",
+    name: "书生浦语 (InternLM)",
+    type: "custom",
+    baseUrl: "https://internlm-chat.intern-ai.org.cn/puyu/api/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "INTERNLM_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "lingyi",
+    name: "零一万物 (01.AI)",
+    type: "custom",
+    baseUrl: "https://api.lingyiwanwu.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "LINGYI_API_KEY",
+    enabled: false,
+  },
+  {
+    id: "ai360",
+    name: "360 智脑",
+    type: "custom",
+    baseUrl: "https://api.360.cn/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "AI360_API_KEY",
+    enabled: false,
+  },
+  {
     id: "ollama",
     name: "Ollama 本地模型",
     type: "ollama",
@@ -204,6 +463,96 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     apiFormat: "ollama",
     apiKey: "",
     enabled: true,
+  },
+  {
+    id: "github-copilot",
+    name: "GitHub Copilot",
+    type: "custom",
+    baseUrl: "https://api.githubcopilot.com",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "GITHUB_COPILOT_TOKEN",
+    enabled: false,
+  },
+  {
+    id: "kimi-coding-plan",
+    name: "Kimi Coding Plan",
+    type: "custom",
+    baseUrl: "https://api.moonshot.cn/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "KIMI_CODING_PLAN_KEY",
+    enabled: false,
+  },
+  {
+    id: "kimi-code",
+    name: "Kimi Code",
+    type: "custom",
+    baseUrl: "https://api.moonshot.cn/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "KIMI_CODE_KEY",
+    enabled: false,
+  },
+  {
+    id: "minimax-coding-plan",
+    name: "MiniMax Coding Plan",
+    type: "custom",
+    baseUrl: "https://api.minimax.chat/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "MINIMAX_CODING_PLAN_KEY",
+    enabled: false,
+  },
+  {
+    id: "bailian-coding-plan",
+    name: "百炼 Coding Plan",
+    type: "custom",
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "BAILIAN_CODING_PLAN_KEY",
+    enabled: false,
+  },
+  {
+    id: "glm-coding-plan",
+    name: "GLM Coding Plan",
+    type: "custom",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "GLM_CODING_PLAN_KEY",
+    enabled: false,
+  },
+  {
+    id: "volcengine-coding-plan",
+    name: "火山 Coding Plan",
+    type: "custom",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "VOLCENGINE_CODING_PLAN_KEY",
+    enabled: false,
+  },
+  {
+    id: "opencode-coding-plan",
+    name: "OpenCode Coding Plan",
+    type: "custom",
+    baseUrl: "https://api.opencode.ai/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "OPENCODE_CODING_PLAN_KEY",
+    enabled: false,
+  },
+  {
+    id: "iflytek-astron-coding-plan",
+    name: "讯飞星辰 Astron Coding Plan",
+    type: "custom",
+    baseUrl: "https://maas-api.cn-huabei-1.xf-yun.com/v1",
+    apiFormat: "openai",
+    apiKey: "",
+    apiKeyEnv: "ASTRON_CODING_PLAN_KEY",
+    enabled: false,
   },
   {
     id: "custom-openai-compatible",
@@ -217,9 +566,48 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
 ];
 
 export const MODEL_SUGGESTIONS: Record<string, string[]> = {
+  kkaiapi: ["gpt-4.1", "claude-sonnet-4", "gemini-2.5-pro"],
   openai: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"],
-  deepseek: ["deepseek-chat", "deepseek-reasoner"],
+  deepseek: [
+    "deepseek-v4-flash",
+    "deepseek-v4-pro",
+    "deepseek-chat",
+    "deepseek-reasoner",
+  ],
+  "google-gemini": ["gemini-2.5-pro", "gemini-2.5-flash"],
+  anthropic: ["claude-sonnet-4", "claude-opus-4.1", "claude-haiku-3.5"],
+  mistral: ["mistral-large-latest", "ministral-8b-latest"],
+  xai: ["grok-4", "grok-3-mini"],
+  moonshot: ["kimi-k2.6", "kimi-k2.5", "kimi-k2-thinking"],
+  minimax: ["MiniMax-M2.7", "MiniMax-Text-01"],
+  zhipu: ["glm-4.6", "glm-4-air", "glm-4-flash"],
+  bailian: ["qwen-plus", "qwen-max", "qwen-turbo"],
+  siliconflow: ["deepseek-ai/DeepSeek-V3", "Qwen/Qwen3-235B-A22B"],
+  "new-api": ["gpt-4.1", "deepseek-chat", "qwen-plus"],
+  openrouter: ["openai/gpt-4.1", "anthropic/claude-sonnet-4", "google/gemini-2.5-pro"],
+  volcengine: ["doubao-seed-1-6", "doubao-1-5-pro-32k"],
+  hunyuan: ["hunyuan-turbos-latest", "hunyuan-large"],
+  baichuan: ["Baichuan4-Turbo", "Baichuan3-Turbo"],
+  stepfun: ["step-2-mini", "step-1-8k"],
+  qianfan: ["ernie-4.0-turbo-8k", "ernie-speed-8k"],
+  spark: ["x1", "4.0Ultra"],
+  sensechat: ["SenseChat-5", "SenseChat-Turbo"],
+  "tencent-lkeap": ["deepseek-v3", "deepseek-r1"],
+  mimo: ["MiMo-VL-7B", "MiMo-7B"],
+  longcat: ["longcat-flash-chat", "longcat-pro-chat"],
+  internlm: ["internlm3-latest", "internlm2.5-latest"],
+  lingyi: ["yi-large", "yi-medium"],
+  ai360: ["360gpt2-pro", "360gpt-turbo"],
   ollama: ["llama3.1", "qwen2.5", "mistral", "gemma2"],
+  "github-copilot": ["gpt-4.1", "claude-sonnet-4"],
+  "kimi-coding-plan": ["kimi-k2.5", "moonshot-v1-32k"],
+  "kimi-code": ["kimi-k2.5", "moonshot-v1-32k"],
+  "minimax-coding-plan": ["MiniMax-M2.7", "MiniMax-Text-01"],
+  "bailian-coding-plan": ["qwen-plus", "qwen-max"],
+  "glm-coding-plan": ["glm-4.6", "glm-4-air"],
+  "volcengine-coding-plan": ["doubao-seed-1-6", "doubao-1-5-pro-32k"],
+  "opencode-coding-plan": ["opencode-reasoner", "opencode-chat"],
+  "iflytek-astron-coding-plan": ["astron-flash", "astron-pro"],
   "custom-openai-compatible": ["qwen-plus", "moonshot-v1-8k", "yi-large"],
 };
 
@@ -426,7 +814,7 @@ export function saveLocalModelSettings(settings: LocalModelSettings) {
 }
 
 export function exportLocalModelSettings(settings: LocalModelSettings) {
-  return JSON.stringify(touchSettings(settings), null, 2);
+  return JSON.stringify(settings, null, 2);
 }
 
 export function importLocalModelSettings(raw: string): LocalModelSettings {
@@ -493,13 +881,127 @@ export async function testModelConnection(
   }
 }
 
+export async function testProviderConnection(
+  provider: LocalModelProvider,
+  model?: string,
+  prompt = "用一句中文回复：模型连接正常。",
+): Promise<ModelConnectionTestResult> {
+  const validation = validateProviderForRequest(provider);
+
+  if (validation) {
+    return validation;
+  }
+
+  if (provider.apiFormat === "anthropic" || provider.apiFormat === "gemini") {
+    return {
+      ok: false,
+      status: "unsupported",
+      message: "当前版本先支持 OpenAI-compatible 与 Ollama 的浏览器本地测试。",
+    };
+  }
+
+  const modelName = model?.trim() || getDefaultProviderModel(provider);
+  const startedAt = getNow();
+
+  try {
+    const response = await fetch(getProviderTestEndpoint(provider), {
+      method: "POST",
+      headers: getProviderHeaders(provider),
+      body: JSON.stringify(getProviderTestBody(provider, modelName, prompt)),
+    });
+    const text = await response.text();
+    const latencyMs = Math.round(getNow() - startedAt);
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: "error",
+        message: `HTTP ${response.status}: ${text.slice(0, 180)}`,
+        latencyMs,
+      };
+    }
+
+    return {
+      ok: true,
+      status: "success",
+      message: "Key 可用，模型返回正常。",
+      latencyMs,
+      sample: extractSampleText(text, provider.apiFormat),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "error",
+      message:
+        error instanceof Error
+          ? `${error.message}。如果是浏览器 CORS 限制，后续可改为服务端代理测试。`
+          : "测试请求失败。",
+      latencyMs: Math.round(getNow() - startedAt),
+    };
+  }
+}
+
+export async function listProviderModels(
+  provider: LocalModelProvider,
+): Promise<ProviderModelsResult> {
+  const validation = validateProviderForModels(provider);
+
+  if (validation) {
+    return validation;
+  }
+
+  const startedAt = getNow();
+
+  try {
+    const response = await fetch(getProviderModelsEndpoint(provider), {
+      method: "GET",
+      headers: getProviderHeaders(provider),
+    });
+    const text = await response.text();
+    const latencyMs = Math.round(getNow() - startedAt);
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: "error",
+        message: `HTTP ${response.status}: ${text.slice(0, 180)}`,
+        models: [],
+        latencyMs,
+      };
+    }
+
+    const models = parseProviderModels(text, provider.apiFormat);
+
+    return {
+      ok: true,
+      status: "success",
+      message: models.length
+        ? `获取到 ${models.length} 个模型。`
+        : "请求成功，但没有发现可用模型。",
+      models,
+      latencyMs,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "error",
+      message:
+        error instanceof Error
+          ? `${error.message}。如果是浏览器 CORS 限制，后续可改为服务端代理获取模型列表。`
+          : "获取模型列表失败。",
+      models: [],
+      latencyMs: Math.round(getNow() - startedAt),
+    };
+  }
+}
+
 function normalizeSettings(value: unknown): LocalModelSettings {
   const settings = value as Partial<LocalModelSettings>;
 
   return touchSettings({
     version: 1,
     providers: Array.isArray(settings.providers)
-      ? settings.providers.map(normalizeProvider)
+      ? mergeProviderTemplates(settings.providers.map(normalizeProvider))
       : DEFAULT_LOCAL_MODEL_SETTINGS.providers,
     routes: Array.isArray(settings.routes)
       ? settings.routes.map(normalizeRoute)
@@ -509,6 +1011,17 @@ function normalizeSettings(value: unknown): LocalModelSettings {
         ? settings.updatedAt
         : new Date().toISOString(),
   });
+}
+
+function mergeProviderTemplates(
+  providers: LocalModelProvider[],
+): LocalModelProvider[] {
+  const existingProviderIds = new Set(providers.map((provider) => provider.id));
+  const missingTemplates = PROVIDER_TEMPLATES.filter(
+    (provider) => !existingProviderIds.has(provider.id),
+  );
+
+  return [...providers, ...missingTemplates.map((provider) => ({ ...provider }))];
 }
 
 function normalizeProvider(provider: LocalModelProvider): LocalModelProvider {
@@ -521,6 +1034,16 @@ function normalizeProvider(provider: LocalModelProvider): LocalModelProvider {
     apiKey: provider.apiKey ?? "",
     apiKeyEnv: provider.apiKeyEnv,
     enabled: Boolean(provider.enabled),
+    availableModels: Array.isArray(provider.availableModels)
+      ? Array.from(
+          new Set(
+            provider.availableModels
+              .filter((model) => typeof model === "string")
+              .map((model) => model.trim())
+              .filter(Boolean),
+          ),
+        )
+      : undefined,
   };
 }
 
@@ -554,6 +1077,135 @@ function getTestEndpoint(resolved: Extract<ResolvedModelRoute, { status: "ready"
   }
 
   return `${baseUrl}/chat/completions`;
+}
+
+function validateProviderForRequest(
+  provider: LocalModelProvider,
+): ModelConnectionTestResult | null {
+  if (!provider.baseUrl.trim()) {
+    return {
+      ok: false,
+      status: "error",
+      message: "请先填写 Base URL。",
+    };
+  }
+
+  if (!provider.apiKey && provider.apiFormat !== "ollama") {
+    return {
+      ok: false,
+      status: "error",
+      message: "供应商缺少 API Key。API Key 只保存在当前浏览器本地。",
+    };
+  }
+
+  return null;
+}
+
+function validateProviderForModels(
+  provider: LocalModelProvider,
+): ProviderModelsResult | null {
+  if (provider.apiFormat === "anthropic" || provider.apiFormat === "gemini") {
+    return {
+      ok: false,
+      status: "unsupported",
+      message: "当前版本先支持 OpenAI-compatible 与 Ollama 的模型列表获取。",
+      models: [],
+    };
+  }
+
+  const validation = validateProviderForRequest(provider);
+
+  if (!validation) {
+    return null;
+  }
+
+  return {
+    ok: false,
+    status: validation.status,
+    message: validation.message,
+    models: [],
+  };
+}
+
+function getProviderTestEndpoint(provider: LocalModelProvider) {
+  const baseUrl = provider.baseUrl.replace(/\/$/, "");
+
+  if (provider.apiFormat === "ollama") {
+    return `${baseUrl}/api/chat`;
+  }
+
+  return `${baseUrl}/chat/completions`;
+}
+
+function getProviderModelsEndpoint(provider: LocalModelProvider) {
+  const baseUrl = provider.baseUrl.replace(/\/$/, "");
+
+  if (provider.apiFormat === "ollama") {
+    return `${baseUrl}/api/tags`;
+  }
+
+  return `${baseUrl}/models`;
+}
+
+function getProviderHeaders(provider: LocalModelProvider) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (provider.apiFormat !== "ollama") {
+    headers.Authorization = `Bearer ${provider.apiKey}`;
+  }
+
+  return headers;
+}
+
+function getProviderTestBody(
+  provider: LocalModelProvider,
+  model: string,
+  prompt: string,
+) {
+  if (provider.apiFormat === "ollama") {
+    return {
+      model,
+      messages: [{ role: "user", content: prompt }],
+      stream: false,
+      options: {
+        temperature: 0.2,
+        num_predict: 128,
+      },
+    };
+  }
+
+  return {
+    model,
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 128,
+    stream: false,
+  };
+}
+
+function getDefaultProviderModel(provider: LocalModelProvider) {
+  return MODEL_SUGGESTIONS[provider.id]?.[0] ?? "gpt-4.1-mini";
+}
+
+function parseProviderModels(raw: string, apiFormat: ModelApiFormat): string[] {
+  const json = JSON.parse(raw);
+  const models: unknown[] =
+    apiFormat === "ollama"
+      ? (json.models ?? []).map((model: { name?: string }) => model.name)
+      : (json.data ?? []).map((model: { id?: string }) => model.id);
+  const normalizedModels = models
+    .filter((model): model is string => typeof model === "string")
+    .map((model) => model.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set<string>(normalizedModels)).sort((left, right) =>
+    left.localeCompare(right),
+  );
+}
+
+function getNow() {
+  return typeof performance === "undefined" ? Date.now() : performance.now();
 }
 
 function getTestHeaders(
