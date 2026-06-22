@@ -50,6 +50,70 @@ export type InkosProjectStats = {
   targetWords: number;
 };
 
+export type InkosProjectAssetsPatch = {
+  outline?: string;
+  worldNotes?: string;
+  characters?: string;
+  settings?: string;
+  marketRadars?: Array<{
+    id: string;
+    platform: string;
+    genre: string;
+    concept: string;
+    score: string;
+    createdAt: string;
+  }>;
+  diagnostics?: Array<{
+    id: string;
+    label: string;
+    ok: boolean;
+    detail: string;
+    createdAt: string;
+  }>;
+};
+
+export type InkosCoreAction =
+  | "outline"
+  | "settings"
+  | "write-chapter"
+  | "revise-chapter"
+  | "review"
+  | "radar"
+  | "diagnostics";
+
+export type InkosCoreModelConfig = {
+  providerId: string;
+  providerName: string;
+  apiFormat: "openai" | "anthropic" | "gemini" | "ollama";
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  temperature?: number;
+  stream?: boolean;
+};
+
+export type InkosCoreActionInput = {
+  action: InkosCoreAction;
+  project: InkosNovelProject;
+  assets?: InkosProjectAssetsPatch;
+  model: InkosCoreModelConfig;
+  instruction?: string;
+  recentMessages?: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
+};
+
+export type InkosCoreActionResult = {
+  ok: boolean;
+  action: InkosCoreAction;
+  message: string;
+  content?: string;
+  project?: InkosNovelProject;
+  assetsPatch?: InkosProjectAssetsPatch;
+  raw?: unknown;
+};
+
 export const INKOS_CREATION_STAGES: InkosCreationStage[] = [
   {
     key: "foundation",

@@ -21,6 +21,7 @@ export type LocalModelProvider = {
   name: string;
   type: ModelProviderType;
   baseUrl: string;
+  modelsBaseUrl?: string;
   apiFormat: ModelApiFormat;
   apiKey: string;
   apiKeyEnv?: string;
@@ -86,6 +87,9 @@ export type ModelConnectionTestResult = {
   message: string;
   latencyMs?: number;
   sample?: string;
+  models?: string[];
+  selectedModel?: string;
+  modelsSource?: "api" | "fallback";
 };
 
 export type ProviderModelsResult = {
@@ -95,6 +99,28 @@ export type ProviderModelsResult = {
   models: string[];
   latencyMs?: number;
 };
+
+export type ProviderChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
+export type ProviderChatResult = {
+  ok: boolean;
+  status: "success" | "error" | "unsupported";
+  message: string;
+  content?: string;
+  latencyMs?: number;
+};
+
+export type ProviderChatStreamResult =
+  | {
+      ok: true;
+      response: Response;
+      apiFormat: ModelApiFormat;
+      startedAt: number;
+    }
+  | ProviderChatResult;
 
 export const MODEL_SETTINGS_STORAGE_KEY = "sxy.ai.model-settings.v1";
 
@@ -229,7 +255,7 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "minimax",
     name: "MiniMax",
     type: "custom",
-    baseUrl: "https://api.minimax.chat/v1",
+    baseUrl: "https://api.minimaxi.com/v1",
     apiFormat: "openai",
     apiKey: "",
     apiKeyEnv: "MINIMAX_API_KEY",
@@ -478,8 +504,8 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "kimi-coding-plan",
     name: "Kimi Coding Plan",
     type: "custom",
-    baseUrl: "https://api.moonshot.cn/v1",
-    apiFormat: "openai",
+    baseUrl: "https://api.moonshot.cn/anthropic",
+    apiFormat: "anthropic",
     apiKey: "",
     apiKeyEnv: "KIMI_CODING_PLAN_KEY",
     enabled: false,
@@ -488,8 +514,9 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "kimi-code",
     name: "Kimi Code",
     type: "custom",
-    baseUrl: "https://api.moonshot.cn/v1",
-    apiFormat: "openai",
+    baseUrl: "https://api.kimi.com/coding",
+    modelsBaseUrl: "https://api.kimi.com/coding/v1",
+    apiFormat: "anthropic",
     apiKey: "",
     apiKeyEnv: "KIMI_CODE_KEY",
     enabled: false,
@@ -498,8 +525,8 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "minimax-coding-plan",
     name: "MiniMax Coding Plan",
     type: "custom",
-    baseUrl: "https://api.minimax.chat/v1",
-    apiFormat: "openai",
+    baseUrl: "https://api.minimaxi.com/anthropic",
+    apiFormat: "anthropic",
     apiKey: "",
     apiKeyEnv: "MINIMAX_CODING_PLAN_KEY",
     enabled: false,
@@ -508,8 +535,8 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "bailian-coding-plan",
     name: "百炼 Coding Plan",
     type: "custom",
-    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    apiFormat: "openai",
+    baseUrl: "https://dashscope.aliyuncs.com/apps/anthropic",
+    apiFormat: "anthropic",
     apiKey: "",
     apiKeyEnv: "BAILIAN_CODING_PLAN_KEY",
     enabled: false,
@@ -518,8 +545,8 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "glm-coding-plan",
     name: "GLM Coding Plan",
     type: "custom",
-    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
-    apiFormat: "openai",
+    baseUrl: "https://api.z.ai/api/anthropic",
+    apiFormat: "anthropic",
     apiKey: "",
     apiKeyEnv: "GLM_CODING_PLAN_KEY",
     enabled: false,
@@ -528,8 +555,8 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "volcengine-coding-plan",
     name: "火山 Coding Plan",
     type: "custom",
-    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
-    apiFormat: "openai",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/coding",
+    apiFormat: "anthropic",
     apiKey: "",
     apiKeyEnv: "VOLCENGINE_CODING_PLAN_KEY",
     enabled: false,
@@ -538,8 +565,8 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "opencode-coding-plan",
     name: "OpenCode Coding Plan",
     type: "custom",
-    baseUrl: "https://api.opencode.ai/v1",
-    apiFormat: "openai",
+    baseUrl: "https://opencode.ai/api/anthropic",
+    apiFormat: "anthropic",
     apiKey: "",
     apiKeyEnv: "OPENCODE_CODING_PLAN_KEY",
     enabled: false,
@@ -548,8 +575,9 @@ export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
     id: "iflytek-astron-coding-plan",
     name: "讯飞星辰 Astron Coding Plan",
     type: "custom",
-    baseUrl: "https://maas-api.cn-huabei-1.xf-yun.com/v1",
-    apiFormat: "openai",
+    baseUrl: "https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic",
+    modelsBaseUrl: "https://maas-coding-api.cn-huabei-1.xf-yun.com/v2",
+    apiFormat: "anthropic",
     apiKey: "",
     apiKeyEnv: "ASTRON_CODING_PLAN_KEY",
     enabled: false,
@@ -579,13 +607,56 @@ export const MODEL_SUGGESTIONS: Record<string, string[]> = {
   mistral: ["mistral-large-latest", "ministral-8b-latest"],
   xai: ["grok-4", "grok-3-mini"],
   moonshot: ["kimi-k2.6", "kimi-k2.5", "kimi-k2-thinking"],
-  minimax: ["MiniMax-M2.7", "MiniMax-Text-01"],
+  minimax: [
+    "MiniMax-M2.7",
+    "MiniMax-M2.7-highspeed",
+    "MiniMax-M2.5",
+    "MiniMax-M2.5-highspeed",
+    "M2-her",
+    "MiniMax-M2.1",
+    "MiniMax-M2.1-highspeed",
+    "MiniMax-M2",
+    "MiniMax-M2-Stable",
+    "MiniMax-M1",
+    "MiniMax-Text-01",
+  ],
   zhipu: ["glm-4.6", "glm-4-air", "glm-4-flash"],
   bailian: ["qwen-plus", "qwen-max", "qwen-turbo"],
   siliconflow: ["deepseek-ai/DeepSeek-V3", "Qwen/Qwen3-235B-A22B"],
   "new-api": ["gpt-4.1", "deepseek-chat", "qwen-plus"],
   openrouter: ["openai/gpt-4.1", "anthropic/claude-sonnet-4", "google/gemini-2.5-pro"],
-  volcengine: ["doubao-seed-1-6", "doubao-1-5-pro-32k"],
+  volcengine: [
+    "doubao-seed-2.0-lite",
+    "doubao-seed-2.0-pro",
+    "doubao-seed-2.0-mini",
+    "doubao-seed-2.0-code",
+    "doubao-seed-1.8",
+    "doubao-seed-code",
+    "glm-4-7",
+    "deepseek-v3.2",
+    "deepseek-v3.1",
+    "kimi-k2-thinking",
+    "kimi-k2",
+    "doubao-seed-1.6-vision",
+    "doubao-seed-1.6-thinking",
+    "doubao-seed-1.6",
+    "doubao-seed-1.6-lite",
+    "doubao-seed-1.6-flash",
+    "doubao-1.5-ui-tars",
+    "doubao-1.5-thinking-vision-pro",
+    "doubao-1.5-thinking-pro",
+    "doubao-1.5-thinking-pro-m",
+    "deepseek-r1",
+    "deepseek-v3",
+    "doubao-1.5-pro-32k",
+    "doubao-1.5-pro-256k",
+    "doubao-1.5-lite-32k",
+    "doubao-1.5-vision-pro-32k",
+    "doubao-1.5-vision-pro",
+    "doubao-1.5-vision-lite",
+    "doubao-lite-32k",
+    "doubao-pro-32k",
+  ],
   hunyuan: ["hunyuan-turbos-latest", "hunyuan-large"],
   baichuan: ["Baichuan4-Turbo", "Baichuan3-Turbo"],
   stepfun: ["step-2-mini", "step-1-8k"],
@@ -600,14 +671,59 @@ export const MODEL_SUGGESTIONS: Record<string, string[]> = {
   ai360: ["360gpt2-pro", "360gpt-turbo"],
   ollama: ["llama3.1", "qwen2.5", "mistral", "gemma2"],
   "github-copilot": ["gpt-4.1", "claude-sonnet-4"],
-  "kimi-coding-plan": ["kimi-k2.5", "moonshot-v1-32k"],
-  "kimi-code": ["kimi-k2.5", "moonshot-v1-32k"],
-  "minimax-coding-plan": ["MiniMax-M2.7", "MiniMax-Text-01"],
-  "bailian-coding-plan": ["qwen-plus", "qwen-max"],
-  "glm-coding-plan": ["glm-4.6", "glm-4-air"],
-  "volcengine-coding-plan": ["doubao-seed-1-6", "doubao-1-5-pro-32k"],
-  "opencode-coding-plan": ["opencode-reasoner", "opencode-chat"],
-  "iflytek-astron-coding-plan": ["astron-flash", "astron-pro"],
+  "kimi-coding-plan": ["kimi-k2.5", "kimi-k2-thinking"],
+  "kimi-code": ["kimi-for-coding"],
+  "minimax-coding-plan": [
+    "MiniMax-M2.7",
+    "MiniMax-M2.7-highspeed",
+    "MiniMax-M2.5",
+    "MiniMax-M2.5-highspeed",
+    "MiniMax-M2.1",
+    "MiniMax-M2",
+  ],
+  "bailian-coding-plan": [
+    "qwen-max",
+    "qwen3.5-plus",
+    "qwen3-coder-plus",
+    "qwen3-max-2026-01-23",
+    "qwen3-coder-next",
+    "glm-5",
+    "glm-4.7",
+    "kimi-k2.5",
+    "MiniMax-M2.5",
+  ],
+  "glm-coding-plan": [
+    "glm-5.1",
+    "GLM-5.1",
+    "GLM-5",
+    "GLM-5-Turbo",
+    "GLM-4.7",
+    "GLM-4.6",
+    "GLM-4.5",
+    "GLM-4.5-Air",
+  ],
+  "volcengine-coding-plan": [
+    "doubao-seed-2.0-code",
+    "doubao-seed-2.0-pro",
+    "doubao-seed-2.0-lite",
+    "doubao-seed-code",
+    "minimax-m2.5",
+    "glm-4.7",
+    "deepseek-v3.2",
+    "kimi-k2.5",
+  ],
+  "opencode-coding-plan": [
+    "glm-5.1",
+    "glm-5",
+    "kimi-k2.5",
+    "mimo-v2-omni",
+    "qwen3.6-plus",
+    "minimax-m2.5",
+    "minimax-m2.7",
+    "mimo-v2-pro",
+    "qwen3.5-plus",
+  ],
+  "iflytek-astron-coding-plan": ["astron-code-latest"],
   "custom-openai-compatible": ["qwen-plus", "moonshot-v1-8k", "yi-large"],
 };
 
@@ -821,6 +937,12 @@ export function importLocalModelSettings(raw: string): LocalModelSettings {
   return normalizeSettings(JSON.parse(raw));
 }
 
+export function normalizeLocalModelProvider(
+  provider: LocalModelProvider,
+): LocalModelProvider {
+  return normalizeProvider(provider);
+}
+
 export async function testModelConnection(
   resolved: ResolvedModelRoute,
   prompt = "用一句中文回复：模型连接正常。",
@@ -833,7 +955,7 @@ export async function testModelConnection(
     };
   }
 
-  if (resolved.apiFormat === "anthropic" || resolved.apiFormat === "gemini") {
+  if (resolved.apiFormat === "gemini") {
     return {
       ok: false,
       status: "unsupported",
@@ -892,7 +1014,7 @@ export async function testProviderConnection(
     return validation;
   }
 
-  if (provider.apiFormat === "anthropic" || provider.apiFormat === "gemini") {
+  if (provider.apiFormat === "gemini") {
     return {
       ok: false,
       status: "unsupported",
@@ -900,45 +1022,86 @@ export async function testProviderConnection(
     };
   }
 
-  const modelName = model?.trim() || getDefaultProviderModel(provider);
+  const modelCandidates = getProviderTestModelCandidates(provider, model);
   const startedAt = getNow();
+  let lastError: ModelConnectionTestResult | null = null;
 
-  try {
-    const response = await fetch(getProviderTestEndpoint(provider), {
-      method: "POST",
-      headers: getProviderHeaders(provider),
-      body: JSON.stringify(getProviderTestBody(provider, modelName, prompt)),
-    });
-    const text = await response.text();
-    const latencyMs = Math.round(getNow() - startedAt);
+  for (const modelName of modelCandidates) {
+    const endpoint = getProviderTestEndpoint(provider);
 
-    if (!response.ok) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: getProviderHeaders(provider),
+        body: JSON.stringify(getProviderTestBody(provider, modelName, prompt)),
+      });
+      const text = await response.text();
+
+      if (!response.ok) {
+        lastError = {
+          ok: false,
+          status: "error",
+          message: formatProviderHttpError({
+            status: response.status,
+            text,
+            endpoint,
+            model: modelName,
+            apiFormat: provider.apiFormat,
+          }),
+        };
+        if (response.status === 401 || response.status === 403) {
+          break;
+        }
+        continue;
+      }
+
       return {
+        ok: true,
+        status: "success",
+        message:
+          modelName === modelCandidates[0]
+            ? "Key 可用，模型返回正常。"
+            : `Key 可用，已自动切换到可用模型 ${modelName}。`,
+        latencyMs: Math.round(getNow() - startedAt),
+        sample: extractSampleText(text, provider.apiFormat),
+      };
+    } catch (error) {
+      lastError = {
         ok: false,
         status: "error",
-        message: `HTTP ${response.status}: ${text.slice(0, 180)}`,
-        latencyMs,
+        message:
+          error instanceof Error
+            ? `${error.message}。如果是浏览器 CORS 限制，后续可改为服务端代理测试。`
+            : "测试请求失败。",
       };
     }
+  }
 
-    return {
-      ok: true,
-      status: "success",
-      message: "Key 可用，模型返回正常。",
-      latencyMs,
-      sample: extractSampleText(text, provider.apiFormat),
-    };
-  } catch (error) {
-    return {
+  return {
+    ...(lastError ?? {
       ok: false,
       status: "error",
-      message:
-        error instanceof Error
-          ? `${error.message}。如果是浏览器 CORS 限制，后续可改为服务端代理测试。`
-          : "测试请求失败。",
-      latencyMs: Math.round(getNow() - startedAt),
-    };
+      message: "没有可测试的模型。",
+    }),
+    latencyMs: Math.round(getNow() - startedAt),
+  };
+}
+
+function formatProviderHttpError(args: {
+  status: number;
+  text: string;
+  endpoint: string;
+  model: string;
+  apiFormat: ModelApiFormat;
+}) {
+  const detail = args.text.trim();
+  const suffix = `请求地址：${args.endpoint}；模型：${args.model}；协议：${args.apiFormat}`;
+
+  if (!detail) {
+    return `HTTP ${args.status}: 上游没有返回错误正文。${suffix}`;
   }
+
+  return `HTTP ${args.status}: ${detail.slice(0, 180)}。${suffix}`;
 }
 
 export async function listProviderModels(
@@ -955,7 +1118,7 @@ export async function listProviderModels(
   try {
     const response = await fetch(getProviderModelsEndpoint(provider), {
       method: "GET",
-      headers: getProviderHeaders(provider),
+      headers: getProviderModelsHeaders(provider),
     });
     const text = await response.text();
     const latencyMs = Math.round(getNow() - startedAt);
@@ -995,6 +1158,185 @@ export async function listProviderModels(
   }
 }
 
+export async function sendProviderChatMessage(args: {
+  provider: LocalModelProvider;
+  model: string;
+  messages: ProviderChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  stream?: boolean;
+}): Promise<ProviderChatResult> {
+  const validation = validateProviderForRequest(args.provider);
+
+  if (validation) {
+    return validation;
+  }
+
+  if (args.provider.apiFormat === "gemini") {
+    return {
+      ok: false,
+      status: "unsupported",
+      message: "当前版本先支持 OpenAI-compatible、Anthropic-compatible 与 Ollama 对话。",
+    };
+  }
+
+  const model = args.model.trim();
+
+  if (!model) {
+    return {
+      ok: false,
+      status: "error",
+      message: "请先选择一个模型。",
+    };
+  }
+
+  const startedAt = getNow();
+  const endpoint = getProviderTestEndpoint(args.provider);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: getProviderHeaders(args.provider),
+      body: JSON.stringify(
+        getProviderChatBody({
+          provider: args.provider,
+          model,
+          messages: args.messages,
+          temperature: args.temperature ?? 0.7,
+          maxTokens: args.maxTokens ?? 2400,
+          stream: false,
+        }),
+      ),
+    });
+    const text = await response.text();
+    const latencyMs = Math.round(getNow() - startedAt);
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: "error",
+        message: formatProviderHttpError({
+          status: response.status,
+          text,
+          endpoint,
+          model,
+          apiFormat: args.provider.apiFormat,
+        }),
+        latencyMs,
+      };
+    }
+
+    const content = extractSampleText(text, args.provider.apiFormat).trim();
+
+    if (!content) {
+      return {
+        ok: false,
+        status: "error",
+        message: "模型返回为空。",
+        latencyMs,
+      };
+    }
+
+    return {
+      ok: true,
+      status: "success",
+      message: "模型回复成功。",
+      content,
+      latencyMs,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "error",
+      message: error instanceof Error ? error.message : "模型对话请求失败。",
+      latencyMs: Math.round(getNow() - startedAt),
+    };
+  }
+}
+
+export async function createProviderChatStream(args: {
+  provider: LocalModelProvider;
+  model: string;
+  messages: ProviderChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+}): Promise<ProviderChatStreamResult> {
+  const validation = validateProviderForRequest(args.provider);
+
+  if (validation) {
+    return validation;
+  }
+
+  if (args.provider.apiFormat === "gemini") {
+    return {
+      ok: false,
+      status: "unsupported",
+      message: "当前版本先支持 OpenAI-compatible、Anthropic-compatible 与 Ollama 对话。",
+    };
+  }
+
+  const model = args.model.trim();
+
+  if (!model) {
+    return {
+      ok: false,
+      status: "error",
+      message: "请先选择一个模型。",
+    };
+  }
+
+  const startedAt = getNow();
+  const endpoint = getProviderTestEndpoint(args.provider);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: getProviderHeaders(args.provider),
+      body: JSON.stringify(
+        getProviderChatBody({
+          provider: args.provider,
+          model,
+          messages: args.messages,
+          temperature: args.temperature ?? 0.7,
+          maxTokens: args.maxTokens ?? 2400,
+          stream: true,
+        }),
+      ),
+    });
+
+    if (!response.ok || !response.body) {
+      const text = await response.text();
+
+      return {
+        ok: false,
+        status: "error",
+        message: formatProviderHttpError({
+          status: response.status,
+          text,
+          endpoint,
+          model,
+          apiFormat: args.provider.apiFormat,
+        }),
+        latencyMs: Math.round(getNow() - startedAt),
+      };
+    }
+
+    return {
+      ok: true,
+      response,
+      apiFormat: args.provider.apiFormat,
+      startedAt,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "error",
+      message: error instanceof Error ? error.message : "模型流式对话请求失败。",
+      latencyMs: Math.round(getNow() - startedAt),
+    };
+  }
+}
+
 function normalizeSettings(value: unknown): LocalModelSettings {
   const settings = value as Partial<LocalModelSettings>;
 
@@ -1024,26 +1366,51 @@ function mergeProviderTemplates(
   return [...providers, ...missingTemplates.map((provider) => ({ ...provider }))];
 }
 
+const TEMPLATE_LOCKED_ENDPOINT_PROVIDER_IDS = new Set([
+  "minimax",
+  "kimi-coding-plan",
+  "kimi-code",
+  "minimax-coding-plan",
+  "bailian-coding-plan",
+  "glm-coding-plan",
+  "volcengine-coding-plan",
+  "opencode-coding-plan",
+  "iflytek-astron-coding-plan",
+]);
+
 function normalizeProvider(provider: LocalModelProvider): LocalModelProvider {
+  const template = PROVIDER_TEMPLATES.find((item) => item.id === provider.id);
+  const shouldUseTemplateEndpoint =
+    template !== undefined &&
+    TEMPLATE_LOCKED_ENDPOINT_PROVIDER_IDS.has(provider.id) &&
+    (provider.baseUrl !== template.baseUrl ||
+      provider.modelsBaseUrl !== template.modelsBaseUrl ||
+      provider.apiFormat !== template.apiFormat);
+  const endpointTemplate = shouldUseTemplateEndpoint ? template : null;
+  const normalizedModels = Array.isArray(provider.availableModels)
+    ? Array.from(
+        new Set(
+          provider.availableModels
+            .filter((model) => typeof model === "string")
+            .map((model) => model.trim())
+            .filter(Boolean),
+        ),
+      )
+    : undefined;
+
   return {
     id: provider.id,
     name: provider.name,
     type: provider.type,
-    baseUrl: provider.baseUrl,
-    apiFormat: provider.apiFormat,
+    baseUrl: endpointTemplate ? endpointTemplate.baseUrl : provider.baseUrl,
+    modelsBaseUrl: endpointTemplate
+      ? endpointTemplate.modelsBaseUrl
+      : provider.modelsBaseUrl,
+    apiFormat: endpointTemplate ? endpointTemplate.apiFormat : provider.apiFormat,
     apiKey: provider.apiKey ?? "",
     apiKeyEnv: provider.apiKeyEnv,
     enabled: Boolean(provider.enabled),
-    availableModels: Array.isArray(provider.availableModels)
-      ? Array.from(
-          new Set(
-            provider.availableModels
-              .filter((model) => typeof model === "string")
-              .map((model) => model.trim())
-              .filter(Boolean),
-          ),
-        )
-      : undefined,
+    availableModels: shouldUseTemplateEndpoint ? undefined : normalizedModels,
   };
 }
 
@@ -1076,6 +1443,10 @@ function getTestEndpoint(resolved: Extract<ResolvedModelRoute, { status: "ready"
     return `${baseUrl}/api/chat`;
   }
 
+  if (resolved.apiFormat === "anthropic") {
+    return `${baseUrl}/messages`;
+  }
+
   return `${baseUrl}/chat/completions`;
 }
 
@@ -1090,7 +1461,7 @@ function validateProviderForRequest(
     };
   }
 
-  if (!provider.apiKey && provider.apiFormat !== "ollama") {
+  if (!provider.apiKey.trim() && provider.apiFormat !== "ollama") {
     return {
       ok: false,
       status: "error",
@@ -1104,7 +1475,7 @@ function validateProviderForRequest(
 function validateProviderForModels(
   provider: LocalModelProvider,
 ): ProviderModelsResult | null {
-  if (provider.apiFormat === "anthropic" || provider.apiFormat === "gemini") {
+  if (provider.apiFormat === "gemini") {
     return {
       ok: false,
       status: "unsupported",
@@ -1134,11 +1505,15 @@ function getProviderTestEndpoint(provider: LocalModelProvider) {
     return `${baseUrl}/api/chat`;
   }
 
+  if (provider.apiFormat === "anthropic") {
+    return `${baseUrl}/messages`;
+  }
+
   return `${baseUrl}/chat/completions`;
 }
 
 function getProviderModelsEndpoint(provider: LocalModelProvider) {
-  const baseUrl = provider.baseUrl.replace(/\/$/, "");
+  const baseUrl = (provider.modelsBaseUrl || provider.baseUrl).replace(/\/$/, "");
 
   if (provider.apiFormat === "ollama") {
     return `${baseUrl}/api/tags`;
@@ -1148,12 +1523,33 @@ function getProviderModelsEndpoint(provider: LocalModelProvider) {
 }
 
 function getProviderHeaders(provider: LocalModelProvider) {
+  const apiKey = provider.apiKey.trim();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (provider.apiFormat === "anthropic") {
+    headers["x-api-key"] = apiKey;
+    headers["anthropic-version"] = "2023-06-01";
+    headers.Authorization = `Bearer ${apiKey}`;
+    return headers;
+  }
+
+  if (provider.apiFormat !== "ollama") {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  return headers;
+}
+
+function getProviderModelsHeaders(provider: LocalModelProvider) {
+  const apiKey = provider.apiKey.trim();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
   if (provider.apiFormat !== "ollama") {
-    headers.Authorization = `Bearer ${provider.apiKey}`;
+    headers.Authorization = `Bearer ${apiKey}`;
   }
 
   return headers;
@@ -1176,6 +1572,16 @@ function getProviderTestBody(
     };
   }
 
+  if (provider.apiFormat === "anthropic") {
+    return {
+      model,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 128,
+      temperature: 0.7,
+      stream: false,
+    };
+  }
+
   return {
     model,
     messages: [{ role: "user", content: prompt }],
@@ -1184,8 +1590,75 @@ function getProviderTestBody(
   };
 }
 
+function getProviderChatBody(args: {
+  provider: LocalModelProvider;
+  model: string;
+  messages: ProviderChatMessage[];
+  temperature: number;
+  maxTokens: number;
+  stream: boolean;
+}) {
+  if (args.provider.apiFormat === "ollama") {
+    return {
+      model: args.model,
+      messages: args.messages,
+      stream: args.stream,
+      options: {
+        temperature: args.temperature,
+        num_predict: args.maxTokens,
+      },
+    };
+  }
+
+  if (args.provider.apiFormat === "anthropic") {
+    const system = args.messages
+      .filter((message) => message.role === "system")
+      .map((message) => message.content)
+      .join("\n\n")
+      .trim();
+
+    return {
+      model: args.model,
+      messages: args.messages
+        .filter((message) => message.role !== "system")
+        .map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+      ...(system ? { system } : {}),
+      max_tokens: args.maxTokens,
+      temperature: args.temperature,
+      stream: args.stream,
+    };
+  }
+
+  return {
+    model: args.model,
+    messages: args.messages,
+    temperature: args.temperature,
+    max_tokens: args.maxTokens,
+    stream: args.stream,
+  };
+}
+
 function getDefaultProviderModel(provider: LocalModelProvider) {
   return MODEL_SUGGESTIONS[provider.id]?.[0] ?? "gpt-4.1-mini";
+}
+
+function getProviderTestModelCandidates(
+  provider: LocalModelProvider,
+  preferredModel?: string,
+) {
+  return Array.from(
+    new Set(
+      [
+        preferredModel?.trim(),
+        ...(provider.availableModels ?? []),
+        ...(MODEL_SUGGESTIONS[provider.id] ?? []),
+        getDefaultProviderModel(provider),
+      ].filter((model): model is string => Boolean(model)),
+    ),
+  );
 }
 
 function parseProviderModels(raw: string, apiFormat: ModelApiFormat): string[] {
@@ -1211,12 +1684,17 @@ function getNow() {
 function getTestHeaders(
   resolved: Extract<ResolvedModelRoute, { status: "ready" }>,
 ) {
+  const apiKey = resolved.apiKey.trim();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
-  if (resolved.apiFormat !== "ollama") {
-    headers.Authorization = `Bearer ${resolved.apiKey}`;
+  if (resolved.apiFormat === "anthropic") {
+    headers["x-api-key"] = apiKey;
+    headers["anthropic-version"] = "2023-06-01";
+    headers.Authorization = `Bearer ${apiKey}`;
+  } else if (resolved.apiFormat !== "ollama") {
+    headers.Authorization = `Bearer ${apiKey}`;
   }
 
   return headers;
@@ -1238,6 +1716,16 @@ function getTestBody(
     };
   }
 
+  if (resolved.apiFormat === "anthropic") {
+    return {
+      model: resolved.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: resolved.temperature,
+      max_tokens: Math.min(resolved.maxTokens, 1024),
+      stream: false,
+    };
+  }
+
   return {
     model: resolved.model,
     messages: [{ role: "user", content: prompt }],
@@ -1253,6 +1741,16 @@ function extractSampleText(raw: string, apiFormat: ModelApiFormat) {
 
     if (apiFormat === "ollama") {
       return json.message?.content ?? raw.slice(0, 180);
+    }
+
+    if (apiFormat === "anthropic") {
+      const firstText = Array.isArray(json.content)
+        ? json.content.find((part: { type?: string; text?: string }) =>
+            part?.type === "text" && typeof part.text === "string",
+          )?.text
+        : undefined;
+
+      return firstText ?? raw.slice(0, 180);
     }
 
     return json.choices?.[0]?.message?.content ?? raw.slice(0, 180);
