@@ -1,0 +1,19 @@
+INKOS_STUDIO_TODO.md
+  s_cb9394614584de::t_6d1be912215e3d 1-553
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "0558dbb84ba8e6e19837ea5925619cb66ea69b96",
+  "prompts": {},
+  "sessions": {
+    "s_cb9394614584de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecaf4-bb91-72d0-8dd6-c954b4f1f1c1",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
