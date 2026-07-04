@@ -21,6 +21,66 @@ export type NovelGenreProfile = {
   chapterTypes: string;
   fatigueWords: string;
   pacingRule: string;
+  analysis?: NovelGenreAnalysis;
+};
+
+export type NovelGenreAnalysis = {
+  summary: string;
+  audienceHook: string;
+  conflictPattern: string;
+  riskPoints: string[];
+  recommendedPacing: string;
+  analyzedAt: string;
+};
+
+export type NovelStyleAnalysis = {
+  averageSentenceLength: number;
+  vocabularyDiversity: number;
+  paragraphDensity: "低" | "中" | "高";
+  emotionalTone: string;
+  tags: string[];
+  styleConstraints: string;
+  analyzedAt: string;
+};
+
+export type NovelStyleSample = {
+  id: string;
+  title: string;
+  content: string;
+  updatedAt: string;
+  analysis?: NovelStyleAnalysis;
+};
+
+export type NovelImportedMaterial = {
+  id: string;
+  title: string;
+  type: "chapters" | "canon" | "fanfic";
+  content: string;
+  createdAt: string;
+  parsedChapterCount?: number;
+  extractedAssetCount?: number;
+  status?: "raw" | "processed";
+};
+
+export type NovelProjectStrategy = {
+  summary: string;
+  platformHints: string[];
+  riskAlerts: string[];
+  updatedAt: string;
+};
+
+export type NovelImportedChapter = {
+  number: number;
+  title: string;
+  content: string;
+  summary: string;
+  wordCount: number;
+};
+
+export type NovelImportAssetHints = {
+  characters: string[];
+  foreshadowing: string[];
+  worldIncrements: string[];
 };
 
 export type NovelProjectAssets = {
@@ -33,19 +93,8 @@ export type NovelProjectAssets = {
   pendingAssetDeltas: NovelPendingAssetDelta[];
   contextSelection: NovelContextSelection;
   genres: NovelGenreProfile[];
-  styleSamples: Array<{
-    id: string;
-    title: string;
-    content: string;
-    updatedAt: string;
-  }>;
-  importedMaterials: Array<{
-    id: string;
-    title: string;
-    type: "chapters" | "canon" | "fanfic";
-    content: string;
-    createdAt: string;
-  }>;
+  styleSamples: NovelStyleSample[];
+  importedMaterials: NovelImportedMaterial[];
   marketRadars: Array<{
     id: string;
     platform: string;
@@ -61,6 +110,55 @@ export type NovelProjectAssets = {
     detail: string;
     createdAt: string;
   }>;
+  projectStrategy?: NovelProjectStrategy;
+  publicationEvents?: NovelPublicationEvent[];
+};
+
+export type NovelPublicationEvent = {
+  id: string;
+  chapterNumber?: number;
+  chapterTitle?: string;
+  platform?: "generic" | "qidian" | "fanqie";
+  action: "marked-ready" | "marked-published" | "exported";
+  note?: string;
+  createdAt: string;
+};
+
+export type NovelPublishValidationSeverity = "error" | "warning" | "info";
+
+export type NovelPublishValidationIssue = {
+  id: string;
+  severity: NovelPublishValidationSeverity;
+  chapterNumber?: number;
+  code: string;
+  title: string;
+  detail: string;
+};
+
+export type NovelPublishValidationReport = {
+  platform: "generic" | "qidian" | "fanqie";
+  canPublish: boolean;
+  errorCount: number;
+  warningCount: number;
+  issues: NovelPublishValidationIssue[];
+  summary: string;
+};
+
+export type NovelDocxParagraphStyle =
+  | "title"
+  | "subtitle"
+  | "chapter-heading"
+  | "body";
+
+export type NovelDocxParagraph = {
+  style: NovelDocxParagraphStyle;
+  text: string;
+};
+
+export type StoredNovelTaskCheckpoint = {
+  progressMessages: string[];
+  savedAt: string;
+  assistantMessageId?: string;
 };
 
 export type NovelOutlineNode = {
@@ -126,6 +224,9 @@ export type NovelContextSelection = {
   viewpoint: string;
   pacing: string;
   highlights: string;
+  bannedWords?: string;
+  styleConstraints?: string;
+  thrillPoints?: string;
 };
 
 export type StoredNovelBook = {
@@ -172,6 +273,7 @@ export type StoredNovelChapter = {
   reviews: NovelChapterReview[];
   activeReviewId?: string;
   publicationStatus?: NovelChapterPublicationStatus;
+  publishedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -301,6 +403,30 @@ export type NovelReviewIssueHighlight = {
   issue: NovelChapterReviewIssueView;
 };
 
+export type NovelReviewIssueParagraphMark = {
+  paragraphIndex: number;
+  paragraph: string;
+  start: number;
+  end: number;
+  issues: NovelChapterReviewIssueView[];
+  highestSeverity: NovelChapterReviewIssueSeverity;
+};
+
+export type NovelCompareDiffMarker = {
+  id: string;
+  side: "previous" | "next";
+  lineIndex: number;
+  text: string;
+  state: "added" | "removed";
+  relatedIssues: NovelChapterReviewIssueView[];
+};
+
+export type NovelCompareLineRestoreResult = {
+  content: string;
+  paragraphIndex: number | null;
+  mode: "replace-paragraph" | "replace-selection" | "append";
+};
+
 export type NovelChapterCompareLine = {
   text: string;
   state: "added" | "removed" | "unchanged";
@@ -402,6 +528,7 @@ export type StoredNovelTask = {
   targetChapterTitle?: string;
   startedAt: string;
   endedAt?: string;
+  checkpoint?: StoredNovelTaskCheckpoint;
 };
 
 export type NovelRecoverableErrorNotice = {
@@ -830,6 +957,912 @@ export function buildNovelReviewIssueHighlights(
   });
 }
 
+function reviewIssueSeverityRank(
+  severity: NovelChapterReviewIssueSeverity,
+): number {
+  if (severity === "error") return 3;
+  if (severity === "warning") return 2;
+  return 1;
+}
+
+export function buildNovelReviewIssueParagraphMarks(
+  content: string,
+  issues: NovelChapterReviewIssueView[],
+): NovelReviewIssueParagraphMark[] {
+  const navigation = buildNovelChapterParagraphNavigation(content);
+  const marks = new Map<number, NovelReviewIssueParagraphMark>();
+
+  for (const issue of issues) {
+    const location = findNovelReviewIssueParagraph(content, issue);
+    if (!location) {
+      continue;
+    }
+
+    const paragraph = navigation.paragraphs[location.index];
+    if (!paragraph) {
+      continue;
+    }
+
+    const existing = marks.get(location.index);
+    if (existing) {
+      existing.issues.push(issue);
+      if (
+        reviewIssueSeverityRank(issue.severity) >
+        reviewIssueSeverityRank(existing.highestSeverity)
+      ) {
+        existing.highestSeverity = issue.severity;
+      }
+      continue;
+    }
+
+    marks.set(location.index, {
+      paragraphIndex: location.index,
+      paragraph: paragraph.text,
+      start: paragraph.start,
+      end: paragraph.end,
+      issues: [issue],
+      highestSeverity: issue.severity,
+    });
+  }
+
+  return [...marks.values()].sort(
+    (left, right) => left.paragraphIndex - right.paragraphIndex,
+  );
+}
+
+export function findNovelReviewIssuesForDiffLine(
+  lineText: string,
+  issues: NovelChapterReviewIssueView[],
+): NovelChapterReviewIssueView[] {
+  const normalizedLine = normalizeNovelAssetText(lineText);
+  if (!normalizedLine) {
+    return [];
+  }
+
+  return issues.filter((issue) => {
+    const needles = [issue.excerpt, issue.title, issue.detail].filter(Boolean) as string[];
+
+    return needles.some((needle) => {
+      const normalizedNeedle = normalizeNovelAssetText(needle);
+      return (
+        normalizedNeedle.length >= 4 &&
+        (normalizedLine.includes(normalizedNeedle) ||
+          normalizedNeedle.includes(normalizedLine))
+      );
+    });
+  });
+}
+
+export function buildNovelCompareDiffMarkers(
+  compareView: NovelChapterVersionCompareView,
+  issues: NovelChapterReviewIssueView[] = [],
+): NovelCompareDiffMarker[] {
+  const markers: NovelCompareDiffMarker[] = [];
+
+  compareView.previousLines.forEach((line, lineIndex) => {
+    if (line.state === "unchanged") {
+      return;
+    }
+
+    markers.push({
+      id: `previous-${lineIndex}`,
+      side: "previous",
+      lineIndex,
+      text: line.text,
+      state: "removed",
+      relatedIssues: findNovelReviewIssuesForDiffLine(line.text, issues),
+    });
+  });
+
+  compareView.nextLines.forEach((line, lineIndex) => {
+    if (line.state === "unchanged") {
+      return;
+    }
+
+    markers.push({
+      id: `next-${lineIndex}`,
+      side: "next",
+      lineIndex,
+      text: line.text,
+      state: "added",
+      relatedIssues: findNovelReviewIssuesForDiffLine(line.text, issues),
+    });
+  });
+
+  return markers;
+}
+
+export function filterNovelCompareDiffMarkers(
+  markers: NovelCompareDiffMarker[],
+  query: string,
+): NovelCompareDiffMarker[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return markers;
+  }
+
+  return markers.filter((marker) =>
+    marker.text.toLowerCase().includes(normalizedQuery),
+  );
+}
+
+export function restoreNovelCompareLineInContent(
+  content: string,
+  lineText: string,
+  options?: {
+    paragraphIndex?: number;
+    selectionStart?: number;
+    selectionEnd?: number;
+  },
+): NovelCompareLineRestoreResult {
+  const trimmed = lineText.trim();
+  if (!trimmed) {
+    return { content, paragraphIndex: null, mode: "append" };
+  }
+
+  const navigation = buildNovelChapterParagraphNavigation(content);
+
+  if (
+    options?.paragraphIndex !== undefined &&
+    options.paragraphIndex >= 0 &&
+    navigation.paragraphs[options.paragraphIndex]
+  ) {
+    const paragraph = navigation.paragraphs[options.paragraphIndex]!;
+
+    return {
+      content:
+        content.slice(0, paragraph.start) +
+        trimmed +
+        content.slice(paragraph.end),
+      paragraphIndex: options.paragraphIndex,
+      mode: "replace-paragraph",
+    };
+  }
+
+  if (
+    options?.selectionStart !== undefined &&
+    options?.selectionEnd !== undefined &&
+    options.selectionStart !== options.selectionEnd
+  ) {
+    return {
+      content:
+        content.slice(0, options.selectionStart) +
+        trimmed +
+        content.slice(options.selectionEnd),
+      paragraphIndex: null,
+      mode: "replace-selection",
+    };
+  }
+
+  const selectionStart = options?.selectionStart ?? 0;
+  const paragraph = navigation.paragraphs.find(
+    (item) => selectionStart >= item.start && selectionStart <= item.end,
+  );
+
+  if (paragraph) {
+    return {
+      content:
+        content.slice(0, paragraph.start) +
+        trimmed +
+        content.slice(paragraph.end),
+      paragraphIndex: paragraph.index,
+      mode: "replace-paragraph",
+    };
+  }
+
+  return {
+    content: content.trim() ? `${content}\n\n${trimmed}` : trimmed,
+    paragraphIndex: null,
+    mode: "append",
+  };
+}
+
+export function buildNovelStyleConstraintsFromAssets(
+  assets: Pick<NovelProjectAssets, "genres" | "styleSamples" | "contextSelection" | "projectStrategy">,
+  project: Pick<InkosNovelProject, "genre">,
+): string {
+  const parts: string[] = [];
+  const genres = assets.genres ?? [];
+  const genreProfile =
+    genres.find((genre) => genre.name === project.genre) ?? genres[0];
+
+  if (genreProfile?.fatigueWords?.trim()) {
+    parts.push(`避免疲劳词：${genreProfile.fatigueWords.trim()}`);
+  }
+  if (genreProfile?.pacingRule?.trim()) {
+    parts.push(`题材节奏规则：${genreProfile.pacingRule.trim()}`);
+  }
+  if (genreProfile?.chapterTypes?.trim()) {
+    parts.push(`章节类型偏好：${genreProfile.chapterTypes.trim()}`);
+  }
+
+  const styleSample = assets.styleSamples?.[0];
+  if (styleSample?.content?.trim()) {
+    parts.push(
+      `文风参考（${styleSample.title}）：${styleSample.content.trim().slice(0, 240)}`,
+    );
+  }
+
+  if (styleSample?.analysis?.styleConstraints?.trim()) {
+    parts.push(styleSample.analysis.styleConstraints.trim());
+  }
+
+  if (assets.contextSelection?.styleConstraints?.trim()) {
+    parts.push(assets.contextSelection.styleConstraints.trim());
+  }
+
+  if (assets.projectStrategy?.summary?.trim()) {
+    parts.push(`市场策略：${assets.projectStrategy.summary.trim()}`);
+  }
+
+  return parts.join("\n");
+}
+
+const IMPORTED_CHAPTER_HEADER_PATTERN =
+  /^(?:第\s*[0-9零一二三四五六七八九十百千两]+\s*章[^\n]*|Chapter\s+\d+[^\n]*|#{1,3}\s*(?:第\s*)?[0-9零一二三四五六七八九十百千两]+[^\n]*)$/i;
+
+function parseImportedChapterNumber(title: string, fallback: number): number {
+  const digitMatch = title.match(/第\s*(\d+)\s*章|Chapter\s+(\d+)|#+\s*(?:第\s*)?(\d+)/i);
+  if (digitMatch) {
+    return Number(digitMatch[1] || digitMatch[2] || digitMatch[3] || fallback);
+  }
+
+  const chineseMatch = title.match(/第\s*([零一二三四五六七八九十百千两]+)\s*章/);
+  if (!chineseMatch?.[1]) {
+    return fallback;
+  }
+
+  const map: Record<string, number> = {
+    零: 0,
+    一: 1,
+    二: 2,
+    两: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+    十: 10,
+  };
+  const raw = chineseMatch[1];
+  if (raw.length === 1) {
+    return map[raw] ?? fallback;
+  }
+  if (raw.startsWith("十")) {
+    return 10 + (map[raw.slice(1)] ?? 0);
+  }
+  if (raw.endsWith("十")) {
+    return (map[raw.slice(0, -1)] ?? 0) * 10;
+  }
+
+  return fallback;
+}
+
+function cleanImportedChapterTitle(title: string, number: number): string {
+  const withoutPrefix = title
+    .replace(/^#{1,3}\s*/, "")
+    .replace(/^第\s*[0-9零一二三四五六七八九十百千两]+\s*章[：:\s-]*/i, "")
+    .replace(/^Chapter\s+\d+[：:\s-]*/i, "")
+    .trim();
+
+  return withoutPrefix || `第 ${number} 章`;
+}
+
+export function splitImportedNovelChapters(content: string): NovelImportedChapter[] {
+  const normalized = content.replace(/\r\n/g, "\n").trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const lines = normalized.split("\n");
+  const sections: Array<{ title: string; lines: string[] }> = [];
+  let current: { title: string; lines: string[] } | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed && IMPORTED_CHAPTER_HEADER_PATTERN.test(trimmed)) {
+      if (current && current.lines.join("\n").trim()) {
+        sections.push(current);
+      }
+      current = { title: trimmed, lines: [] };
+      continue;
+    }
+
+    if (!current) {
+      current = { title: "第 1 章", lines: [] };
+    }
+    current.lines.push(line);
+  }
+
+  if (current && current.lines.join("\n").trim()) {
+    sections.push(current);
+  }
+
+  const source =
+    sections.length > 0
+      ? sections
+      : [{ title: "第 1 章", lines: lines.filter((line) => line.trim()) }];
+
+  return source.map((section, index) => {
+    const number = parseImportedChapterNumber(section.title, index + 1);
+    const chapterContent = section.lines.join("\n").trim();
+    const title = cleanImportedChapterTitle(section.title, number);
+
+    return {
+      number,
+      title,
+      content: chapterContent,
+      summary: buildFallbackNovelChapterSummary(chapterContent),
+      wordCount: countNovelWords(chapterContent),
+    };
+  });
+}
+
+export function extractImportedNovelAssetHints(
+  content: string,
+): NovelImportAssetHints {
+  const characters = new Set<string>();
+  const foreshadowing = new Set<string>();
+  const worldIncrements = new Set<string>();
+
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length < 4) {
+      continue;
+    }
+
+    if (/^(角色|人物|主角|配角|姓名)[:：]/.test(trimmed)) {
+      characters.add(trimmed.replace(/^[^:：]+[:：]\s*/, "").slice(0, 120));
+    }
+
+    if (/^(世界|设定|背景|地点|势力|组织)[:：]/.test(trimmed)) {
+      worldIncrements.add(trimmed.replace(/^[^:：]+[:：]\s*/, "").slice(0, 160));
+    }
+
+    if (/伏笔|悬念|钩子|埋线|未解|谜/.test(trimmed)) {
+      foreshadowing.add(trimmed.slice(0, 160));
+    }
+
+    const nameMatch = trimmed.match(/^([\u4e00-\u9fa5]{2,4})(?:[，,：:]|是|在|说|看)/);
+    if (nameMatch?.[1]) {
+      characters.add(nameMatch[1]);
+    }
+  }
+
+  return {
+    characters: [...characters].slice(0, 12),
+    foreshadowing: [...foreshadowing].slice(0, 10),
+    worldIncrements: [...worldIncrements].slice(0, 10),
+  };
+}
+
+function applyImportedAssetHintsToAssets(
+  assets: NovelProjectAssets,
+  hints: NovelImportAssetHints,
+  sourceLabel: string,
+): NovelProjectAssets {
+  const now = new Date().toISOString();
+  let nextAssets = { ...assets };
+
+  hints.characters.forEach((item, index) => {
+    nextAssets = {
+      ...nextAssets,
+      knowledgeAssets: upsertNovelKnowledgeAsset(nextAssets.knowledgeAssets ?? [], {
+        category: "character",
+        title: `导入角色·${item.slice(0, 18) || index + 1}`,
+        content: `${sourceLabel}：${item}`,
+        status: "active",
+        tags: ["导入", "角色"],
+        updatedAt: now,
+      }),
+    };
+  });
+
+  hints.foreshadowing.forEach((item, index) => {
+    nextAssets = {
+      ...nextAssets,
+      knowledgeAssets: upsertNovelKnowledgeAsset(nextAssets.knowledgeAssets ?? [], {
+        category: "foreshadowing",
+        title: `导入伏笔·${item.slice(0, 18) || index + 1}`,
+        content: `${sourceLabel}：${item}`,
+        status: "draft",
+        tags: ["导入", "伏笔"],
+        updatedAt: now,
+      }),
+    };
+  });
+
+  hints.worldIncrements.forEach((item, index) => {
+    nextAssets = {
+      ...nextAssets,
+      knowledgeAssets: upsertNovelKnowledgeAsset(nextAssets.knowledgeAssets ?? [], {
+        category: "world",
+        title: `导入设定·${item.slice(0, 18) || index + 1}`,
+        content: `${sourceLabel}：${item}`,
+        status: "active",
+        tags: ["导入", "世界观"],
+        updatedAt: now,
+      }),
+    };
+  });
+
+  if (hints.worldIncrements.length > 0) {
+    nextAssets.worldNotes = mergeNovelLongText(
+      nextAssets.worldNotes,
+      hints.worldIncrements.map((item) => `${sourceLabel}：${item}`),
+      "导入世界观",
+    );
+  }
+
+  if (hints.characters.length > 0) {
+    nextAssets.characters = mergeNovelLongText(
+      nextAssets.characters,
+      hints.characters.map((item) => `${sourceLabel}：${item}`),
+      "导入角色",
+    );
+  }
+
+  return nextAssets;
+}
+
+export function processImportedNovelMaterial(input: {
+  title: string;
+  content: string;
+  type: NovelImportedMaterial["type"];
+  project: InkosNovelProject;
+  assets: NovelProjectAssets;
+}): {
+  material: NovelImportedMaterial;
+  chapters: NovelImportedChapter[];
+  assets: NovelProjectAssets;
+  project: InkosNovelProject;
+  extractedAssetCount: number;
+} {
+  const trimmedContent = input.content.trim();
+  const materialId = `import-${Date.now()}`;
+  const sourceLabel = input.title.trim() || `${input.project.title} 导入素材`;
+  let nextAssets = { ...input.assets };
+  let nextProject = { ...input.project };
+  let chapters: NovelImportedChapter[] = [];
+  let extractedAssetCount = 0;
+
+  if (input.type === "chapters") {
+    chapters = splitImportedNovelChapters(trimmedContent);
+    const hints = extractImportedNovelAssetHints(trimmedContent);
+    extractedAssetCount =
+      hints.characters.length + hints.foreshadowing.length + hints.worldIncrements.length;
+    nextAssets = applyImportedAssetHintsToAssets(nextAssets, hints, sourceLabel);
+    nextAssets.outline = chapters
+      .map(
+        (chapter) =>
+          `${chapter.number}. ${chapter.title}：${chapter.summary || "导入章节"}`,
+      )
+      .join("\n");
+    nextAssets.outlineNodes = chapters.map((chapter) => ({
+      id: `outline-${chapter.number}`,
+      volume: `第 ${Math.max(1, Math.ceil(chapter.number / 20))} 卷`,
+      chapterNumber: chapter.number,
+      title: chapter.title,
+      goal: chapter.summary || "导入章节，等待补充计划。",
+      conflict: "",
+      characters: hints.characters.slice(0, 3).join("、"),
+      information: chapter.summary || "",
+      foreshadowing: hints.foreshadowing.slice(0, 2).join("；"),
+      targetWords: input.project.chapterWordCount ?? 3000,
+      status: "approved" as const,
+      updatedAt: new Date().toISOString(),
+    }));
+    nextProject = syncNovelProjectFromOutlineNodes(
+      { ...nextProject, currentStage: "chapter-plan" },
+      nextAssets.outlineNodes,
+    );
+  } else if (input.type === "canon") {
+    nextAssets.worldNotes = mergeNovelLongText(
+      nextAssets.worldNotes,
+      [trimmedContent],
+      sourceLabel,
+    );
+    const hints = extractImportedNovelAssetHints(trimmedContent);
+    extractedAssetCount =
+      hints.characters.length + hints.foreshadowing.length + hints.worldIncrements.length;
+    nextAssets = applyImportedAssetHintsToAssets(nextAssets, hints, sourceLabel);
+  } else {
+    nextAssets.settings = mergeNovelLongText(
+      nextAssets.settings,
+      [trimmedContent],
+      sourceLabel,
+    );
+    const hints = extractImportedNovelAssetHints(trimmedContent);
+    extractedAssetCount =
+      hints.characters.length + hints.foreshadowing.length + hints.worldIncrements.length;
+    nextAssets = applyImportedAssetHintsToAssets(nextAssets, hints, sourceLabel);
+  }
+
+  const material: NovelImportedMaterial = {
+    id: materialId,
+    title: sourceLabel,
+    type: input.type,
+    content: trimmedContent,
+    createdAt: new Date().toISOString(),
+    parsedChapterCount: chapters.length,
+    extractedAssetCount,
+    status: "processed",
+  };
+
+  return {
+    material,
+    chapters,
+    assets: {
+      ...nextAssets,
+      importedMaterials: [material, ...nextAssets.importedMaterials],
+    },
+    project: nextProject,
+    extractedAssetCount,
+  };
+}
+
+export function analyzeNovelStyleSample(content: string): NovelStyleAnalysis {
+  const normalized = content.replace(/\r\n/g, "\n").trim();
+  const sentences = normalized
+    .split(/[。！？!?…]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const averageSentenceLength =
+    sentences.length > 0
+      ? Math.round(
+          sentences.reduce((sum, sentence) => sum + sentence.length, 0) /
+            sentences.length,
+        )
+      : 0;
+  const compactText = normalized.replace(/\s/g, "");
+  const uniqueChars = new Set(compactText).size;
+  const vocabularyDiversity =
+    compactText.length > 0
+      ? Math.min(98, Math.round((uniqueChars / compactText.length) * 100))
+      : 0;
+  const paragraphs = normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const paragraphDensity: NovelStyleAnalysis["paragraphDensity"] =
+    paragraphs.length <= 3 ? "低" : paragraphs.length <= 8 ? "中" : "高";
+  const coldWords = (normalized.match(/冷|雨|暗|静|沉默|阴影|压迫/g) ?? []).length;
+  const warmWords = (normalized.match(/暖|笑|光|热|喜|明亮/g) ?? []).length;
+  const emotionalTone =
+    coldWords > warmWords * 1.5
+      ? "克制冷调"
+      : warmWords > coldWords * 1.5
+        ? "偏暖情绪"
+        : "平衡克制";
+
+  const tags: string[] = [];
+  if (averageSentenceLength <= 15) tags.push("短句");
+  if (averageSentenceLength >= 28) tags.push("长句");
+  if (/悬疑|谜|裂缝|档案|阴影|追踪|案件/.test(normalized)) tags.push("悬疑钩子");
+  if (/雨|街|城|灯|楼|巷|窗/.test(normalized)) tags.push("现实细节");
+  if (coldWords >= 2) tags.push("冷色调");
+  if (/内心|心里|压迫|沉默|克制/.test(normalized)) tags.push("人物内压");
+
+  const styleConstraints = [
+    averageSentenceLength <= 15
+      ? "优先使用短句，避免冗长解释。"
+      : averageSentenceLength >= 28
+        ? "允许稍长句，但需保持信息密度。"
+        : "句长适中，注意节奏起伏。",
+    tags.includes("悬疑钩子") ? "每段保留疑问或信息缺口。" : "",
+    tags.includes("冷色调") ? "减少直白情绪词，用环境细节承载情绪。" : "",
+    tags.includes("人物内压") ? "人物心理以动作和细节外化，不要直接说明情绪。" : "",
+    `词汇多样性 ${vocabularyDiversity}%，段落密度${paragraphDensity}。`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    averageSentenceLength,
+    vocabularyDiversity,
+    paragraphDensity,
+    emotionalTone,
+    tags,
+    styleConstraints,
+    analyzedAt: new Date().toISOString(),
+  };
+}
+
+export function applyNovelStyleAnalysisToAssets(
+  assets: NovelProjectAssets,
+  sampleId: string,
+  analysis: NovelStyleAnalysis,
+): NovelProjectAssets {
+  const styleSamples = assets.styleSamples.map((sample) =>
+    sample.id === sampleId ? { ...sample, analysis } : sample,
+  );
+
+  return {
+    ...assets,
+    styleSamples,
+    contextSelection: {
+      ...assets.contextSelection,
+      styleConstraints: analysis.styleConstraints,
+    },
+  };
+}
+
+export function analyzeNovelGenreProfile(
+  genre: NovelGenreProfile,
+  project: Pick<InkosNovelProject, "title" | "premise" | "genre">,
+): NovelGenreAnalysis {
+  const fatigueWords = genre.fatigueWords
+    .split(/[,，、/|]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const premiseSnippet = project.premise.trim().slice(0, 80);
+
+  return {
+    summary: [
+      `${genre.name} 题材适合 ${genre.chapterTypes || "强钩子开篇、线索推进、反转揭露"}。`,
+      premiseSnippet
+        ? `与《${project.title}》的核心设定「${premiseSnippet}」方向一致。`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(""),
+    audienceHook: genre.chapterTypes || "开局钩子, 线索推进, 情绪反转",
+    conflictPattern: premiseSnippet.includes("冲突")
+      ? "围绕核心冲突持续加压，并在章节尾部制造新变量。"
+      : "主角目标 vs 环境阻力，章节内至少一次决策或代价。",
+    riskPoints: fatigueWords.map((word) => `避免过度使用「${word}」`),
+    recommendedPacing:
+      genre.pacingRule || "每 1800-2500 字出现一次信息增量或冲突升级。",
+    analyzedAt: new Date().toISOString(),
+  };
+}
+
+export function applyNovelGenreAnalysisToAssets(
+  assets: NovelProjectAssets,
+  genreId: string,
+  analysis: NovelGenreAnalysis,
+): NovelProjectAssets {
+  const now = new Date().toISOString();
+  const targetGenre =
+    assets.genres.find((genre) => genre.id === genreId) ?? assets.genres[0];
+  let nextAssets: NovelProjectAssets = {
+    ...assets,
+    genres: assets.genres.map((genre) =>
+      genre.id === genreId ? { ...genre, analysis } : genre,
+    ),
+    contextSelection: {
+      ...assets.contextSelection,
+      pacing: analysis.recommendedPacing,
+      bannedWords: targetGenre?.fatigueWords ?? assets.contextSelection.bannedWords,
+    },
+    settings: mergeNovelLongText(
+      assets.settings,
+      [
+        `题材分析：${analysis.summary}`,
+        `受众钩子：${analysis.audienceHook}`,
+        `冲突模式：${analysis.conflictPattern}`,
+      ],
+      "题材分析",
+    ),
+  };
+
+  nextAssets = {
+    ...nextAssets,
+    knowledgeAssets: upsertNovelKnowledgeAsset(nextAssets.knowledgeAssets ?? [], {
+      category: "term",
+      title: `${targetGenre?.name ?? "项目题材"} · 题材策略`,
+      content: [
+        analysis.summary,
+        `受众钩子：${analysis.audienceHook}`,
+        `冲突模式：${analysis.conflictPattern}`,
+        analysis.riskPoints.length > 0
+          ? `风险词：${analysis.riskPoints.join("；")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      status: "active",
+      tags: ["题材", "策略"],
+      updatedAt: now,
+    }),
+  };
+
+  return nextAssets;
+}
+
+export function buildNovelProjectStrategyFromRadars(
+  radars: NovelProjectAssets["marketRadars"],
+  project: Pick<InkosNovelProject, "title" | "genre">,
+): NovelProjectStrategy {
+  const latest = radars.slice(0, 6);
+
+  return {
+    summary:
+      latest.length > 0
+        ? latest
+            .map(
+              (item) =>
+                `${item.platform}/${item.genre}：${item.concept.split("\n")[0]?.trim() || item.concept}`,
+            )
+            .join("；")
+        : `《${project.title}》暂无市场扫描结果，建议先运行市场雷达。`,
+    platformHints: latest.map(
+      (item) => `${item.platform} · ${item.score} · ${item.genre}`,
+    ),
+    riskAlerts: latest
+      .filter((item) => {
+        const score = Number.parseInt(item.score, 10);
+        return Number.isFinite(score) && score < 65;
+      })
+      .map((item) => item.concept.split("\n")[0]?.trim() || item.concept),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function applyNovelMarketRadarToAssets(
+  assets: NovelProjectAssets,
+  radars: NovelProjectAssets["marketRadars"],
+  project: Pick<InkosNovelProject, "title" | "genre">,
+): NovelProjectAssets {
+  const strategy = buildNovelProjectStrategyFromRadars(radars, project);
+  const now = new Date().toISOString();
+
+  return {
+    ...assets,
+    marketRadars: radars,
+    projectStrategy: strategy,
+    settings: mergeNovelLongText(
+      assets.settings,
+      [
+        `市场策略摘要：${strategy.summary}`,
+        strategy.platformHints.length > 0
+          ? `平台提示：${strategy.platformHints.join(" / ")}`
+          : "",
+        strategy.riskAlerts.length > 0
+          ? `风险提示：${strategy.riskAlerts.join("；")}`
+          : "",
+      ].filter(Boolean),
+      "市场雷达",
+    ),
+    knowledgeAssets: upsertNovelKnowledgeAsset(assets.knowledgeAssets ?? [], {
+      category: "term",
+      title: "市场策略",
+      content: [
+        strategy.summary,
+        strategy.platformHints.length > 0
+          ? `平台提示：${strategy.platformHints.join("\n")}`
+          : "",
+        strategy.riskAlerts.length > 0
+          ? `风险提示：${strategy.riskAlerts.join("\n")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+      status: "active",
+      tags: ["市场雷达", "策略"],
+      updatedAt: now,
+    }),
+  };
+}
+
+export function buildNovelLocalEnvironmentDiagnostics(input: {
+  project: InkosNovelProject;
+  assets: NovelProjectAssets;
+  chapters: StoredNovelChapter[];
+}): NovelProjectAssets["diagnostics"] {
+  const now = new Date().toISOString();
+  const plannedChapters = input.project.chapters.length;
+  const plannedWithFocus = input.project.chapters.filter(
+    (chapter) =>
+      chapter.focus.trim() &&
+      chapter.focus !== "等待补充章节计划。" &&
+      !chapter.focus.startsWith("导入章节"),
+  ).length;
+  const openReviewIssues = input.chapters.flatMap((chapter) =>
+    (chapter.reviews ?? []).flatMap((review) =>
+      review.issues.filter((issue) => !issue.resolved),
+    ),
+  ).length;
+  const foreshadowingAssets = (input.assets.knowledgeAssets ?? []).filter(
+    (asset) => asset.category === "foreshadowing" && asset.status !== "resolved",
+  );
+  const staleForeshadowing = foreshadowingAssets.filter(
+    (asset) =>
+      !asset.tags.includes("回收伏笔") &&
+      !asset.content.includes("回收") &&
+      asset.status === "draft",
+  ).length;
+  const hasWorldAsset = Boolean(
+    input.assets.worldNotes?.trim() ||
+      input.assets.knowledgeAssets.some((asset) => asset.category === "world"),
+  );
+  const hasCharacterAsset = Boolean(
+    input.assets.characters?.trim() ||
+      input.assets.knowledgeAssets.some((asset) => asset.category === "character"),
+  );
+
+  const checks = [
+    {
+      label: "世界观资产",
+      ok: hasWorldAsset,
+      detail: hasWorldAsset
+        ? "已检测到世界观文本或设定资产。"
+        : "缺少世界观资产，建议先补充 worldNotes 或设定资产。",
+    },
+    {
+      label: "角色资产",
+      ok: hasCharacterAsset,
+      detail: hasCharacterAsset
+        ? "已检测到角色文本或角色资产。"
+        : "缺少角色资产，写作时容易出现人物前后不一致。",
+    },
+    {
+      label: "章节计划完整性",
+      ok: plannedChapters > 0 && plannedWithFocus / plannedChapters >= 0.6,
+      detail:
+        plannedChapters > 0
+          ? `${plannedWithFocus}/${plannedChapters} 章具备有效计划。`
+          : "尚未建立章节计划。",
+    },
+    {
+      label: "审稿遗留问题",
+      ok: openReviewIssues <= 5,
+      detail:
+        openReviewIssues > 0
+          ? `当前有 ${openReviewIssues} 个未解决审稿问题${openReviewIssues > 5 ? "，建议优先修订" : ""}。`
+          : "暂无未解决审稿问题。",
+    },
+    {
+      label: "伏笔回收风险",
+      ok: staleForeshadowing <= 3,
+      detail:
+        foreshadowingAssets.length > 0
+          ? `${foreshadowingAssets.length} 条活跃伏笔，其中 ${staleForeshadowing} 条仍停留在草稿/未回收状态。`
+          : "暂无活跃伏笔资产。",
+    },
+    {
+      label: "市场策略",
+      ok: Boolean(input.assets.projectStrategy?.summary?.trim()),
+      detail: input.assets.projectStrategy?.summary
+        ? "已存在市场策略摘要，可继续用雷达更新。"
+        : "尚未生成市场策略，建议运行市场雷达。",
+    },
+  ];
+
+  return checks.map((check, index) => ({
+    id: `local-diagnostic-${Date.now()}-${index}`,
+    label: check.label,
+    ok: check.ok,
+    detail: check.detail,
+    createdAt: now,
+  }));
+}
+
+export function mergeNovelDiagnostics(
+  incoming: NovelProjectAssets["diagnostics"],
+  existing: NovelProjectAssets["diagnostics"] = [],
+  limit = 24,
+): NovelProjectAssets["diagnostics"] {
+  const seen = new Set<string>();
+  const merged: NovelProjectAssets["diagnostics"] = [];
+
+  for (const item of [...incoming, ...existing]) {
+    const key = `${item.label}:${item.detail}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(item);
+    if (merged.length >= limit) {
+      break;
+    }
+  }
+
+  return merged;
+}
+
 export function buildNovelBookExportMarkdown(input: {
   title: string;
   genre?: string;
@@ -940,6 +1973,159 @@ export function buildNovelVolumeExportBundle(input: {
   }));
 }
 
+export function buildNovelPublishValidationReport(input: {
+  title: string;
+  platform: "generic" | "qidian" | "fanqie";
+  chapters: StoredNovelChapter[];
+  project?: Pick<InkosNovelProject, "premise" | "genre">;
+}): NovelPublishValidationReport {
+  const issues: NovelPublishValidationIssue[] = [];
+  const chapters = sortStoredNovelChapters(input.chapters).filter((chapter) =>
+    chapter.content.trim().length > 0,
+  );
+  const minWords =
+    input.platform === "fanqie" ? 800 : input.platform === "qidian" ? 1500 : 500;
+  const maxTitleLength = input.platform === "fanqie" ? 30 : 40;
+
+  if (!input.title.trim()) {
+    issues.push({
+      id: "missing-title",
+      severity: "error",
+      code: "missing-title",
+      title: "缺少书名",
+      detail: "导出前请先设置书籍标题。",
+    });
+  }
+
+  if (!input.project?.premise?.trim()) {
+    issues.push({
+      id: "missing-premise",
+      severity: "warning",
+      code: "missing-premise",
+      title: "缺少作品简介",
+      detail: "建议在书籍设定中补充简介，便于平台发布。",
+    });
+  }
+
+  if (chapters.length === 0) {
+    issues.push({
+      id: "no-chapters",
+      severity: "error",
+      code: "no-chapters",
+      title: "没有可发布章节",
+      detail: "至少需要一章带正文的章节才能导出或发布。",
+    });
+  }
+
+  chapters.forEach((chapter) => {
+    if (!chapter.title.trim()) {
+      issues.push({
+        id: `chapter-title-${chapter.number}`,
+        severity: "error",
+        chapterNumber: chapter.number,
+        code: "missing-chapter-title",
+        title: `第 ${chapter.number} 章缺少标题`,
+        detail: "章节标题不能为空。",
+      });
+    }
+
+    if (chapter.title.trim().length > maxTitleLength) {
+      issues.push({
+        id: `chapter-title-length-${chapter.number}`,
+        severity: "warning",
+        chapterNumber: chapter.number,
+        code: "chapter-title-too-long",
+        title: `第 ${chapter.number} 章标题偏长`,
+        detail: `当前 ${chapter.title.trim().length} 字，${input.platform === "fanqie" ? "番茄" : "平台"}建议不超过 ${maxTitleLength} 字。`,
+      });
+    }
+
+    if (chapter.wordCount < minWords) {
+      issues.push({
+        id: `chapter-words-${chapter.number}`,
+        severity: input.platform === "generic" ? "info" : "warning",
+        chapterNumber: chapter.number,
+        code: "chapter-too-short",
+        title: `第 ${chapter.number} 章字数偏少`,
+        detail: `当前 ${chapter.wordCount} 字，建议至少 ${minWords} 字。`,
+      });
+    }
+
+    if (chapter.status !== "approved") {
+      issues.push({
+        id: `chapter-status-${chapter.number}`,
+        severity: "warning",
+        chapterNumber: chapter.number,
+        code: "chapter-not-approved",
+        title: `第 ${chapter.number} 章尚未定稿`,
+        detail: `当前状态：${chapter.status}，发布前建议先完成审稿并定稿。`,
+      });
+    }
+
+    const unresolvedIssues = countUnresolvedNovelReviewIssues(chapter);
+    if (unresolvedIssues > 0) {
+      issues.push({
+        id: `chapter-review-${chapter.number}`,
+        severity: "error",
+        chapterNumber: chapter.number,
+        code: "unresolved-review-issues",
+        title: `第 ${chapter.number} 章仍有未解决审稿问题`,
+        detail: `还有 ${unresolvedIssues} 条未解决审稿问题，建议先修订后再发布。`,
+      });
+    }
+
+    if (
+      (chapter.publicationStatus ?? "draft") === "draft" &&
+      input.platform !== "generic"
+    ) {
+      issues.push({
+        id: `chapter-publish-status-${chapter.number}`,
+        severity: "info",
+        chapterNumber: chapter.number,
+        code: "chapter-not-marked-ready",
+        title: `第 ${chapter.number} 章尚未标记待发布`,
+        detail: "可在章节编辑器中将发布状态设为「待发布」或「已发布」。",
+      });
+    }
+  });
+
+  const errorCount = issues.filter((issue) => issue.severity === "error").length;
+  const warningCount = issues.filter((issue) => issue.severity === "warning").length;
+  const platformLabel =
+    input.platform === "qidian"
+      ? "起点"
+      : input.platform === "fanqie"
+        ? "番茄"
+        : "通用";
+  const summary =
+    errorCount > 0
+      ? `${platformLabel}发布校验未通过：${errorCount} 个错误，${warningCount} 个警告。`
+      : warningCount > 0
+        ? `${platformLabel}发布校验通过，但有 ${warningCount} 个警告。`
+        : `${platformLabel}发布校验通过，共 ${chapters.length} 章可发布。`;
+
+  return {
+    platform: input.platform,
+    canPublish: errorCount === 0,
+    errorCount,
+    warningCount,
+    issues,
+    summary,
+  };
+}
+
+function countUnresolvedNovelReviewIssues(chapter: StoredNovelChapter): number {
+  const review =
+    chapter.reviews?.find((item) => item.id === chapter.activeReviewId) ??
+    chapter.reviews?.[0];
+
+  if (!review) {
+    return 0;
+  }
+
+  return review.issues.filter((issue) => !issue.resolved).length;
+}
+
 export function buildNovelPlatformExportText(input: {
   title: string;
   platform: "generic" | "qidian" | "fanqie";
@@ -969,6 +2155,124 @@ export function buildNovelPlatformExportText(input: {
       ].join("\n"),
     ),
   ].join("\n\n");
+}
+
+export function appendNovelPublicationEvent(
+  assets: NovelProjectAssets,
+  event: Omit<NovelPublicationEvent, "id" | "createdAt"> & {
+    id?: string;
+    createdAt?: string;
+  },
+): NovelProjectAssets {
+  const entry: NovelPublicationEvent = {
+    id: event.id ?? `pub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: event.createdAt ?? new Date().toISOString(),
+    ...event,
+  };
+
+  return {
+    ...assets,
+    publicationEvents: [entry, ...(assets.publicationEvents ?? [])].slice(0, 100),
+  };
+}
+
+export function buildNovelPublicationTimeline(
+  assets: Pick<NovelProjectAssets, "publicationEvents">,
+  chapters: StoredNovelChapter[],
+): Array<{
+  id: string;
+  label: string;
+  detail: string;
+  createdAt: string;
+}> {
+  const chapterEvents = sortStoredNovelChapters(chapters)
+    .filter((chapter) => chapter.publishedAt)
+    .map((chapter) => ({
+      id: `chapter-published-${chapter.id}`,
+      label: `第 ${chapter.number} 章《${chapter.title}》已发布`,
+      detail: chapter.publishedAt ?? "",
+      createdAt: chapter.publishedAt ?? chapter.updatedAt,
+    }));
+  const assetEvents = (assets.publicationEvents ?? []).map((event) => ({
+    id: event.id,
+    label:
+      event.action === "exported"
+        ? `导出${event.platform ? ` · ${event.platform}` : ""}`
+        : event.action === "marked-ready"
+          ? `标记待发布${event.chapterNumber ? ` · 第 ${event.chapterNumber} 章` : ""}`
+          : `标记已发布${event.chapterNumber ? ` · 第 ${event.chapterNumber} 章` : ""}`,
+    detail: event.note ?? event.chapterTitle ?? "",
+    createdAt: event.createdAt,
+  }));
+
+  return [...assetEvents, ...chapterEvents].sort(
+    (left, right) =>
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
+}
+
+export function buildNovelPublicationTimelineMarkdown(input: {
+  title: string;
+  assets: Pick<NovelProjectAssets, "publicationEvents">;
+  chapters: StoredNovelChapter[];
+}): string {
+  const timeline = buildNovelPublicationTimeline(input.assets, input.chapters);
+
+  return [
+    `# ${input.title} 发布记录`,
+    "",
+    `导出时间：${new Date().toISOString()}`,
+    `记录数：${timeline.length}`,
+    "",
+    ...timeline.map(
+      (entry) =>
+        `- ${entry.createdAt} · ${entry.label}${entry.detail ? `（${entry.detail}）` : ""}`,
+    ),
+  ].join("\n");
+}
+
+export function buildNovelDocxDocumentModel(input: {
+  title: string;
+  genre?: string;
+  premise?: string;
+  chapters: StoredNovelChapter[];
+}): NovelDocxParagraph[] {
+  const chapters = sortStoredNovelChapters(input.chapters).filter((chapter) =>
+    chapter.content.trim().length > 0,
+  );
+  const paragraphs: NovelDocxParagraph[] = [
+    { style: "title", text: input.title.trim() || "未命名作品" },
+  ];
+
+  if (input.genre?.trim()) {
+    paragraphs.push({ style: "subtitle", text: `题材：${input.genre.trim()}` });
+  }
+
+  if (input.premise?.trim()) {
+    paragraphs.push({ style: "subtitle", text: input.premise.trim() });
+  }
+
+  chapters.forEach((chapter) => {
+    paragraphs.push({
+      style: "chapter-heading",
+      text: `第 ${chapter.number} 章 ${chapter.title}`,
+    });
+
+    if (chapter.summary.trim()) {
+      paragraphs.push({ style: "subtitle", text: chapter.summary.trim() });
+    }
+
+    chapter.content
+      .replace(/\r\n/g, "\n")
+      .split(/\n{2,}/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean)
+      .forEach((paragraph) => {
+        paragraphs.push({ style: "body", text: paragraph.replace(/\n/g, " ") });
+      });
+  });
+
+  return paragraphs;
 }
 
 export function buildNovelCreationLogExportMarkdown(input: {
@@ -1347,6 +2651,9 @@ export function buildDefaultNovelContextSelection(
     viewpoint: "第三人称有限视角",
     pacing: "每章至少推进一个冲突或信息增量。",
     highlights: "",
+    bannedWords: "",
+    styleConstraints: "",
+    thrillPoints: "",
   };
 }
 
@@ -1400,6 +2707,360 @@ export function syncNovelProjectFromOutlineNodes(
     chapters,
     currentStage: "chapter-plan",
   };
+}
+
+export type NovelOutlineVolumeGroup = {
+  volume: string;
+  nodes: NovelOutlineNode[];
+};
+
+export type NovelOutlineSyncDriftReport = {
+  hasDrift: boolean;
+  outlineCount: number;
+  projectChapterCount: number;
+  missingInOutline: number[];
+  missingInProject: number[];
+  statusMismatches: Array<{
+    chapterNumber: number;
+    outlineStatus: InkosChapterStatus;
+    projectStatus: InkosChapterStatus;
+  }>;
+  message: string;
+};
+
+export function groupNovelOutlineNodesByVolume(
+  outlineNodes: NovelOutlineNode[],
+): NovelOutlineVolumeGroup[] {
+  const sorted = [...outlineNodes].sort(
+    (left, right) => left.chapterNumber - right.chapterNumber,
+  );
+  const groups = new Map<string, NovelOutlineNode[]>();
+
+  for (const node of sorted) {
+    const volume = node.volume.trim() || "未分卷";
+    const bucket = groups.get(volume) ?? [];
+    bucket.push(node);
+    groups.set(volume, bucket);
+  }
+
+  return Array.from(groups.entries()).map(([volume, nodes]) => ({
+    volume,
+    nodes,
+  }));
+}
+
+export function renumberNovelOutlineNodes(
+  outlineNodes: NovelOutlineNode[],
+): NovelOutlineNode[] {
+  return renumberNovelOutlineNodesInOrder(
+    [...outlineNodes].sort(
+      (left, right) => left.chapterNumber - right.chapterNumber,
+    ),
+  );
+}
+
+function renumberNovelOutlineNodesInOrder(
+  outlineNodes: NovelOutlineNode[],
+): NovelOutlineNode[] {
+  const now = new Date().toISOString();
+
+  return outlineNodes.map((node, index) => ({
+    ...node,
+    chapterNumber: index + 1,
+    updatedAt: now,
+  }));
+}
+
+export function moveNovelOutlineNode(
+  outlineNodes: NovelOutlineNode[],
+  nodeId: string,
+  direction: "up" | "down",
+): NovelOutlineNode[] {
+  const sorted = [...outlineNodes].sort(
+    (left, right) => left.chapterNumber - right.chapterNumber,
+  );
+  const index = sorted.findIndex((node) => node.id === nodeId);
+
+  if (index < 0) {
+    return outlineNodes;
+  }
+
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+
+  if (targetIndex < 0 || targetIndex >= sorted.length) {
+    return outlineNodes;
+  }
+
+  const next = [...sorted];
+  const current = next[index];
+  const swap = next[targetIndex];
+
+  if (!current || !swap) {
+    return outlineNodes;
+  }
+
+  next[index] = swap;
+  next[targetIndex] = current;
+
+  return renumberNovelOutlineNodesInOrder(next);
+}
+
+export function reorderNovelOutlineNodes(
+  outlineNodes: NovelOutlineNode[],
+  fromIndex: number,
+  toIndex: number,
+): NovelOutlineNode[] {
+  const sorted = [...outlineNodes].sort(
+    (left, right) => left.chapterNumber - right.chapterNumber,
+  );
+
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= sorted.length ||
+    toIndex >= sorted.length ||
+    fromIndex === toIndex
+  ) {
+    return outlineNodes;
+  }
+
+  const next = [...sorted];
+  const [moved] = next.splice(fromIndex, 1);
+
+  if (!moved) {
+    return outlineNodes;
+  }
+
+  next.splice(toIndex, 0, moved);
+  return renumberNovelOutlineNodesInOrder(next);
+}
+
+const OUTLINE_TEXT_CHAPTER_PATTERN =
+  /^(?:#{1,3}\s*)?(?:第\s*(\d+)\s*章|chapter\s*(\d+)|(\d+)[.、:：)]\s*)(.*)$/i;
+
+const OUTLINE_TEXT_VOLUME_PATTERN =
+  /^(?:#{1,3}\s*)?(?:第\s*([^\s卷]+)\s*卷|volume\s*([^\s]+))(.*)$/i;
+
+export function buildNovelOutlineNodesFromOutlineText(
+  text: string,
+  options?: {
+    startChapter?: number;
+    defaultTargetWords?: number;
+    defaultVolume?: string;
+  },
+): NovelOutlineNode[] {
+  const now = new Date().toISOString();
+  const defaultTargetWords = options?.defaultTargetWords ?? 3000;
+  let currentVolume = options?.defaultVolume ?? "第一卷";
+  let chapterNumber = options?.startChapter ?? 1;
+  const nodes: NovelOutlineNode[] = [];
+
+  for (const rawLine of text.replace(/\r\n/g, "\n").split("\n")) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      continue;
+    }
+
+    const volumeMatch = line.match(OUTLINE_TEXT_VOLUME_PATTERN);
+
+    if (volumeMatch) {
+      const volumeLabel = volumeMatch[1] ?? volumeMatch[2] ?? "一";
+      currentVolume = `第 ${volumeLabel} 卷`;
+      continue;
+    }
+
+    const chapterMatch = line.match(OUTLINE_TEXT_CHAPTER_PATTERN);
+
+    if (!chapterMatch) {
+      continue;
+    }
+
+    const parsedNumber = Number(
+      chapterMatch[1] ?? chapterMatch[2] ?? chapterMatch[3],
+    );
+    const remainder = (chapterMatch[4] ?? "").trim();
+    const [titlePart, ...goalParts] = remainder.split(/[:：]/);
+    const title = titlePart?.trim() || `第 ${parsedNumber || chapterNumber} 章`;
+    const goal = goalParts.join("：").trim();
+
+    nodes.push({
+      id: `outline-import-${Date.now()}-${chapterNumber}`,
+      volume: currentVolume,
+      chapterNumber: Number.isFinite(parsedNumber) ? parsedNumber : chapterNumber,
+      title,
+      goal: goal || "推进主线并制造新的悬念。",
+      conflict: "",
+      characters: "",
+      information: goal || "",
+      foreshadowing: "",
+      targetWords: defaultTargetWords,
+      status: "planned",
+      updatedAt: now,
+    });
+    chapterNumber = Number.isFinite(parsedNumber) ? parsedNumber + 1 : chapterNumber + 1;
+  }
+
+  return renumberNovelOutlineNodes(nodes);
+}
+
+export function syncNovelOutlineNodesFromChapters(
+  outlineNodes: NovelOutlineNode[],
+  chapters: StoredNovelChapter[],
+  project: Pick<InkosNovelProject, "chapterWordCount">,
+): NovelOutlineNode[] {
+  const now = new Date().toISOString();
+  const chapterByNumber = new Map(
+    sortStoredNovelChapters(chapters).map((chapter) => [chapter.number, chapter]),
+  );
+  const existingNumbers = new Set(outlineNodes.map((node) => node.chapterNumber));
+  const synced = outlineNodes.map((node) => {
+    const chapter = chapterByNumber.get(node.chapterNumber);
+
+    if (!chapter) {
+      return node;
+    }
+
+    return {
+      ...node,
+      title: chapter.title || node.title,
+      status: chapter.status,
+      updatedAt: now,
+    };
+  });
+
+  const appended = sortStoredNovelChapters(chapters)
+    .filter((chapter) => !existingNumbers.has(chapter.number))
+    .map((chapter) => ({
+      id: `outline-${chapter.id}`,
+      volume: `第 ${Math.max(1, Math.ceil(chapter.number / 20))} 卷`,
+      chapterNumber: chapter.number,
+      title: chapter.title || `第 ${chapter.number} 章`,
+      goal: chapter.summary || "推进主线。",
+      conflict: "",
+      characters: "",
+      information: chapter.summary || "",
+      foreshadowing: "",
+      targetWords: project.chapterWordCount ?? 3000,
+      status: chapter.status,
+      updatedAt: now,
+    }));
+
+  return renumberNovelOutlineNodes([...synced, ...appended]);
+}
+
+export function buildNovelOutlineSyncDriftReport(
+  project: Pick<InkosNovelProject, "chapters">,
+  outlineNodes: NovelOutlineNode[],
+): NovelOutlineSyncDriftReport {
+  const outlineByNumber = new Map(
+    outlineNodes.map((node) => [node.chapterNumber, node]),
+  );
+  const projectChapters = [...(project.chapters ?? [])].sort(
+    (left, right) => left.number - right.number,
+  );
+  const projectNumbers = new Set(projectChapters.map((chapter) => chapter.number));
+  const outlineNumbers = new Set(outlineNodes.map((node) => node.chapterNumber));
+  const missingInOutline = projectChapters
+    .map((chapter) => chapter.number)
+    .filter((number) => !outlineNumbers.has(number));
+  const missingInProject = [...outlineNumbers]
+    .filter((number) => !projectNumbers.has(number))
+    .sort((left, right) => left - right);
+  const statusMismatches = projectChapters.flatMap((chapter) => {
+    const node = outlineByNumber.get(chapter.number);
+
+    if (!node || node.status === chapter.status) {
+      return [];
+    }
+
+    return [
+      {
+        chapterNumber: chapter.number,
+        outlineStatus: node.status,
+        projectStatus: chapter.status,
+      },
+    ];
+  });
+  const hasDrift =
+    missingInOutline.length > 0 ||
+    missingInProject.length > 0 ||
+    statusMismatches.length > 0 ||
+    outlineNodes.length !== projectChapters.length;
+  const parts = [
+    hasDrift ? "章节计划与项目 chapters 存在差异。" : "章节计划与项目 chapters 一致。",
+    missingInOutline.length > 0
+      ? `${missingInOutline.length} 章已生成但未在大纲中。`
+      : "",
+    missingInProject.length > 0
+      ? `${missingInProject.length} 章仅存在于大纲。`
+      : "",
+    statusMismatches.length > 0
+      ? `${statusMismatches.length} 章状态不一致。`
+      : "",
+  ].filter(Boolean);
+
+  return {
+    hasDrift,
+    outlineCount: outlineNodes.length,
+    projectChapterCount: projectChapters.length,
+    missingInOutline,
+    missingInProject,
+    statusMismatches,
+    message: parts.join(" "),
+  };
+}
+
+export const NOVEL_FORESHADOWING_STATUS_LABELS: Record<
+  NovelKnowledgeAsset["status"],
+  string
+> = {
+  active: "已埋设",
+  draft: "推进中",
+  resolved: "已回收",
+};
+
+export function buildNovelForeshadowingPoolSummary(
+  assets: Pick<NovelProjectAssets, "knowledgeAssets">,
+): {
+  planted: NovelKnowledgeAsset[];
+  progressing: NovelKnowledgeAsset[];
+  resolved: NovelKnowledgeAsset[];
+  stale: NovelKnowledgeAsset[];
+} {
+  const foreshadowing = (assets.knowledgeAssets ?? []).filter(
+    (asset) => asset.category === "foreshadowing",
+  );
+  const now = Date.now();
+  const staleThresholdMs = 1000 * 60 * 60 * 24 * 30;
+
+  return {
+    planted: foreshadowing.filter((asset) => asset.status === "active"),
+    progressing: foreshadowing.filter((asset) => asset.status === "draft"),
+    resolved: foreshadowing.filter((asset) => asset.status === "resolved"),
+    stale: foreshadowing.filter((asset) => {
+      if (asset.status === "resolved") {
+        return false;
+      }
+
+      const updatedAt = Date.parse(asset.updatedAt);
+
+      return Number.isFinite(updatedAt) && now - updatedAt > staleThresholdMs;
+    }),
+  };
+}
+
+export function filterNovelKnowledgeAssets(
+  assets: Pick<NovelProjectAssets, "knowledgeAssets">,
+  category?: NovelKnowledgeAssetCategory | "all",
+): NovelKnowledgeAsset[] {
+  const items = assets.knowledgeAssets ?? [];
+
+  if (!category || category === "all") {
+    return items;
+  }
+
+  return items.filter((asset) => asset.category === category);
 }
 
 export function buildNovelKnowledgeSummary(
@@ -1629,6 +3290,8 @@ export function normalizeNovelProjectAssets(
     importedMaterials: assets?.importedMaterials ?? [],
     marketRadars: assets?.marketRadars ?? [],
     diagnostics: assets?.diagnostics ?? [],
+    publicationEvents: assets?.publicationEvents ?? [],
+    projectStrategy: assets?.projectStrategy,
   };
 }
 
@@ -2072,14 +3735,22 @@ export function buildNovelWriteChapterInstruction(input: {
     | "settings"
     | "knowledgeAssets"
     | "contextSelection"
+    | "genres"
+    | "styleSamples"
   >;
   chapters: StoredNovelChapter[];
   target: NovelChapterWriteTarget;
   userInstruction?: string;
+  contextSelectionOverride?: NovelContextSelection;
 }): string {
   const selection =
+    input.contextSelectionOverride ??
     input.assets.contextSelection ??
     buildDefaultNovelContextSelection(input.project);
+  const derivedStyleConstraints = buildNovelStyleConstraintsFromAssets(
+    input.assets,
+    input.project,
+  );
   const sortedChapters = sortStoredNovelChapters(input.chapters);
   const previousChapter = [...sortedChapters]
     .reverse()
@@ -2132,6 +3803,17 @@ export function buildNovelWriteChapterInstruction(input: {
     `节奏要求：${selection.pacing || "保持章节冲突推进。"}`,
     selection.highlights?.trim()
       ? `本章高亮要求：${selection.highlights.trim()}`
+      : "",
+    selection.thrillPoints?.trim()
+      ? `读者爽点 / 悬疑点：${selection.thrillPoints.trim()}`
+      : "",
+    selection.bannedWords?.trim()
+      ? `禁用词 / 避免表达：${selection.bannedWords.trim()}`
+      : "",
+    derivedStyleConstraints || selection.styleConstraints?.trim()
+      ? `风格约束：${[derivedStyleConstraints, selection.styleConstraints?.trim()]
+          .filter(Boolean)
+          .join("\n")}`
       : "",
     `章节计划：${input.target.focus}`,
     targetOutlineNode && selection.includeOutline
@@ -2853,6 +4535,7 @@ export async function updateStoredNovelChapter(
       | "reviews"
       | "activeReviewId"
       | "publicationStatus"
+      | "publishedAt"
     >
   >,
   options?: {
@@ -3411,6 +5094,44 @@ export async function pauseStoredNovelTask(
   return finishStoredNovelTask(taskId, "paused", "任务已暂停，可稍后继续。");
 }
 
+export async function pauseStoredNovelTaskWithCheckpoint(
+  taskId: string,
+  checkpoint: StoredNovelTaskCheckpoint,
+): Promise<StoredNovelTask | null> {
+  const db = await openNovelDb();
+
+  try {
+    const task = await getFromStore<StoredNovelTask>(db, TASKS_STORE, taskId);
+    if (!task) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const nextTask: StoredNovelTask = {
+      ...task,
+      status: "paused",
+      endedAt: now,
+      errorMessage: "任务已暂停，可从任务日志继续。",
+      checkpoint: {
+        ...checkpoint,
+        savedAt: checkpoint.savedAt || now,
+      },
+      logs: [
+        ...task.logs,
+        {
+          id: `log-${Date.now()}-${task.logs.length + 1}`,
+          message: "任务已暂停，进度已保存。",
+          createdAt: now,
+        },
+      ],
+    };
+    await putInStore(db, TASKS_STORE, nextTask);
+    return nextTask;
+  } finally {
+    db.close();
+  }
+}
+
 export async function skipStoredNovelTask(
   taskId: string,
 ): Promise<StoredNovelTask | null> {
@@ -3593,6 +5314,7 @@ function normalizeStoredNovelChapter(
     reviews,
     activeReviewId: chapter.activeReviewId ?? reviews[0]?.id,
     publicationStatus: chapter.publicationStatus ?? "draft",
+    publishedAt: chapter.publishedAt,
     createdAt: chapter.createdAt ?? now,
     updatedAt: chapter.updatedAt ?? chapter.createdAt ?? now,
   };
@@ -3722,15 +5444,109 @@ function isEmptyNovelAssetMarker(value: string): boolean {
   return /^(无|暂无|没有|无新增|无变化)[。.!！\s]*$/.test(value.trim());
 }
 
+function normalizeNovelAssetText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[\s，。；;,.、！!？?：:"""''（）()[\]【】]/g, "");
+}
+
+function extractNovelAssetKeywords(value: string): string[] {
+  return [
+    ...new Set(
+      value
+        .split(/[，。；;,.、\s/|]+/)
+        .map((item) => normalizeNovelAssetText(item))
+        .filter((item) => item.length >= 2),
+    ),
+  ];
+}
+
+function scoreNovelKnowledgeAssetMatch(
+  existing: NovelKnowledgeAsset,
+  nextAsset: Omit<NovelKnowledgeAsset, "id">,
+): number {
+  if (existing.category !== nextAsset.category) {
+    return 0;
+  }
+
+  const existingTitle = normalizeNovelAssetText(existing.title);
+  const nextTitle = normalizeNovelAssetText(nextAsset.title);
+
+  if (existingTitle && nextTitle && existingTitle === nextTitle) {
+    return 1;
+  }
+
+  if (
+    existingTitle &&
+    nextTitle &&
+    (existingTitle.includes(nextTitle) || nextTitle.includes(existingTitle))
+  ) {
+    return 0.88;
+  }
+
+  const existingKeywords = extractNovelAssetKeywords(
+    `${existing.title} ${existing.content}`,
+  );
+  const nextKeywords = extractNovelAssetKeywords(
+    `${nextAsset.title} ${nextAsset.content}`,
+  );
+
+  if (nextKeywords.length === 0) {
+    return 0;
+  }
+
+  const overlap = nextKeywords.filter((keyword) =>
+    existingKeywords.some(
+      (existingKeyword) =>
+        existingKeyword.includes(keyword) || keyword.includes(existingKeyword),
+    ),
+  ).length;
+  const score = overlap / nextKeywords.length;
+
+  if (
+    nextAsset.category === "foreshadowing" ||
+    nextAsset.category === "character"
+  ) {
+    return score >= 0.45 ? score : 0;
+  }
+
+  return score >= 0.6 ? score : 0;
+}
+
+export function matchNovelKnowledgeAssetIndex(
+  assets: NovelKnowledgeAsset[],
+  nextAsset: Omit<NovelKnowledgeAsset, "id">,
+): number {
+  const exactIndex = assets.findIndex(
+    (asset) =>
+      asset.category === nextAsset.category &&
+      normalizeNovelAssetText(asset.title) ===
+        normalizeNovelAssetText(nextAsset.title),
+  );
+
+  if (exactIndex >= 0) {
+    return exactIndex;
+  }
+
+  let bestIndex = -1;
+  let bestScore = 0;
+
+  assets.forEach((asset, index) => {
+    const score = scoreNovelKnowledgeAssetMatch(asset, nextAsset);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+}
+
 function upsertNovelKnowledgeAsset(
   assets: NovelKnowledgeAsset[],
   nextAsset: Omit<NovelKnowledgeAsset, "id">,
 ): NovelKnowledgeAsset[] {
-  const index = assets.findIndex(
-    (asset) =>
-      asset.category === nextAsset.category &&
-      asset.title.trim().toLowerCase() === nextAsset.title.trim().toLowerCase(),
-  );
+  const index = matchNovelKnowledgeAssetIndex(assets, nextAsset);
 
   if (index < 0) {
     return [

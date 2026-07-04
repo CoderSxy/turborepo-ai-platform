@@ -6,8 +6,14 @@ import {
   exportLocalModelSettings,
   importLocalModelSettings,
   MODEL_ROUTE_PRESETS,
+  appendModelCallLog,
+  formatModelPickerValue,
+  getDefaultChatModelSelection,
   listProviderModels,
+  parseModelPickerValue,
   resolveModelRoute,
+  resolveModelRouteForCoreAction,
+  resolveReadyModelBinding,
   testProviderConnection,
 } from "./model-settings.ts";
 
@@ -504,4 +510,137 @@ test("importLocalModelSettings migrates stale CodingPlan endpoints", () => {
   assert.equal(provider.modelsBaseUrl, "https://api.kimi.com/coding/v1");
   assert.equal(provider.apiFormat, "anthropic");
   assert.equal(provider.availableModels, undefined);
+});
+
+test("resolveModelRouteForCoreAction maps write-chapter to novel.writer", () => {
+  const settings = {
+    ...DEFAULT_LOCAL_MODEL_SETTINGS,
+    providers: [
+      {
+        id: "deepseek",
+        name: "DeepSeek",
+        type: "deepseek",
+        baseUrl: "https://api.deepseek.com/v1",
+        apiFormat: "openai",
+        apiKey: "sk-local",
+        enabled: true,
+      },
+    ],
+    routes: [
+      {
+        routeKey: "novel.writer",
+        providerId: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.82,
+        maxTokens: 6400,
+        stream: true,
+      },
+    ],
+  };
+
+  const resolved = resolveModelRouteForCoreAction(settings, "write-chapter");
+
+  assert.equal(resolved.status, "ready");
+  assert.equal(resolved.route.routeKey, "novel.writer");
+  assert.equal(resolved.model, "deepseek-chat");
+});
+
+test("resolveReadyModelBinding returns route metadata for ready routes", () => {
+  const settings = {
+    ...DEFAULT_LOCAL_MODEL_SETTINGS,
+    providers: [
+      {
+        id: "openai",
+        name: "OpenAI",
+        type: "openai",
+        baseUrl: "https://api.openai.com/v1",
+        apiFormat: "openai",
+        apiKey: "sk-openai",
+        enabled: true,
+      },
+    ],
+    routes: [
+      {
+        routeKey: "novel.reviewer",
+        providerId: "openai",
+        model: "gpt-4.1",
+        temperature: 0.28,
+        maxTokens: 4800,
+        stream: true,
+      },
+    ],
+  };
+
+  const binding = resolveReadyModelBinding(
+    resolveModelRoute(settings, "novel.reviewer"),
+  );
+
+  assert.ok(!("error" in binding));
+  assert.equal(binding.routeKey, "novel.reviewer");
+  assert.equal(binding.model, "gpt-4.1");
+  assert.equal(binding.temperature, 0.28);
+});
+
+test("appendModelCallLog keeps recent models and trims call logs", () => {
+  const settings = {
+    ...DEFAULT_LOCAL_MODEL_SETTINGS,
+    recentModels: [],
+    callLogs: [],
+  };
+
+  const next = appendModelCallLog(settings, {
+    routeKey: "novel.writer",
+    label: "写下一章",
+    providerId: "deepseek",
+    providerName: "DeepSeek",
+    model: "deepseek-chat",
+    status: "success",
+    startedAt: "2026-07-04T09:00:00.000Z",
+    endedAt: "2026-07-04T09:00:05.000Z",
+    latencyMs: 5000,
+  });
+
+  assert.equal(next.recentModels.length, 1);
+  assert.equal(next.recentModels[0]?.model, "deepseek-chat");
+  assert.equal(next.callLogs.length, 1);
+  assert.equal(next.callLogs[0]?.label, "写下一章");
+});
+
+test("formatModelPickerValue and parseModelPickerValue round-trip", () => {
+  const value = formatModelPickerValue("deepseek", "deepseek-chat");
+  const parsed = parseModelPickerValue(value);
+
+  assert.deepEqual(parsed, {
+    providerId: "deepseek",
+    model: "deepseek-chat",
+  });
+});
+
+test("getDefaultChatModelSelection prefers global.default route", () => {
+  const settings = {
+    ...DEFAULT_LOCAL_MODEL_SETTINGS,
+    providers: [
+      {
+        id: "openai",
+        name: "OpenAI",
+        type: "openai",
+        baseUrl: "https://api.openai.com/v1",
+        apiFormat: "openai",
+        apiKey: "sk-openai",
+        enabled: true,
+      },
+    ],
+    routes: [
+      {
+        routeKey: "global.default",
+        providerId: "openai",
+        model: "gpt-4.1",
+        temperature: 0.6,
+        maxTokens: 4000,
+        stream: true,
+      },
+    ],
+  };
+
+  assert.equal(getDefaultChatModelSelection(settings), "openai::gpt-4.1");
 });

@@ -22,11 +22,27 @@ import styles from "./page.module.css";
 import {
   DEFAULT_LOCAL_MODEL_SETTINGS,
   MODEL_SUGGESTIONS,
+  NOVEL_MODEL_ROUTE_KEYS,
+  INKOS_CORE_ACTION_ROUTE_KEYS,
+  appendModelCallLog,
+  buildModelRouteSummary,
+  formatModelPickerValue,
+  getDefaultChatModelSelection,
+  getDefaultWritingModelSelection,
+  getRouteConfig,
+  getRoutePreset,
   loadLocalModelSettings,
+  parseModelPickerValue,
+  resolveModelRoute,
+  resolveModelRouteForCoreAction,
+  resolveReadyModelBinding,
   saveLocalModelSettings,
   upsertProvider,
+  upsertRouteConfig,
   type LocalModelProvider,
+  type LocalModelRoute,
   type LocalModelSettings,
+  type ModelCallLog,
   type ModelConnectionTestResult,
   type ProviderModelsResult,
 } from "../lib/model-settings";
@@ -34,12 +50,25 @@ import {
   appendStoredNovelMessage,
   appendStoredNovelTaskLog,
   applyNovelPendingAssetDelta,
+  analyzeNovelGenreProfile,
+  analyzeNovelStyleSample,
+  applyNovelGenreAnalysisToAssets,
+  applyNovelMarketRadarToAssets,
+  applyNovelStyleAnalysisToAssets,
+  buildNovelLocalEnvironmentDiagnostics,
+  mergeNovelDiagnostics,
+  processImportedNovelMaterial,
+  splitImportedNovelChapters,
+  appendNovelPublicationEvent,
   applyNovelReviewIssueSuggestionToContent,
   buildNovelChapterAssetDelta,
   buildNovelBatchQueueItems,
   buildNovelBatchQueueReport,
   buildNovelBookExportMarkdown,
   buildNovelBookExportText,
+  buildNovelDocxDocumentModel,
+  buildNovelPublicationTimeline,
+  buildNovelPublishValidationReport,
   buildNovelChapterContextPreview,
   buildNovelChapterDraftMeta,
   buildNovelChapterExportBundle,
@@ -49,12 +78,27 @@ import {
   buildNovelPlatformExportText,
   buildNovelRecoverableErrorNotice,
   buildNovelChapterVersionCompareView,
+  buildNovelCompareDiffMarkers,
+  buildDefaultNovelContextSelection,
+  buildNovelForeshadowingPoolSummary,
+  buildNovelOutlineNodesFromOutlineText,
+  buildNovelOutlineNodesFromProject,
+  buildNovelOutlineSyncDriftReport,
   buildNovelReviewExportMarkdown,
   buildNovelReviewIssueHighlights,
+  buildNovelReviewIssueParagraphMarks,
   buildNovelReviewIssueViews,
   buildNovelReviseChapterInstruction,
+  buildNovelStyleConstraintsFromAssets,
   buildNovelWriteChapterInstruction,
   buildNovelVolumeExportBundle,
+  filterNovelCompareDiffMarkers,
+  filterNovelKnowledgeAssets,
+  groupNovelOutlineNodesByVolume,
+  moveNovelOutlineNode,
+  reorderNovelOutlineNodes,
+  restoreNovelCompareLineInContent,
+  syncNovelOutlineNodesFromChapters,
   clearStoredNovelSessionMessages,
   createDefaultNovelAssets,
   createStoredNovelBook,
@@ -80,6 +124,7 @@ import {
   reconcileNovelReviewHistory,
   markNovelReviewIssuesResolved,
   pauseStoredNovelTask,
+  pauseStoredNovelTaskWithCheckpoint,
   replaceNovelEditorSearchMatches,
   restoreStoredNovelChapterVersion,
   selectNextNovelChapterTarget,
@@ -99,11 +144,15 @@ import {
   type NovelProjectAssets,
   type NovelBatchQueueAction,
   type NovelBatchQueueItem,
+  type NovelCompareDiffMarker,
+  type NovelImportedChapter,
   type NovelContextSelection,
   type NovelKnowledgeAsset,
   type NovelKnowledgeAssetCategory,
+  type NovelDocxParagraph,
   type NovelOutlineNode,
   type NovelPendingAssetDelta,
+  type NovelPublishValidationReport,
   type NovelRecoverableErrorNotice,
   type NovelReviewIssueFilter,
   type NovelWorkspaceSnapshot,
@@ -272,15 +321,24 @@ function downloadBlob(filename: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
-function createSimpleDocxFile(title: string, body: string): Uint8Array {
+function createNovelDocxParagraphXml(paragraph: NovelDocxParagraph): string {
+  const styleMarkup = {
+    title:
+      "<w:pPr><w:jc w:val=\"center\"/><w:spacing w:after=\"240\"/></w:pPr><w:rPr><w:b/><w:sz w:val=\"56\"/><w:szCs w:val=\"56\"/></w:rPr>",
+    subtitle:
+      "<w:pPr><w:spacing w:after=\"120\"/></w:pPr><w:rPr><w:i/><w:color w:val=\"666666\"/><w:sz w:val=\"22\"/></w:rPr>",
+    "chapter-heading":
+      "<w:pPr><w:spacing w:before=\"480\" w:after=\"240\"/></w:pPr><w:rPr><w:b/><w:sz w:val=\"32\"/></w:rPr>",
+    body: "<w:pPr><w:spacing w:after=\"200\" w:line=\"360\" w:lineRule=\"auto\"/><w:ind w:firstLine=\"420\"/></w:pPr><w:rPr><w:sz w:val=\"24\"/></w:rPr>",
+  }[paragraph.style];
+
+  return `<w:p><w:r>${styleMarkup}<w:t xml:space="preserve">${escapeXml(paragraph.text.replace(/\n/g, " "))}</w:t></w:r></w:p>`;
+}
+
+function createNovelBookDocxFile(paragraphs: NovelDocxParagraph[]): Uint8Array {
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${[
-    title,
-    ...body.split(/\n{2,}/),
-  ]
-    .map((paragraph, index) =>
-      `<w:p><w:r>${index === 0 ? "<w:rPr><w:b/></w:rPr>" : ""}<w:t xml:space="preserve">${escapeXml(paragraph.replace(/\n/g, " "))}</w:t></w:r></w:p>`,
-    )
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs
+    .map(createNovelDocxParagraphXml)
     .join("")}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`;
   const files = [
     {
@@ -688,6 +746,7 @@ export default function Home() {
         <NovelStudio
           settings={settings}
           onManageModels={() => setActivePage("models")}
+          onSettingsChange={updateSettings}
         />
       ) : null}
       {activePage === "models" ? (
@@ -703,6 +762,7 @@ export default function Home() {
           onConnectedOnlyChange={setConnectedOnly}
           onOpenProvider={openProvider}
           onRestorePreset={() => updateSettings(DEFAULT_LOCAL_MODEL_SETTINGS)}
+          onSettingsChange={updateSettings}
         />
       ) : null}
     </AppShell>
@@ -1092,6 +1152,10 @@ async function streamNovelChat(
   project: InkosNovelProject,
   onDelta: (content: string) => void,
   signal?: AbortSignal,
+  options?: {
+    temperature?: number;
+    maxTokens?: number;
+  },
 ): Promise<string> {
   const response = await fetch("/api/novel-chat", {
     method: "POST",
@@ -1101,8 +1165,8 @@ async function streamNovelChat(
     body: JSON.stringify({
       provider,
       model,
-      temperature: 0.8,
-      maxTokens: 3200,
+      temperature: options?.temperature ?? 0.8,
+      maxTokens: options?.maxTokens ?? 3200,
       stream: true,
       messages: [
         {
@@ -1166,6 +1230,10 @@ async function streamInkosCoreAction(
   onEvent: (event: InkosActionStreamEvent) => void,
   instruction?: string,
   signal?: AbortSignal,
+  options?: {
+    temperature?: number;
+    maxTokens?: number;
+  },
 ): Promise<InkosActionResponse> {
   const response = await fetch("/api/inkos/action", {
     method: "POST",
@@ -1176,6 +1244,8 @@ async function streamInkosCoreAction(
       action,
       provider,
       model,
+      temperature: options?.temperature,
+      maxTokens: options?.maxTokens,
       project,
       assets: {
         outline: assets.outline,
@@ -1328,12 +1398,75 @@ function formatCoreTaskErrorMessage(notice: NovelRecoverableErrorNotice) {
   ].join("\n");
 }
 
+function isModelPickerValueAvailable(
+  value: string,
+  groups: ModelPickerGroup[],
+): boolean {
+  const parsed = parseModelPickerValue(value);
+
+  if (!parsed) {
+    return false;
+  }
+
+  return groups.some(
+    (group) =>
+      group.service === parsed.providerId &&
+      group.models.some((model) => model.id === parsed.model),
+  );
+}
+
+type ReadyModelBinding = {
+  provider: LocalModelProvider;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  routeKey: string;
+};
+
+function resolveChatModelBinding(
+  settings: LocalModelSettings,
+  selectedModelValue: string,
+): ReadyModelBinding | { error: string } {
+  const parsed = parseModelPickerValue(selectedModelValue);
+  const fallback = resolveModelRoute(settings, "global.default");
+
+  if (parsed) {
+    const provider = settings.providers.find((item) => item.id === parsed.providerId);
+    if (provider && isProviderConnected(provider)) {
+      const base = fallback.status === "ready" ? fallback : null;
+      return {
+        provider,
+        model: parsed.model,
+        temperature: base?.temperature ?? 0.8,
+        maxTokens: base?.maxTokens ?? 3200,
+        routeKey: "chat.override",
+      };
+    }
+  }
+
+  const ready = resolveReadyModelBinding(fallback);
+  if ("error" in ready) {
+    return ready;
+  }
+
+  return ready;
+}
+
+function resolveCoreActionModelBinding(
+  settings: LocalModelSettings,
+  action: InkosCoreAction,
+): ReadyModelBinding | { error: string } {
+  return resolveReadyModelBinding(resolveModelRouteForCoreAction(settings, action));
+}
+
 function NovelStudio({
   settings,
   onManageModels,
+  onSettingsChange,
 }: {
   settings: LocalModelSettings;
   onManageModels: () => void;
+  onSettingsChange: (settings: LocalModelSettings) => void;
 }) {
   const [books, setBooks] = useState<NovelBookEntry[]>([]);
   const [chapterVersionsById, setChapterVersionsById] = useState<
@@ -1353,14 +1486,29 @@ function NovelStudio({
   const [dialog, setDialog] = useState<AppDialogState | null>(null);
   const [dialogInput, setDialogInput] = useState("");
   const [toast, setToast] = useState<AppToastState | null>(null);
+  const [publishValidation, setPublishValidation] = useState<{
+    report: NovelPublishValidationReport;
+    onProceed: () => void;
+  } | null>(null);
   const bookSearchInputRef = useRef<HTMLInputElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const backupImportInputRef = useRef<HTMLInputElement | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTaskAbortRef = useRef<AbortController | null>(null);
+  const activeCoreTaskIdRef = useRef("");
+  const activeCoreProgressRef = useRef<string[]>([]);
+  const activeCoreAssistantMessageIdRef = useRef("");
   const dialogResolverRef = useRef<
     ((value: string | boolean | null) => void) | null
   >(null);
+  const writeChapterConfirmResolverRef = useRef<
+    ((value: NovelContextSelection | null) => void) | null
+  >(null);
+  const [writeChapterConfirm, setWriteChapterConfirm] = useState<{
+    target: NovelChapterWriteTarget;
+    initialSelection: NovelContextSelection;
+    derivedStyleConstraints: string;
+  } | null>(null);
   const groupedModels = useMemo<ModelPickerGroup[]>(
     () =>
       settings.providers
@@ -1441,11 +1589,48 @@ function NovelStudio({
         ? buildInkosPromptPreview(project)
         : "";
   const messages = messagesBySession[activeSessionId] ?? [];
-  const selectedModelParts = selectedModelValue.split("::");
-  const selectedProvider = settings.providers.find(
-    (provider) => provider.id === selectedModelParts[0],
+  const chatBinding = useMemo(
+    () => resolveChatModelBinding(settings, selectedModelValue),
+    [settings, selectedModelValue],
   );
-  const selectedModel = selectedModelParts.slice(1).join("::");
+  const canSendChat = !("error" in chatBinding);
+  const novelRouteSummaries = useMemo(
+    () =>
+      NOVEL_MODEL_ROUTE_KEYS.map((routeKey) => {
+        const preset = getRoutePreset(routeKey);
+
+        return {
+          routeKey,
+          label: preset?.label ?? routeKey,
+          summary: buildModelRouteSummary(settings, routeKey),
+        };
+      }),
+    [settings],
+  );
+
+  function trackModelCall(
+    binding: ReadyModelBinding,
+    label: string,
+    status: ModelCallLog["status"],
+    startedAt: string,
+    endedAt: string,
+    options?: { latencyMs?: number; errorMessage?: string },
+  ) {
+    onSettingsChange(
+      appendModelCallLog(settings, {
+        routeKey: binding.routeKey,
+        label,
+        providerId: binding.provider.id,
+        providerName: binding.provider.name,
+        model: binding.model,
+        status,
+        latencyMs: options?.latencyMs,
+        startedAt,
+        endedAt,
+        errorMessage: options?.errorMessage,
+      }),
+    );
+  }
 
   function applyNovelSnapshot(snapshot: NovelWorkspaceSnapshot) {
     const loadedBooks = toNovelBookEntries(
@@ -1498,10 +1683,36 @@ function NovelStudio({
   function cancelActiveTask() {
     activeTaskAbortRef.current?.abort();
     activeTaskAbortRef.current = null;
+    activeCoreTaskIdRef.current = "";
+    activeCoreProgressRef.current = [];
+    activeCoreAssistantMessageIdRef.current = "";
     setActiveTaskLabel("");
     setIsSending(false);
     setIsRunningCoreAction(false);
     showToast("任务已取消。", "warning");
+  }
+
+  async function pauseActiveTask() {
+    const taskId = activeCoreTaskIdRef.current;
+
+    if (taskId) {
+      await pauseStoredNovelTaskWithCheckpoint(taskId, {
+        progressMessages: [...activeCoreProgressRef.current],
+        savedAt: new Date().toISOString(),
+        assistantMessageId: activeCoreAssistantMessageIdRef.current || undefined,
+      }).catch(() => undefined);
+      await refreshNovelWorkspace().catch(() => undefined);
+    }
+
+    activeTaskAbortRef.current?.abort();
+    activeTaskAbortRef.current = null;
+    activeCoreTaskIdRef.current = "";
+    activeCoreProgressRef.current = [];
+    activeCoreAssistantMessageIdRef.current = "";
+    setActiveTaskLabel("");
+    setIsSending(false);
+    setIsRunningCoreAction(false);
+    showToast("任务已暂停，可从任务日志继续。", "warning");
   }
 
   async function toggleBatchQueuePaused() {
@@ -1633,6 +1844,61 @@ function NovelStudio({
     });
   }
 
+  function closeWriteChapterConfirm(selection: NovelContextSelection | null) {
+    writeChapterConfirmResolverRef.current?.(selection);
+    writeChapterConfirmResolverRef.current = null;
+    setWriteChapterConfirm(null);
+  }
+
+  function requestWriteChapterConfirm(
+    target: NovelChapterWriteTarget,
+    assets: NovelProjectAssets,
+    bookProject: InkosNovelProject,
+  ): Promise<NovelContextSelection | null> {
+    const initialSelection = {
+      ...(assets.contextSelection ??
+        buildDefaultNovelContextSelection(bookProject)),
+    };
+    const derivedStyleConstraints = buildNovelStyleConstraintsFromAssets(
+      assets,
+      bookProject,
+    );
+
+    setWriteChapterConfirm({
+      target,
+      initialSelection,
+      derivedStyleConstraints,
+    });
+
+    return new Promise((resolve) => {
+      writeChapterConfirmResolverRef.current = resolve;
+    });
+  }
+
+  async function startWriteChapter(
+    target: NovelChapterWriteTarget,
+    options?: { skipConfirm?: boolean },
+  ) {
+    if (!activeBook || !project) {
+      showToast("请先创建一本书籍。", "warning");
+      return;
+    }
+
+    const selection = options?.skipConfirm
+      ? (activeBook.assets.contextSelection ??
+        buildDefaultNovelContextSelection(project))
+      : await requestWriteChapterConfirm(target, activeBook.assets, project);
+
+    if (!selection) {
+      return;
+    }
+
+    await runCoreAction("write-chapter", {
+      targetChapter: target,
+      contextSelectionOverride: selection,
+    });
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -1670,16 +1936,44 @@ function NovelStudio({
   }, []);
 
   useEffect(() => {
-    const currentStillAvailable = groupedModels.some((group) =>
-      group.models.some((model) => `${group.service}::${model.id}` === selectedModelValue),
-    );
+    if (
+      selectedModelValue &&
+      isModelPickerValueAvailable(selectedModelValue, groupedModels)
+    ) {
+      return;
+    }
+
+    const recent = settings.recentModels?.[0];
+    if (recent) {
+      const recentValue = formatModelPickerValue(recent.providerId, recent.model);
+      if (isModelPickerValueAvailable(recentValue, groupedModels)) {
+        setSelectedModelValue(recentValue);
+        return;
+      }
+    }
+
+    const chatDefault = getDefaultChatModelSelection(settings);
+    if (chatDefault && isModelPickerValueAvailable(chatDefault, groupedModels)) {
+      setSelectedModelValue(chatDefault);
+      return;
+    }
+
+    const writerDefault = getDefaultWritingModelSelection(settings);
+    if (
+      writerDefault &&
+      isModelPickerValueAvailable(writerDefault, groupedModels)
+    ) {
+      setSelectedModelValue(writerDefault);
+      return;
+    }
+
     const firstGroup = groupedModels[0];
     const firstModel = firstGroup?.models[0];
 
-    if ((!selectedModelValue || !currentStillAvailable) && firstGroup && firstModel) {
+    if (firstGroup && firstModel) {
       setSelectedModelValue(`${firstGroup.service}::${firstModel.id}`);
     }
-  }, [groupedModels, selectedModelValue]);
+  }, [groupedModels, selectedModelValue, settings]);
 
   useEffect(() => {
     if (!activeBook) {
@@ -1809,12 +2103,14 @@ function NovelStudio({
     setActiveTaskLabel("聊天回复");
     const abortController = new AbortController();
     activeTaskAbortRef.current = abortController;
+    const startedAt = new Date().toISOString();
 
     try {
       await appendStoredNovelMessage(requestSessionId, userMessage);
 
-      if (!selectedProvider || !selectedModel) {
-        throw new Error("请先选择一个已连接的模型。");
+      const bindingResult = resolveChatModelBinding(settings, selectedModelValue);
+      if ("error" in bindingResult) {
+        throw new Error(bindingResult.error);
       }
 
       if (!project) {
@@ -1836,12 +2132,16 @@ function NovelStudio({
       };
 
       const content = await streamNovelChat(
-        selectedProvider,
-        selectedModel,
+        bindingResult.provider,
+        bindingResult.model,
         nextMessages,
         project,
         updateStreamingMessage,
         abortController.signal,
+        {
+          temperature: bindingResult.temperature,
+          maxTokens: bindingResult.maxTokens,
+        },
       );
 
       const assistantMessage: NovelChatMessage = {
@@ -1851,6 +2151,14 @@ function NovelStudio({
       };
 
       await appendStoredNovelMessage(requestSessionId, assistantMessage);
+      trackModelCall(
+        bindingResult,
+        "聊天回复",
+        "success",
+        startedAt,
+        new Date().toISOString(),
+        { latencyMs: Date.now() - Date.parse(startedAt) },
+      );
 
       setMessagesBySession((current) => ({
         ...current,
@@ -1862,6 +2170,21 @@ function NovelStudio({
     } catch (error) {
       const isAbortError =
         error instanceof DOMException && error.name === "AbortError";
+      const bindingResult = resolveChatModelBinding(settings, selectedModelValue);
+      if (!("error" in bindingResult)) {
+        trackModelCall(
+          bindingResult,
+          "聊天回复",
+          isAbortError ? "cancelled" : "error",
+          startedAt,
+          new Date().toISOString(),
+          {
+            latencyMs: Date.now() - Date.parse(startedAt),
+            errorMessage:
+              error instanceof Error ? error.message : "模型请求失败。",
+          },
+        );
+      }
       const assistantMessage: NovelChatMessage = {
         id: assistantMessageId,
         role: "assistant",
@@ -1901,6 +2224,7 @@ function NovelStudio({
       selectedIssueIds?: string[];
       existingTaskId?: string;
       labelOverride?: string;
+      contextSelectionOverride?: NovelContextSelection;
     },
   ): Promise<boolean> {
     const guard = getNovelTaskGuard({ isSending, isRunningCoreAction });
@@ -1915,8 +2239,9 @@ function NovelStudio({
       return false;
     }
 
-    if (!selectedProvider || !selectedModel) {
-      showToast("请先选择一个已连接的模型。", "warning");
+    const bindingResult = resolveCoreActionModelBinding(settings, action);
+    if ("error" in bindingResult) {
+      showToast(bindingResult.error, "warning");
       return false;
     }
 
@@ -1955,6 +2280,8 @@ function NovelStudio({
     const abortController = new AbortController();
     activeTaskAbortRef.current = abortController;
     let taskId = "";
+    const startedAt = new Date().toISOString();
+    let latestChapters = [...activeBook.chapters];
 
     try {
       const task = options?.existingTaskId
@@ -1975,6 +2302,9 @@ function NovelStudio({
         throw new Error("队列任务不存在，无法执行。");
       }
       taskId = task.id;
+      activeCoreTaskIdRef.current = taskId;
+      activeCoreAssistantMessageIdRef.current = assistantMessageId;
+      activeCoreProgressRef.current = [...progressMessages];
       await appendStoredNovelMessage(requestSessionId, userMessage);
       const writeTarget =
         action === "write-chapter"
@@ -2009,6 +2339,7 @@ function NovelStudio({
                 chapters: activeBook.chapters,
                 target: writeTarget,
                 userInstruction: input.trim() || undefined,
+                contextSelectionOverride: options?.contextSelectionOverride,
               })
           : input.trim() || undefined;
       const resolvedCoreInstruction =
@@ -2023,6 +2354,7 @@ function NovelStudio({
           : coreInstruction;
       const updateCoreProgress = (message: string) => {
         progressMessages.push(message);
+        activeCoreProgressRef.current = [...progressMessages];
         if (taskId) {
           void appendStoredNovelTaskLog(taskId, message);
         }
@@ -2042,8 +2374,8 @@ function NovelStudio({
       };
       const result = await streamInkosCoreAction(
         action,
-        selectedProvider,
-        selectedModel,
+        bindingResult.provider,
+        bindingResult.model,
         project,
         activeBook.assets,
         nextMessages,
@@ -2054,6 +2386,10 @@ function NovelStudio({
         },
         resolvedCoreInstruction,
         abortController.signal,
+        {
+          temperature: bindingResult.temperature,
+          maxTokens: bindingResult.maxTokens,
+        },
       );
 
       if (!result.ok) {
@@ -2066,6 +2402,30 @@ function NovelStudio({
         ...activeBook.assets,
         ...result.assetsPatch,
       };
+
+      if (action === "radar") {
+        nextAssets = applyNovelMarketRadarToAssets(
+          nextAssets,
+          nextAssets.marketRadars,
+          nextProject,
+        );
+      }
+
+      if (action === "diagnostics") {
+        const localChecks = buildNovelLocalEnvironmentDiagnostics({
+          project: nextProject,
+          assets: nextAssets,
+          chapters: activeBook.chapters,
+        });
+        nextAssets = {
+          ...nextAssets,
+          diagnostics: mergeNovelDiagnostics(
+            [...localChecks, ...(nextAssets.diagnostics ?? [])],
+            activeBook.assets.diagnostics,
+          ),
+        };
+      }
+
       const assistantMessage: NovelChatMessage = {
         id: assistantMessageId,
         role: "assistant",
@@ -2108,6 +2468,13 @@ function NovelStudio({
               : "本章未发现需要确认的资产增量。",
           );
           setActiveChapterId(storedChapter.id);
+          latestChapters = latestChapters.some(
+            (chapter) => chapter.id === storedChapter.id,
+          )
+            ? latestChapters.map((chapter) =>
+                chapter.id === storedChapter.id ? storedChapter : chapter,
+              )
+            : [...latestChapters, storedChapter];
         }
       }
       if (action === "review" && reviewTarget) {
@@ -2135,6 +2502,9 @@ function NovelStudio({
         );
         if (reviewedChapter) {
           nextProject = syncNovelProjectChapterPlan(nextProject, reviewedChapter);
+          latestChapters = latestChapters.map((chapter) =>
+            chapter.id === reviewedChapter.id ? reviewedChapter : chapter,
+          );
         }
       }
       if (action === "revise-chapter" && reviseTarget) {
@@ -2166,6 +2536,9 @@ function NovelStudio({
         );
         if (revisedChapter) {
           nextProject = syncNovelProjectChapterPlan(nextProject, revisedChapter);
+          latestChapters = latestChapters.map((chapter) =>
+            chapter.id === revisedChapter.id ? revisedChapter : chapter,
+          );
           updateCoreProgress("正在自动复审修订结果。");
           const reviewInstruction = [
             "请复审刚刚修订后的章节，重点判断选中审稿问题是否已经解决。",
@@ -2174,10 +2547,14 @@ function NovelStudio({
             `章节正文：\n${revisedChapter.content}`,
           ].join("\n\n");
 
+          const rereviewBinding = resolveCoreActionModelBinding(settings, "review");
+          if ("error" in rereviewBinding) {
+            updateCoreProgress(`自动复审跳过：${rereviewBinding.error}`);
+          } else {
           const rereviewResult = await streamInkosCoreAction(
             "review",
-            selectedProvider,
-            selectedModel,
+            rereviewBinding.provider,
+            rereviewBinding.model,
             nextProject,
             nextAssets,
             nextMessages,
@@ -2188,6 +2565,10 @@ function NovelStudio({
             },
             reviewInstruction,
             abortController.signal,
+            {
+              temperature: rereviewBinding.temperature,
+              maxTokens: rereviewBinding.maxTokens,
+            },
           );
 
           if (rereviewResult.ok) {
@@ -2219,6 +2600,9 @@ function NovelStudio({
                 nextProject,
                 rereviewedChapter,
               );
+              latestChapters = latestChapters.map((chapter) =>
+                chapter.id === rereviewedChapter.id ? rereviewedChapter : chapter,
+              );
             }
             updateCoreProgress("自动复审完成，结果已写回章节。");
           } else {
@@ -2226,8 +2610,17 @@ function NovelStudio({
               `自动复审未完成：${rereviewResult.message || "模型未返回复审结果。"}`,
             );
           }
+          }
         }
       }
+      nextAssets = {
+        ...nextAssets,
+        outlineNodes: syncNovelOutlineNodesFromChapters(
+          nextAssets.outlineNodes,
+          latestChapters,
+          nextProject,
+        ),
+      };
       await updateStoredNovelBook(activeBook.id, {
         title: nextProject.title,
         genre: nextProject.genre,
@@ -2247,11 +2640,30 @@ function NovelStudio({
         ),
       }));
       setInput("");
+      trackModelCall(
+        bindingResult,
+        label,
+        "success",
+        startedAt,
+        new Date().toISOString(),
+        { latencyMs: Date.now() - Date.parse(startedAt) },
+      );
       showToast(result.message);
       return true;
     } catch (error) {
       const errorNotice = buildNovelRecoverableErrorNotice(error);
       const isAbortError = errorNotice.category === "cancelled";
+      trackModelCall(
+        bindingResult,
+        label,
+        isAbortError ? "cancelled" : "error",
+        startedAt,
+        new Date().toISOString(),
+        {
+          latencyMs: Date.now() - Date.parse(startedAt),
+          errorMessage: errorNotice.detail || errorNotice.title,
+        },
+      );
       const assistantMessage: NovelChatMessage = {
         id: assistantMessageId,
         role: "assistant",
@@ -2284,6 +2696,9 @@ function NovelStudio({
       return false;
     } finally {
       activeTaskAbortRef.current = null;
+      activeCoreTaskIdRef.current = "";
+      activeCoreProgressRef.current = [];
+      activeCoreAssistantMessageIdRef.current = "";
       setActiveTaskLabel("");
       setIsRunningCoreAction(false);
     }
@@ -2291,6 +2706,15 @@ function NovelStudio({
 
   function runQuickAction(command: string) {
     const action = QUICK_CORE_ACTIONS[command];
+
+    if (action === "write-chapter" && project && activeBook) {
+      const target = selectNextNovelChapterTarget(
+        project,
+        activeBook.chapters,
+      );
+      void startWriteChapter(target);
+      return;
+    }
 
     if (action) {
       void runCoreAction(action);
@@ -2313,8 +2737,9 @@ function NovelStudio({
       return;
     }
 
-    if (!selectedProvider || !selectedModel) {
-      showToast("请先选择一个已连接的模型。", "warning");
+    const bindingResult = resolveCoreActionModelBinding(settings, action);
+    if ("error" in bindingResult) {
+      showToast(bindingResult.error, "warning");
       return;
     }
 
@@ -2716,6 +3141,69 @@ function NovelStudio({
     showToast("会话已导出。");
   }
 
+  async function recordExportPublicationEvent(
+    platform: "generic" | "qidian" | "fanqie",
+    note: string,
+  ) {
+    if (!activeBook) {
+      return;
+    }
+
+    await updateStoredNovelBook(activeBook.id, {
+      assets: appendNovelPublicationEvent(activeBook.assets, {
+        action: "exported",
+        platform,
+        note,
+      }),
+    });
+    await refreshNovelWorkspace();
+  }
+
+  function openPublishValidation(
+    platform: "generic" | "qidian" | "fanqie",
+    onProceed: () => void | Promise<void>,
+  ) {
+    if (!activeBook) {
+      return;
+    }
+
+    const report = buildNovelPublishValidationReport({
+      title: activeBook.title,
+      platform,
+      chapters: activeBook.chapters,
+      project: activeBook.project,
+    });
+
+    setPublishValidation({
+      report,
+      onProceed: () => {
+        setPublishValidation(null);
+        void onProceed();
+      },
+    });
+  }
+
+  function exportActiveBookDocx() {
+    if (!activeBook) {
+      return;
+    }
+
+    downloadBytesFile(
+      `${activeBook.title}-整本书.docx`,
+      createNovelBookDocxFile(
+        buildNovelDocxDocumentModel({
+          title: activeBook.title,
+          genre: activeBook.meta,
+          premise: activeBook.project.premise,
+          chapters: activeBook.chapters,
+        }),
+      ),
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    void recordExportPublicationEvent("generic", "整本书 docx 导出");
+    showToast("整本书已导出。");
+  }
+
   function exportActiveBook(format: "markdown" | "text" | "docx") {
     if (!activeBook) {
       return;
@@ -2741,15 +3229,8 @@ function NovelStudio({
         "text/plain;charset=utf-8",
       );
     } else {
-      const content = buildNovelBookExportText({
-        title: activeBook.title,
-        chapters,
-      });
-      downloadBytesFile(
-        `${activeBook.title}-整本书.docx`,
-        createSimpleDocxFile(activeBook.title, content),
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      );
+      openPublishValidation("generic", exportActiveBookDocx);
+      return;
     }
 
     showToast("整本书已导出。");
@@ -2816,16 +3297,22 @@ function NovelStudio({
       return;
     }
 
-    downloadTextFile(
-      `${activeBook.title}-${platform}.txt`,
-      buildNovelPlatformExportText({
-        title: activeBook.title,
+    openPublishValidation(platform, () => {
+      downloadTextFile(
+        `${activeBook.title}-${platform}.txt`,
+        buildNovelPlatformExportText({
+          title: activeBook.title,
+          platform,
+          chapters: activeBook.chapters,
+        }),
+        "text/plain;charset=utf-8",
+      );
+      void recordExportPublicationEvent(
         platform,
-        chapters: activeBook.chapters,
-      }),
-      "text/plain;charset=utf-8",
-    );
-    showToast("平台格式文本已导出。");
+        `${platform === "qidian" ? "起点" : "番茄"} TXT 导出`,
+      );
+      showToast("平台格式文本已导出。");
+    });
   }
 
   async function exportWorkspaceBackup() {
@@ -2976,6 +3463,49 @@ function NovelStudio({
     await refreshNovelWorkspace();
   }
 
+  async function importProcessedNovelChapters(chapters: NovelImportedChapter[]) {
+    if (!activeBook || chapters.length === 0) {
+      return;
+    }
+
+    for (const chapter of chapters) {
+      await upsertStoredNovelChapter({
+        bookId: activeBook.id,
+        number: chapter.number,
+        title: chapter.title,
+        content: chapter.content,
+        summary: chapter.summary,
+        status: "approved",
+        wordCount: chapter.wordCount,
+        versionSource: "manual-edit",
+        versionNote: "导入章节",
+      });
+    }
+
+    await refreshNovelWorkspace();
+  }
+
+  async function runLocalEnvironmentDiagnostics() {
+    if (!activeBook || !project) {
+      return;
+    }
+
+    const localChecks = buildNovelLocalEnvironmentDiagnostics({
+      project,
+      assets: activeBook.assets,
+      chapters: activeBook.chapters,
+    });
+
+    await updateActiveProject({}, {
+      ...activeBook.assets,
+      diagnostics: mergeNovelDiagnostics(
+        localChecks,
+        activeBook.assets.diagnostics,
+      ),
+    });
+    showToast("本地环境诊断已完成。");
+  }
+
   async function saveChapterDraft(
     chapter: StoredNovelChapter,
     updates: Pick<StoredNovelChapter, "content" | "summary">,
@@ -3028,11 +3558,29 @@ function NovelStudio({
     chapter: StoredNovelChapter,
     publicationStatus: NonNullable<StoredNovelChapter["publicationStatus"]>,
   ) {
+    const publishedAt =
+      publicationStatus === "published" ? new Date().toISOString() : undefined;
+
     await updateStoredNovelChapter(
       chapter.id,
-      { publicationStatus },
+      {
+        publicationStatus,
+        ...(publishedAt ? { publishedAt } : {}),
+      },
       { skipVersion: true },
     );
+
+    if (activeBook) {
+      await updateStoredNovelBook(activeBook.id, {
+        assets: appendNovelPublicationEvent(activeBook.assets, {
+          action:
+            publicationStatus === "published" ? "marked-published" : "marked-ready",
+          chapterNumber: chapter.number,
+          chapterTitle: chapter.title,
+        }),
+      });
+    }
+
     await refreshNovelWorkspace();
     showToast("章节发布状态已更新。");
   }
@@ -3335,6 +3883,9 @@ function NovelStudio({
               {activeTaskLabel ? (
                 <div className={styles.activeTaskBar}>
                   <span>正在执行：{activeTaskLabel}</span>
+                  {isRunningCoreAction ? (
+                    <button onClick={() => void pauseActiveTask()}>暂停</button>
+                  ) : null}
                   <button onClick={cancelActiveTask}>取消任务</button>
                 </div>
               ) : null}
@@ -3359,6 +3910,7 @@ function NovelStudio({
                   <ModelPicker
                     value={selectedModelValue}
                     groups={groupedModels}
+                    recentModels={settings.recentModels ?? []}
                     onManageModels={onManageModels}
                     onValueChange={setSelectedModelValue}
                   />
@@ -3371,13 +3923,27 @@ function NovelStudio({
                       !input.trim() ||
                       isSending ||
                       isRunningCoreAction ||
-                      !selectedModelValue
+                      !canSendChat
                     }
                     onClick={() => void sendNovelMessage(input)}
                   >
                     {isSending || isRunningCoreAction ? "处理中" : "发送"}
                   </button>
                 </div>
+              </div>
+              <div className={styles.composerRouteHint}>
+                <span>
+                  聊天走当前选择
+                  {!canSendChat && "error" in chatBinding
+                    ? `（${chatBinding.error}）`
+                    : ""}
+                </span>
+                <span className={styles.composerRouteList}>
+                  {novelRouteSummaries
+                    .filter((item) => item.routeKey !== "global.default")
+                    .map((item) => `${item.label}：${item.summary}`)
+                    .join(" · ")}
+                </span>
               </div>
             </footer>
           </section>
@@ -3402,7 +3968,7 @@ function NovelStudio({
             onChapterDelete={removeChapter}
             onChapterVersionRestore={restoreChapterVersion}
             onGenerateChapter={async (target) => {
-              await runCoreAction("write-chapter", { targetChapter: target });
+              await startWriteChapter(target);
             }}
             onReviseChapter={async (selectedIssueIds) => {
               await runCoreAction("revise-chapter", { selectedIssueIds });
@@ -3436,6 +4002,7 @@ function NovelStudio({
             }}
             onProjectChange={updateActiveProject}
             onRequestPrompt={requestPrompt}
+            onRequestConfirm={requestConfirm}
           />
         </section>
       ) : activeTool !== "AI创作" ? (
@@ -3448,7 +4015,10 @@ function NovelStudio({
           onRunCoreAction={async (action) => {
             await runCoreAction(action);
           }}
+          onImportChapters={importProcessedNovelChapters}
+          onRunLocalDiagnostics={() => void runLocalEnvironmentDiagnostics()}
           onRequestPrompt={requestPrompt}
+          onNotify={showToast}
         />
       ) : (
         <CreateBookPanel
@@ -3471,7 +4041,19 @@ function NovelStudio({
         }
         onInputChange={setDialogInput}
       />
+      <WriteChapterConfirmDialog
+        state={writeChapterConfirm}
+        onCancel={() => closeWriteChapterConfirm(null)}
+        onConfirm={(selection) => closeWriteChapterConfirm(selection)}
+      />
       <AppToast toast={toast} />
+      {publishValidation ? (
+        <PublishValidationDialog
+          report={publishValidation.report}
+          onClose={() => setPublishValidation(null)}
+          onProceed={publishValidation.onProceed}
+        />
+      ) : null}
     </div>
   );
 }
@@ -3479,11 +4061,13 @@ function NovelStudio({
 function ModelPicker({
   value,
   groups,
+  recentModels,
   onManageModels,
   onValueChange,
 }: {
   value: string;
   groups: ModelPickerGroup[];
+  recentModels: Array<{ providerId: string; model: string }>;
   onManageModels: () => void;
   onValueChange: (value: string) => void;
 }) {
@@ -3517,6 +4101,24 @@ function ModelPicker({
       ? { group, model, label: `${group.label} · ${model.name}` }
       : null;
   }, [groups, value]);
+  const recentOptions = useMemo(() => {
+    return recentModels
+      .map((item) => {
+        const itemValue = formatModelPickerValue(item.providerId, item.model);
+        const group = groups.find((entry) => entry.service === item.providerId);
+        const model = group?.models.find((entry) => entry.id === item.model);
+
+        if (!group || !model) {
+          return null;
+        }
+
+        return {
+          value: itemValue,
+          label: `${group.label} · ${model.name}`,
+        };
+      })
+      .filter((item): item is { value: string; label: string } => item !== null);
+  }, [groups, recentModels]);
 
   if (groups.length === 0) {
     return (
@@ -3544,6 +4146,29 @@ function ModelPicker({
             onChange={(event) => setSearch(event.target.value)}
           />
           <div className={styles.modelPickerList}>
+            {recentOptions.length > 0 ? (
+              <section>
+                <strong>最近使用</strong>
+                {recentOptions.map((item) => {
+                  const selectedItem = item.value === value;
+
+                  return (
+                    <button
+                      key={`recent-${item.value}`}
+                      className={selectedItem ? styles.activeModelItem : ""}
+                      onClick={() => {
+                        onValueChange(item.value);
+                        setOpen(false);
+                        setSearch("");
+                      }}
+                    >
+                      <span>{item.label}</span>
+                      {selectedItem ? <em>✓</em> : null}
+                    </button>
+                  );
+                })}
+              </section>
+            ) : null}
             {filteredGroups.map((group) => (
               <section key={group.service}>
                 <strong>{group.label}</strong>
@@ -3671,6 +4296,199 @@ function AppToast({ toast }: { toast: AppToastState | null }) {
   );
 }
 
+function WriteChapterConfirmDialog({
+  state,
+  onCancel,
+  onConfirm,
+}: {
+  state: {
+    target: NovelChapterWriteTarget;
+    initialSelection: NovelContextSelection;
+    derivedStyleConstraints: string;
+  } | null;
+  onCancel: () => void;
+  onConfirm: (selection: NovelContextSelection) => void;
+}) {
+  const [selection, setSelection] = useState<NovelContextSelection>(
+    state?.initialSelection ?? buildDefaultNovelContextSelection({ chapterWordCount: 3000 }),
+  );
+
+  useEffect(() => {
+    if (state) {
+      setSelection({ ...state.initialSelection });
+    }
+  }, [state]);
+
+  if (!state) {
+    return null;
+  }
+
+  const contextOptions = [
+    ["includeOutline", "章节计划 / 大纲"],
+    ["includePreviousSummary", "上一章摘要"],
+    ["includeWorld", "世界观"],
+    ["includeCharacters", "角色状态"],
+    ["includeForeshadowing", "伏笔池"],
+    ["includeReviewIssues", "审稿遗留问题"],
+  ] as const;
+
+  return (
+    <div className={styles.dialogOverlay} role='presentation'>
+      <section
+        className={`${styles.appDialog} ${styles.writeChapterConfirmDialog}`}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='write-chapter-confirm-title'
+      >
+        <header>
+          <h2 id='write-chapter-confirm-title'>写下一章确认</h2>
+          <p>
+            第 {state.target.number} 章《{state.target.title}》 ·{" "}
+            {state.target.focus}
+          </p>
+        </header>
+
+        <div className={styles.writeChapterConfirmBody}>
+          <section>
+            <strong>带入上下文</strong>
+            <div className={styles.contextSelectorGrid}>
+              {contextOptions.map(([key, label]) => (
+                <label key={key}>
+                  <input
+                    type='checkbox'
+                    checked={Boolean(selection[key])}
+                    onChange={(event) =>
+                      setSelection((current) => ({
+                        ...current,
+                        [key]: event.target.checked,
+                      }))
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.writeChapterConfirmFields}>
+            <label>
+              目标字数
+              <input
+                type='number'
+                min={500}
+                value={selection.targetWords ?? state.target.targetWords}
+                onChange={(event) =>
+                  setSelection((current) => ({
+                    ...current,
+                    targetWords: Math.max(500, Number(event.target.value) || 3000),
+                  }))
+                }
+              />
+            </label>
+            <label>
+              视角
+              <input
+                value={selection.viewpoint}
+                onChange={(event) =>
+                  setSelection((current) => ({
+                    ...current,
+                    viewpoint: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              节奏
+              <input
+                value={selection.pacing}
+                onChange={(event) =>
+                  setSelection((current) => ({
+                    ...current,
+                    pacing: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              本章高亮要求
+              <textarea
+                rows={2}
+                value={selection.highlights}
+                onChange={(event) =>
+                  setSelection((current) => ({
+                    ...current,
+                    highlights: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              读者爽点 / 悬疑点
+              <textarea
+                rows={2}
+                value={selection.thrillPoints ?? ""}
+                onChange={(event) =>
+                  setSelection((current) => ({
+                    ...current,
+                    thrillPoints: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              禁用词 / 避免表达
+              <textarea
+                rows={2}
+                value={selection.bannedWords ?? ""}
+                onChange={(event) =>
+                  setSelection((current) => ({
+                    ...current,
+                    bannedWords: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              额外风格约束
+              <textarea
+                rows={3}
+                value={selection.styleConstraints ?? ""}
+                onChange={(event) =>
+                  setSelection((current) => ({
+                    ...current,
+                    styleConstraints: event.target.value,
+                  }))
+                }
+                placeholder={
+                  state.derivedStyleConstraints ||
+                  "可补充本章额外风格要求"
+                }
+              />
+            </label>
+          </section>
+
+          {state.derivedStyleConstraints ? (
+            <section className={styles.writeChapterDerivedStyle}>
+              <strong>题材 / 文风自动约束</strong>
+              <p>{state.derivedStyleConstraints}</p>
+            </section>
+          ) : null}
+        </div>
+
+        <footer>
+          <button onClick={onCancel}>取消</button>
+          <button
+            className={styles.primaryButton}
+            onClick={() => onConfirm(selection)}
+          >
+            开始生成
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 function CreateBookPanel({
   modelGroups,
   selectedModelValue,
@@ -3740,6 +4558,7 @@ function CreateBookPanel({
           <ModelPicker
             value={selectedModelValue}
             groups={modelGroups}
+            recentModels={[]}
             onManageModels={onManageModels}
             onValueChange={onModelChange}
           />
@@ -3965,7 +4784,10 @@ function NovelToolPanel({
   isRunningCoreAction,
   onProjectChange,
   onRunCoreAction,
+  onImportChapters,
+  onRunLocalDiagnostics,
   onRequestPrompt,
+  onNotify,
 }: {
   tool: Exclude<NovelTool, "AI创作">;
   book: NovelBookEntry | null;
@@ -3976,6 +4798,8 @@ function NovelToolPanel({
     assets?: NovelProjectAssets,
   ) => Promise<void>;
   onRunCoreAction: (action: InkosCoreAction) => Promise<void>;
+  onImportChapters: (chapters: NovelImportedChapter[]) => Promise<void>;
+  onRunLocalDiagnostics: () => void;
   onRequestPrompt: (options: {
     title: string;
     message?: string;
@@ -3983,6 +4807,7 @@ function NovelToolPanel({
     multiline?: boolean;
     confirmLabel?: string;
   }) => Promise<string | null>;
+  onNotify: (message: string, tone?: AppToastState["tone"]) => void;
 }) {
   const assets = book?.assets ?? createDefaultNovelAssets(project);
 
@@ -3998,6 +4823,7 @@ function NovelToolPanel({
           project={project}
           onProjectChange={onProjectChange}
           onRequestPrompt={onRequestPrompt}
+          onNotify={onNotify}
         />
       ) : null}
       {tool === "文风" ? (
@@ -4005,6 +4831,7 @@ function NovelToolPanel({
           assets={assets}
           project={project}
           onProjectChange={onProjectChange}
+          onNotify={onNotify}
         />
       ) : null}
       {tool === "导入" ? (
@@ -4012,6 +4839,8 @@ function NovelToolPanel({
           assets={assets}
           project={project}
           onProjectChange={onProjectChange}
+          onImportChapters={onImportChapters}
+          onNotify={onNotify}
         />
       ) : null}
       {tool === "市场雷达" ? (
@@ -4028,6 +4857,7 @@ function NovelToolPanel({
           project={project}
           isRunningCoreAction={isRunningCoreAction}
           onRunCoreAction={onRunCoreAction}
+          onRunLocalDiagnostics={onRunLocalDiagnostics}
         />
       ) : null}
     </section>
@@ -4039,6 +4869,7 @@ function GenreTool({
   project,
   onProjectChange,
   onRequestPrompt,
+  onNotify,
 }: {
   assets: NovelProjectAssets;
   project: InkosNovelProject;
@@ -4052,6 +4883,7 @@ function GenreTool({
     initialValue?: string;
     confirmLabel?: string;
   }) => Promise<string | null>;
+  onNotify: (message: string, tone?: AppToastState["tone"]) => void;
 }) {
   const [selectedGenre, setSelectedGenre] = useState(
     assets.genres[0]?.id ?? "project",
@@ -4082,6 +4914,18 @@ function GenreTool({
       field === "name" ? { genre: value } : {},
       nextAssets,
     );
+  }
+
+  async function analyzeAndApplyGenre() {
+    const analysis = analyzeNovelGenreProfile(detail, project);
+    const nextAssets = applyNovelGenreAnalysisToAssets(
+      assets,
+      detail.id,
+      analysis,
+    );
+
+    await onProjectChange({}, nextAssets);
+    onNotify("题材分析已写入设定资产与风格约束。");
   }
 
   return (
@@ -4170,6 +5014,35 @@ function GenreTool({
             />
           </label>
         </div>
+        <button
+          className={styles.toolPrimaryButton}
+          onClick={() => void analyzeAndApplyGenre()}
+        >
+          分析并写入项目资产
+        </button>
+        {detail.analysis ? (
+          <section className={styles.toolResultPanel}>
+            <h2>题材分析</h2>
+            <p>{detail.analysis.summary}</p>
+            <div className={styles.toolMetricGrid}>
+              <article>
+                <span>受众钩子</span>
+                <strong>{detail.analysis.audienceHook}</strong>
+              </article>
+              <article>
+                <span>冲突模式</span>
+                <strong>{detail.analysis.conflictPattern}</strong>
+              </article>
+            </div>
+            {detail.analysis.riskPoints.length > 0 ? (
+              <div className={styles.tagGroup}>
+                {detail.analysis.riskPoints.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </section>
     </div>
   );
@@ -4179,6 +5052,7 @@ function StyleTool({
   assets,
   project,
   onProjectChange,
+  onNotify,
 }: {
   assets: NovelProjectAssets;
   project: InkosNovelProject;
@@ -4186,6 +5060,7 @@ function StyleTool({
     updates: Partial<InkosNovelProject>,
     assets?: NovelProjectAssets,
   ) => Promise<void>;
+  onNotify: (message: string, tone?: AppToastState["tone"]) => void;
 }) {
   const currentSample = assets.styleSamples[0] ?? {
     id: `style-${Date.now()}`,
@@ -4194,19 +5069,34 @@ function StyleTool({
     updatedAt: new Date().toISOString(),
   };
   const [sample, setSample] = useState(currentSample.content);
-  const sentenceLength = Math.max(8, Math.round(sample.length / 3));
-  const diversity = Math.min(96, 48 + new Set(sample).size);
-  async function saveSample() {
+  const analysis =
+    currentSample.analysis ??
+    (sample.trim() ? analyzeNovelStyleSample(sample) : null);
+
+  async function saveAndAnalyzeSample() {
+    if (!sample.trim()) {
+      onNotify("请先粘贴或输入文风样章。", "warning");
+      return;
+    }
+
+    const nextAnalysis = analyzeNovelStyleSample(sample);
     const nextSample = {
       ...currentSample,
       content: sample,
       updatedAt: new Date().toISOString(),
+      analysis: nextAnalysis,
     };
+    const nextAssets = applyNovelStyleAnalysisToAssets(
+      {
+        ...assets,
+        styleSamples: [nextSample, ...assets.styleSamples.slice(1)],
+      },
+      nextSample.id,
+      nextAnalysis,
+    );
 
-    await onProjectChange({}, {
-      ...assets,
-      styleSamples: [nextSample, ...assets.styleSamples.slice(1)],
-    });
+    await onProjectChange({}, nextAssets);
+    onNotify("文风分析已保存，并写入风格约束。");
   }
 
   return (
@@ -4224,23 +5114,48 @@ function StyleTool({
             onChange={(event) => setSample(event.target.value)}
           />
         </label>
-        <button className={styles.toolPrimaryButton} onClick={saveSample}>
+        <button
+          className={styles.toolPrimaryButton}
+          onClick={() => void saveAndAnalyzeSample()}
+        >
           保存并分析文风
         </button>
       </section>
       <section className={styles.toolResultPanel}>
         <h2>分析结果</h2>
-        <div className={styles.toolMetricGrid}>
-          <article><span>平均句长</span><strong>{sentenceLength}</strong></article>
-          <article><span>词汇多样性</span><strong>{diversity}%</strong></article>
-          <article><span>段落密度</span><strong>中</strong></article>
-          <article><span>情绪倾向</span><strong>克制</strong></article>
-        </div>
-        <div className={styles.tagGroup}>
-          {["现实细节", "悬疑钩子", "冷色调", "人物内压"].map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
-        </div>
+        {analysis ? (
+          <>
+            <div className={styles.toolMetricGrid}>
+              <article>
+                <span>平均句长</span>
+                <strong>{analysis.averageSentenceLength}</strong>
+              </article>
+              <article>
+                <span>词汇多样性</span>
+                <strong>{analysis.vocabularyDiversity}%</strong>
+              </article>
+              <article>
+                <span>段落密度</span>
+                <strong>{analysis.paragraphDensity}</strong>
+              </article>
+              <article>
+                <span>情绪倾向</span>
+                <strong>{analysis.emotionalTone}</strong>
+              </article>
+            </div>
+            <div className={styles.tagGroup}>
+              {analysis.tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
+            </div>
+            <div className={styles.toolNotice}>
+              <strong>风格约束</strong>
+              <p>{analysis.styleConstraints}</p>
+            </div>
+          </>
+        ) : (
+          <p>粘贴样章后点击「保存并分析文风」。</p>
+        )}
       </section>
     </div>
   );
@@ -4250,6 +5165,8 @@ function ImportTool({
   assets,
   project,
   onProjectChange,
+  onImportChapters,
+  onNotify,
 }: {
   assets: NovelProjectAssets;
   project: InkosNovelProject;
@@ -4257,34 +5174,46 @@ function ImportTool({
     updates: Partial<InkosNovelProject>,
     assets?: NovelProjectAssets,
   ) => Promise<void>;
+  onImportChapters: (chapters: NovelImportedChapter[]) => Promise<void>;
+  onNotify: (message: string, tone?: AppToastState["tone"]) => void;
 }) {
   const [tab, setTab] = useState<"chapters" | "canon" | "fanfic">("chapters");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [previewCount, setPreviewCount] = useState(0);
+
+  useEffect(() => {
+    if (tab !== "chapters" || !content.trim()) {
+      setPreviewCount(0);
+      return;
+    }
+    setPreviewCount(splitImportedNovelChapters(content).length);
+  }, [content, tab]);
 
   async function importMaterial() {
     if (!content.trim()) {
+      onNotify("请先粘贴导入内容。", "warning");
       return;
     }
 
-    const material = {
-      id: `import-${Date.now()}`,
+    const processed = processImportedNovelMaterial({
       title: title.trim() || `${project.title} 导入素材`,
-      type: tab,
       content: content.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    const nextAssets = {
-      ...assets,
-      importedMaterials: [material, ...assets.importedMaterials],
-      outline: tab === "chapters" ? content.trim() : assets.outline,
-      worldNotes: tab === "canon" ? content.trim() : assets.worldNotes,
-      settings: tab === "fanfic" ? content.trim() : assets.settings,
-    };
+      type: tab,
+      project,
+      assets,
+    });
 
-    await onProjectChange(
-      tab === "chapters" ? { currentStage: "chapter-plan" } : {},
-      nextAssets,
+    await onProjectChange(processed.project, processed.assets);
+
+    if (processed.chapters.length > 0) {
+      await onImportChapters(processed.chapters);
+    }
+
+    onNotify(
+      tab === "chapters"
+        ? `已导入 ${processed.chapters.length} 章，并提取 ${processed.extractedAssetCount} 条资产线索。`
+        : `已导入素材，并提取 ${processed.extractedAssetCount} 条资产线索。`,
     );
     setTitle("");
     setContent("");
@@ -4320,9 +5249,14 @@ function ImportTool({
             placeholder='粘贴需要导入的章节正文...'
             onChange={(event) => setContent(event.target.value)}
           />
-          <button className={styles.toolPrimaryButton} onClick={importMaterial}>
-            导入章节
+          <button className={styles.toolPrimaryButton} onClick={() => void importMaterial()}>
+            导入并解析章节
           </button>
+          {previewCount > 0 ? (
+            <p className={styles.toolNotice}>
+              预计识别 {previewCount} 章，将自动拆章、生成摘要，并提取角色 / 伏笔 / 设定线索。
+            </p>
+          ) : null}
         </>
       ) : null}
       {tab === "canon" ? (
@@ -4338,8 +5272,8 @@ function ImportTool({
             placeholder='粘贴原作设定、世界观或人物关系...'
             onChange={(event) => setContent(event.target.value)}
           />
-          <button className={styles.toolPrimaryButton} onClick={importMaterial}>
-            导入原作设定
+          <button className={styles.toolPrimaryButton} onClick={() => void importMaterial()}>
+            导入并提取设定
           </button>
         </>
       ) : null}
@@ -4356,8 +5290,8 @@ function ImportTool({
             placeholder='粘贴原作资料或世界观素材...'
             onChange={(event) => setContent(event.target.value)}
           />
-          <button className={styles.toolPrimaryButton} onClick={importMaterial}>
-            初始化同人项目
+          <button className={styles.toolPrimaryButton} onClick={() => void importMaterial()}>
+            初始化并提取资产
           </button>
         </>
       ) : null}
@@ -4366,7 +5300,16 @@ function ImportTool({
           {assets.importedMaterials.map((item) => (
             <article key={item.id}>
               <strong>{item.title}</strong>
-              <span>{item.type} · {formatNovelRelativeAge(item.createdAt)}</span>
+              <span>
+                {item.type} · {formatNovelRelativeAge(item.createdAt)}
+                {item.parsedChapterCount
+                  ? ` · ${item.parsedChapterCount} 章`
+                  : ""}
+                {item.extractedAssetCount
+                  ? ` · ${item.extractedAssetCount} 条资产`
+                  : ""}
+                {item.status === "processed" ? " · 已解析" : ""}
+              </span>
             </article>
           ))}
         </div>
@@ -4403,6 +5346,22 @@ function RadarTool({
       </section>
       <section className={styles.toolResultPanel}>
         <h2>推荐方向</h2>
+        {assets.projectStrategy ? (
+          <article className={styles.radarResultItem}>
+            <strong>项目策略摘要</strong>
+            <p>{assets.projectStrategy.summary}</p>
+            {assets.projectStrategy.platformHints.length > 0 ? (
+              <div className={styles.tagGroup}>
+                {assets.projectStrategy.platformHints.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </div>
+            ) : null}
+            {assets.projectStrategy.riskAlerts.length > 0 ? (
+              <em>风险：{assets.projectStrategy.riskAlerts.join("；")}</em>
+            ) : null}
+          </article>
+        ) : null}
         {assets.marketRadars.map((item) => (
           <article key={item.id} className={styles.radarResultItem}>
             <strong>{item.platform} · {item.genre}</strong>
@@ -4421,11 +5380,13 @@ function DoctorTool({
   project,
   isRunningCoreAction,
   onRunCoreAction,
+  onRunLocalDiagnostics,
 }: {
   assets: NovelProjectAssets;
   project: InkosNovelProject;
   isRunningCoreAction: boolean;
   onRunCoreAction: (action: InkosCoreAction) => Promise<void>;
+  onRunLocalDiagnostics: () => void;
 }) {
   return (
     <section className={styles.toolFormPanel}>
@@ -4433,13 +5394,18 @@ function DoctorTool({
       <p>
         使用 InkOS Core StateValidatorAgent 校验《{project.title}》当前状态、伏笔和章节上下文。
       </p>
-      <button
-        className={styles.toolPrimaryButton}
-        disabled={isRunningCoreAction}
-        onClick={() => void onRunCoreAction("diagnostics")}
-      >
-        {isRunningCoreAction ? "诊断中" : "运行环境诊断"}
-      </button>
+      <div className={styles.toolActionRow}>
+        <button
+          className={styles.toolPrimaryButton}
+          disabled={isRunningCoreAction}
+          onClick={() => void onRunCoreAction("diagnostics")}
+        >
+          {isRunningCoreAction ? "诊断中" : "运行 Core 诊断"}
+        </button>
+        <button disabled={isRunningCoreAction} onClick={onRunLocalDiagnostics}>
+          本地快速诊断
+        </button>
+      </div>
       <div className={styles.doctorList}>
         {assets.diagnostics.map((check) => (
           <div key={check.id}>
@@ -4693,6 +5659,521 @@ function parsePendingAssetLines(value: string) {
     .filter(Boolean);
 }
 
+const KNOWLEDGE_ASSET_STATUS_LABELS: Record<
+  NovelKnowledgeAsset["status"],
+  string
+> = {
+  active: "生效",
+  draft: "草稿",
+  resolved: "已归档",
+};
+
+const FORESHADOWING_STATUS_LABELS: Record<
+  NovelKnowledgeAsset["status"],
+  string
+> = {
+  active: "已埋设",
+  draft: "推进中",
+  resolved: "已回收",
+};
+
+function OutlineEditorDialog({
+  nodes,
+  outlineText,
+  project,
+  onChange,
+  onClose,
+  onSave,
+  onImportFromOutlineText,
+  onImportFromProject,
+  onReverseSyncFromChapters,
+  onSyncToProject,
+  onRequestPrompt,
+  onRequestConfirm,
+}: {
+  nodes: NovelOutlineNode[];
+  outlineText: string;
+  project: InkosNovelProject;
+  onChange: (nodes: NovelOutlineNode[]) => void;
+  onClose: () => void;
+  onSave: (nodes: NovelOutlineNode[]) => void | Promise<void>;
+  onImportFromOutlineText: () => void | Promise<void>;
+  onImportFromProject: () => void | Promise<void>;
+  onReverseSyncFromChapters: () => void | Promise<void>;
+  onSyncToProject: (nodes: NovelOutlineNode[]) => void | Promise<void>;
+  onRequestPrompt: (options: {
+    title: string;
+    message?: string;
+    initialValue?: string;
+    multiline?: boolean;
+    confirmLabel?: string;
+  }) => Promise<string | null>;
+  onRequestConfirm: (options: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+  }) => Promise<boolean>;
+}) {
+  const volumeGroups = useMemo(
+    () => groupNovelOutlineNodesByVolume(nodes),
+    [nodes],
+  );
+  const driftReport = useMemo(
+    () => buildNovelOutlineSyncDriftReport(project, nodes),
+    [project, nodes],
+  );
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+
+  function updateNode(nodeId: string, patch: Partial<NovelOutlineNode>) {
+    onChange(
+      nodes.map((node) =>
+        node.id === nodeId
+          ? { ...node, ...patch, updatedAt: new Date().toISOString() }
+          : node,
+      ),
+    );
+  }
+
+  async function addVolume() {
+    const volume = await onRequestPrompt({
+      title: "新增卷",
+      initialValue: `第 ${volumeGroups.length + 1} 卷`,
+      confirmLabel: "创建",
+    });
+
+    if (!volume?.trim()) {
+      return;
+    }
+
+    const chapterNumber =
+      Math.max(0, ...nodes.map((node) => node.chapterNumber)) + 1;
+    const node: NovelOutlineNode = {
+      id: `outline-${Date.now()}`,
+      volume: volume.trim(),
+      chapterNumber,
+      title: `第 ${chapterNumber} 章`,
+      goal: "推进主线并制造新的悬念。",
+      conflict: "",
+      characters: "",
+      information: "",
+      foreshadowing: "",
+      targetWords: project.chapterWordCount ?? 3000,
+      status: "planned",
+      updatedAt: new Date().toISOString(),
+    };
+
+    onChange([...nodes, node]);
+  }
+
+  async function addChapterToVolume(volume: string) {
+    const title = await onRequestPrompt({
+      title: `新增章节 · ${volume}`,
+      initialValue: `第 ${nodes.length + 1} 章`,
+      confirmLabel: "创建",
+    });
+
+    if (!title?.trim()) {
+      return;
+    }
+
+    const chapterNumber =
+      Math.max(0, ...nodes.map((node) => node.chapterNumber)) + 1;
+    const node: NovelOutlineNode = {
+      id: `outline-${Date.now()}`,
+      volume,
+      chapterNumber,
+      title: title.trim(),
+      goal: "推进主线并制造新的悬念。",
+      conflict: "",
+      characters: "",
+      information: "",
+      foreshadowing: "",
+      targetWords: project.chapterWordCount ?? 3000,
+      status: "planned",
+      updatedAt: new Date().toISOString(),
+    };
+
+    onChange([...nodes, node]);
+  }
+
+  function handleDrop(targetNodeId: string) {
+    if (!draggingNodeId || draggingNodeId === targetNodeId) {
+      return;
+    }
+
+    const sorted = [...nodes].sort(
+      (left, right) => left.chapterNumber - right.chapterNumber,
+    );
+    const fromIndex = sorted.findIndex((node) => node.id === draggingNodeId);
+    const toIndex = sorted.findIndex((node) => node.id === targetNodeId);
+
+    if (fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+
+    onChange(reorderNovelOutlineNodes(nodes, fromIndex, toIndex));
+    setDraggingNodeId(null);
+  }
+
+  async function handleSyncToProject() {
+    if (driftReport.hasDrift) {
+      const confirmed = await onRequestConfirm({
+        title: "同步章节计划",
+        message: `${driftReport.message} 继续将把当前大纲写回 project.chapters。`,
+        confirmLabel: "继续同步",
+      });
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    await onSyncToProject(nodes);
+  }
+
+  return (
+    <div className={styles.outlineEditorOverlay} role='presentation'>
+      <section className={styles.outlineEditorDialog} aria-modal='true'>
+        <header className={styles.outlineEditorHeader}>
+          <div>
+            <h2>大纲编辑器</h2>
+            <p>
+              按卷 / 章管理章节计划，可拖拽排序、从 outline 文本导入，或反向同步已生成章节状态。
+            </p>
+          </div>
+          <button onClick={onClose}>关闭</button>
+        </header>
+
+        <div className={styles.outlineEditorToolbar}>
+          <button onClick={() => void addVolume()}>+ 卷 / 章</button>
+          <button onClick={() => void onImportFromOutlineText()}>
+            从 outline 文本生成
+          </button>
+          <button onClick={() => void onImportFromProject()}>
+            从 project 导入
+          </button>
+          <button onClick={() => void onReverseSyncFromChapters()}>
+            反向同步章节状态
+          </button>
+          <button onClick={() => void handleSyncToProject()}>同步到 project</button>
+        </div>
+
+        <div
+          className={
+            driftReport.hasDrift
+              ? styles.outlineEditorDriftWarning
+              : styles.outlineEditorDriftOk
+          }
+        >
+          {driftReport.message}
+        </div>
+
+        <div className={styles.outlineEditorBody}>
+          {volumeGroups.length === 0 ? (
+            <p className={styles.emptyMiniState}>
+              暂无章节计划。可从 outline 文本导入，或从 project.chapters 同步。
+            </p>
+          ) : (
+            volumeGroups.map((group) => (
+              <section key={group.volume} className={styles.outlineVolumeSection}>
+                <header>
+                  <strong>{group.volume}</strong>
+                  <button onClick={() => void addChapterToVolume(group.volume)}>
+                    + 章节
+                  </button>
+                </header>
+                <div className={styles.outlineEditorNodeList}>
+                  {group.nodes.map((node) => (
+                    <article
+                      key={node.id}
+                      className={
+                        draggingNodeId === node.id
+                          ? styles.outlineEditorNodeDragging
+                          : styles.outlineEditorNode
+                      }
+                      draggable
+                      onDragStart={() => setDraggingNodeId(node.id)}
+                      onDragEnd={() => setDraggingNodeId(null)}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        handleDrop(node.id);
+                      }}
+                    >
+                      <div className={styles.outlineEditorNodeHead}>
+                        <strong>
+                          {node.chapterNumber}. {node.title}
+                        </strong>
+                        <span>
+                          {INKOS_STATUS_LABELS[node.status]} / {node.targetWords} 字
+                        </span>
+                        <div className={styles.outlineEditorNodeActions}>
+                          <button
+                            onClick={() =>
+                              onChange(moveNovelOutlineNode(nodes, node.id, "up"))
+                            }
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() =>
+                              onChange(moveNovelOutlineNode(nodes, node.id, "down"))
+                            }
+                          >
+                            ↓
+                          </button>
+                          <button
+                            className={styles.dangerTextButton}
+                            onClick={() =>
+                              onChange(nodes.filter((item) => item.id !== node.id))
+                            }
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </div>
+                      <div className={styles.outlineEditorFields}>
+                        <label>
+                          标题
+                          <input
+                            value={node.title}
+                            onChange={(event) =>
+                              updateNode(node.id, { title: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          卷
+                          <input
+                            value={node.volume}
+                            onChange={(event) =>
+                              updateNode(node.id, { volume: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          章节目标
+                          <textarea
+                            rows={2}
+                            value={node.goal}
+                            onChange={(event) =>
+                              updateNode(node.id, { goal: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          冲突
+                          <textarea
+                            rows={2}
+                            value={node.conflict}
+                            onChange={(event) =>
+                              updateNode(node.id, { conflict: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          出场角色
+                          <input
+                            value={node.characters}
+                            onChange={(event) =>
+                              updateNode(node.id, { characters: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          信息增量
+                          <textarea
+                            rows={2}
+                            value={node.information}
+                            onChange={(event) =>
+                              updateNode(node.id, { information: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          伏笔
+                          <textarea
+                            rows={2}
+                            value={node.foreshadowing}
+                            onChange={(event) =>
+                              updateNode(node.id, { foreshadowing: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          目标字数
+                          <input
+                            type='number'
+                            min={500}
+                            value={node.targetWords}
+                            onChange={(event) =>
+                              updateNode(node.id, {
+                                targetWords: Math.max(
+                                  500,
+                                  Number(event.target.value) || node.targetWords,
+                                ),
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ))
+          )}
+        </div>
+
+        {outlineText ? (
+          <details className={styles.outlineEditorSource}>
+            <summary>当前 outline 文本</summary>
+            <pre>{outlineText}</pre>
+          </details>
+        ) : null}
+
+        <footer className={styles.outlineEditorFooter}>
+          <span>{nodes.length} 个章节计划</span>
+          <button className={styles.primaryButton} onClick={() => void onSave(nodes)}>
+            保存大纲
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function KnowledgeAssetLibraryDialog({
+  assets,
+  onClose,
+  onEditAsset,
+  onDeleteAsset,
+  onCreateAsset,
+}: {
+  assets: NovelProjectAssets;
+  onClose: () => void;
+  onEditAsset: (
+    item: NovelKnowledgeAsset,
+    field: keyof Pick<NovelKnowledgeAsset, "title" | "content" | "status" | "tags">,
+  ) => void | Promise<void>;
+  onDeleteAsset: (item: NovelKnowledgeAsset) => void | Promise<void>;
+  onCreateAsset: () => void | Promise<void>;
+}) {
+  const [category, setCategory] = useState<NovelKnowledgeAssetCategory | "all">(
+    "all",
+  );
+  const foreshadowingPool = useMemo(
+    () => buildNovelForeshadowingPoolSummary(assets),
+    [assets],
+  );
+  const visibleAssets = useMemo(
+    () => filterNovelKnowledgeAssets(assets, category),
+    [assets, category],
+  );
+
+  return (
+    <div className={styles.outlineEditorOverlay} role='presentation'>
+      <section className={styles.outlineEditorDialog} aria-modal='true'>
+        <header className={styles.outlineEditorHeader}>
+          <div>
+            <h2>设定资产库</h2>
+            <p>按类型浏览世界观、角色、伏笔等资产，伏笔池会按状态分组展示。</p>
+          </div>
+          <button onClick={onClose}>关闭</button>
+        </header>
+
+        <div className={styles.foreshadowingPoolSummary}>
+          <article>
+            <strong>{foreshadowingPool.planted.length}</strong>
+            <span>已埋设</span>
+          </article>
+          <article>
+            <strong>{foreshadowingPool.progressing.length}</strong>
+            <span>推进中</span>
+          </article>
+          <article>
+            <strong>{foreshadowingPool.resolved.length}</strong>
+            <span>已回收</span>
+          </article>
+          <article>
+            <strong>{foreshadowingPool.stale.length}</strong>
+            <span>遗忘风险</span>
+          </article>
+        </div>
+
+        <div className={styles.knowledgeLibraryFilters}>
+          <button
+            className={category === "all" ? styles.activeFilterButton : ""}
+            onClick={() => setCategory("all")}
+          >
+            全部 {assets.knowledgeAssets.length}
+          </button>
+          {(Object.keys(KNOWLEDGE_ASSET_LABELS) as NovelKnowledgeAssetCategory[]).map(
+            (key) => (
+              <button
+                key={key}
+                className={category === key ? styles.activeFilterButton : ""}
+                onClick={() => setCategory(key)}
+              >
+                {KNOWLEDGE_ASSET_LABELS[key]}{" "}
+                {
+                  assets.knowledgeAssets.filter((item) => item.category === key)
+                    .length
+                }
+              </button>
+            ),
+          )}
+          <button onClick={() => void onCreateAsset()}>+ 资产</button>
+        </div>
+
+        <div className={styles.knowledgeLibraryList}>
+          {visibleAssets.length === 0 ? (
+            <p className={styles.emptyMiniState}>当前分类下暂无设定资产。</p>
+          ) : (
+            visibleAssets.map((item) => (
+              <article key={item.id} className={styles.knowledgeAssetCard}>
+                <div>
+                  <strong>{item.title}</strong>
+                  <span>
+                    {KNOWLEDGE_ASSET_LABELS[item.category]} /{" "}
+                    {item.category === "foreshadowing"
+                      ? FORESHADOWING_STATUS_LABELS[item.status]
+                      : KNOWLEDGE_ASSET_STATUS_LABELS[item.status]}
+                  </span>
+                </div>
+                <p>{item.content || "暂无内容。"}</p>
+                {item.tags.length > 0 ? (
+                  <em>{item.tags.map((tag) => `#${tag}`).join(" ")}</em>
+                ) : null}
+                <div>
+                  <button onClick={() => void onEditAsset(item, "title")}>
+                    标题
+                  </button>
+                  <button onClick={() => void onEditAsset(item, "content")}>
+                    内容
+                  </button>
+                  <button onClick={() => void onEditAsset(item, "tags")}>
+                    标签
+                  </button>
+                  <button onClick={() => void onEditAsset(item, "status")}>
+                    状态
+                  </button>
+                  <button
+                    className={styles.dangerTextButton}
+                    onClick={() => void onDeleteAsset(item)}
+                  >
+                    删除
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function NovelBookPanel({
   project,
   assets,
@@ -4713,6 +6194,7 @@ function NovelBookPanel({
   onRetryTask,
   onProjectChange,
   onRequestPrompt,
+  onRequestConfirm,
 }: {
   project: InkosNovelProject;
   assets: NovelProjectAssets;
@@ -4753,8 +6235,15 @@ function NovelBookPanel({
     multiline?: boolean;
     confirmLabel?: string;
   }) => Promise<string | null>;
+  onRequestConfirm: (options: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+  }) => Promise<boolean>;
 }) {
   const chapterRows = mergeNovelChapterPlan(project, chapters);
+  const publicationTimeline = buildNovelPublicationTimeline(assets, chapters);
   const activeRow =
     chapterRows.find((chapter) => chapter.key === activeChapterId) ??
     chapterRows.at(-1) ??
@@ -4771,6 +6260,9 @@ function NovelBookPanel({
   const [chapterEditorReplacement, setChapterEditorReplacement] = useState("");
   const [chapterEditorSearchIndex, setChapterEditorSearchIndex] = useState(0);
   const [compareSearch, setCompareSearch] = useState("");
+  const [compareDiffIndex, setCompareDiffIndex] = useState(0);
+  const [compareRestoreParagraphIndex, setCompareRestoreParagraphIndex] =
+    useState<number | null>(null);
   const [isChapterEditorFullscreen, setIsChapterEditorFullscreen] =
     useState(false);
   const [chapterDraftSavedAt, setChapterDraftSavedAt] = useState("");
@@ -4778,12 +6270,20 @@ function NovelBookPanel({
   const [selectedReviewIssueIds, setSelectedReviewIssueIds] = useState<string[]>([]);
   const [reviewIssueFilter, setReviewIssueFilter] =
     useState<NovelReviewIssueFilter>("all");
+  const [isOutlineEditorOpen, setIsOutlineEditorOpen] = useState(false);
+  const [outlineEditorDraft, setOutlineEditorDraft] = useState<NovelOutlineNode[]>(
+    [],
+  );
+  const [isKnowledgeLibraryOpen, setIsKnowledgeLibraryOpen] = useState(false);
   const [locatedReviewIssue, setLocatedReviewIssue] = useState<{
     issueKey: string;
     paragraphIndex: number;
     paragraph: string;
   } | null>(null);
   const chapterEditorTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const compareDiffMarkerRefs = useRef<Record<string, HTMLSpanElement | null>>(
+    {},
+  );
   const compareVersion = chapterVersions.find(
     (version) => version.id === compareVersionId,
   );
@@ -4840,6 +6340,19 @@ function NovelBookPanel({
     activeChapter && reviewIssueViews.length > 0
       ? buildNovelReviewIssueHighlights(activeChapter.content, reviewIssueViews)
       : [];
+  const reviewParagraphMarks = buildNovelReviewIssueParagraphMarks(
+    (isChapterEditorOpen ? chapterEditorContent : activeChapter?.content) ?? "",
+    reviewIssueViews,
+  );
+  const compareDiffMarkers =
+    compareView && activeChapter
+      ? filterNovelCompareDiffMarkers(
+          buildNovelCompareDiffMarkers(compareView, reviewIssueViews),
+          compareSearch,
+        )
+      : [];
+  const activeCompareDiffMarker =
+    compareDiffMarkers[compareDiffIndex] ?? compareDiffMarkers[0] ?? null;
   const generatedRows = chapterRows.filter((row) => row.chapter);
   const activeGeneratedIndex = activeChapter
     ? generatedRows.findIndex((row) => row.chapter?.id === activeChapter.id)
@@ -4850,18 +6363,6 @@ function NovelBookPanel({
     activeGeneratedIndex >= 0
       ? generatedRows[activeGeneratedIndex + 1] ?? null
       : null;
-  const filteredComparePreviousLines =
-    compareView && compareSearch.trim()
-      ? compareView.previousLines.filter((line) =>
-          line.text.toLowerCase().includes(compareSearch.trim().toLowerCase()),
-        )
-      : compareView?.previousLines ?? [];
-  const filteredCompareNextLines =
-    compareView && compareSearch.trim()
-      ? compareView.nextLines.filter((line) =>
-          line.text.toLowerCase().includes(compareSearch.trim().toLowerCase()),
-        )
-      : compareView?.nextLines ?? [];
   const chapterDraftStorageKey = activeChapter
     ? `sxy-novel-chapter-draft:${activeChapter.id}`
     : "";
@@ -4916,6 +6417,9 @@ function NovelBookPanel({
     setChapterEditorReplacement("");
     setChapterEditorSearchIndex(0);
     setCompareSearch("");
+    setCompareDiffIndex(0);
+    setCompareRestoreParagraphIndex(null);
+    compareDiffMarkerRefs.current = {};
     setChapterDraftSavedAt(restoredSavedAt);
     setHasRestoredLocalDraft(restoredDraft);
     setIsChapterEditorFullscreen(false);
@@ -4957,6 +6461,21 @@ function NovelBookPanel({
     isChapterDraftDirty,
     isChapterEditorOpen,
   ]);
+
+  useEffect(() => {
+    setCompareDiffIndex(0);
+    compareDiffMarkerRefs.current = {};
+  }, [compareVersionId, compareSearch]);
+
+  useEffect(() => {
+    if (!activeCompareDiffMarker) {
+      return;
+    }
+
+    const node =
+      compareDiffMarkerRefs.current[activeCompareDiffMarker.id] ?? null;
+    node?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [activeCompareDiffMarker]);
 
   useEffect(() => {
     if (!locatedReviewIssue || !isChapterEditorOpen) {
@@ -5104,6 +6623,78 @@ function NovelBookPanel({
     }, 0);
   }
 
+  function jumpToReviewHighlight(highlight: (typeof reviewIssueHighlights)[number]) {
+    setLocatedReviewIssue({
+      issueKey: highlight.key,
+      paragraphIndex: highlight.paragraphIndex,
+      paragraph: highlight.paragraph,
+    });
+    jumpToParagraph(highlight.paragraphIndex);
+  }
+
+  function moveCompareDiff(direction: -1 | 1) {
+    if (compareDiffMarkers.length === 0) {
+      return;
+    }
+
+    setCompareDiffIndex((current) => {
+      const next = current + direction;
+      if (next < 0) {
+        return compareDiffMarkers.length - 1;
+      }
+      if (next >= compareDiffMarkers.length) {
+        return 0;
+      }
+      return next;
+    });
+  }
+
+  function focusCompareDiffMarker(marker: NovelCompareDiffMarker) {
+    const markerIndex = compareDiffMarkers.findIndex((item) => item.id === marker.id);
+    if (markerIndex >= 0) {
+      setCompareDiffIndex(markerIndex);
+    }
+  }
+
+  function prepareCompareLineRestore(lineText: string) {
+    const trimmed = lineText.trim();
+    if (!trimmed) {
+      setCompareRestoreParagraphIndex(null);
+      return;
+    }
+
+    const matched = paragraphNavigation.paragraphs.find(
+      (paragraph) =>
+        paragraph.text.includes(trimmed) || trimmed.includes(paragraph.text),
+    );
+    setCompareRestoreParagraphIndex(matched?.index ?? null);
+  }
+
+  function restoreCompareLine(
+    lineText: string,
+    paragraphIndex?: number | null,
+  ) {
+    if (!lineText.trim()) {
+      return;
+    }
+
+    const textarea = chapterEditorTextAreaRef.current;
+    const result = restoreNovelCompareLineInContent(
+      chapterEditorContent,
+      lineText,
+      {
+        paragraphIndex:
+          paragraphIndex ?? compareRestoreParagraphIndex ?? undefined,
+        selectionStart: textarea?.selectionStart,
+        selectionEnd: textarea?.selectionEnd,
+      },
+    );
+
+    setChapterEditorContent(result.content);
+    setCompareRestoreParagraphIndex(result.paragraphIndex);
+    setIsChapterEditorOpen(true);
+  }
+
   function exportActiveChapter(format: "markdown" | "text" | "docx") {
     if (!activeChapter) {
       return;
@@ -5127,21 +6718,15 @@ function NovelBookPanel({
     } else {
       downloadBytesFile(
         `${title}.docx`,
-        createSimpleDocxFile(title, activeChapter.content),
+        createNovelBookDocxFile(
+          buildNovelDocxDocumentModel({
+            title,
+            chapters: [activeChapter],
+          }),
+        ),
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       );
     }
-  }
-
-  function restoreCompareLine(lineText: string) {
-    if (!lineText.trim()) {
-      return;
-    }
-
-    setChapterEditorContent((current) =>
-      current.trim() ? `${current}\n\n${lineText}` : lineText,
-    );
-    setIsChapterEditorOpen(true);
   }
 
   function discardChapterLocalDraft() {
@@ -5307,12 +6892,23 @@ function NovelBookPanel({
     });
   }
 
-  async function syncOutlineToProject() {
-    const nextProject = syncNovelProjectFromOutlineNodes(
-      project,
-      assets.outlineNodes,
-    );
-    const outline = assets.outlineNodes
+  async function syncOutlineToProject(nodes = assets.outlineNodes) {
+    const drift = buildNovelOutlineSyncDriftReport(project, nodes);
+
+    if (drift.hasDrift) {
+      const confirmed = await onRequestConfirm({
+        title: "同步章节计划",
+        message: `${drift.message} 继续将把大纲写回 project.chapters。`,
+        confirmLabel: "继续同步",
+      });
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const nextProject = syncNovelProjectFromOutlineNodes(project, nodes);
+    const outline = nodes
       .sort((left, right) => left.chapterNumber - right.chapterNumber)
       .map(
         (node) =>
@@ -5320,7 +6916,58 @@ function NovelBookPanel({
       )
       .join("\n");
 
-    await saveAssets({ ...assets, outline }, nextProject);
+    await saveAssets({ ...assets, outlineNodes: nodes, outline }, nextProject);
+  }
+
+  function openOutlineEditor() {
+    setOutlineEditorDraft([...assets.outlineNodes]);
+    setIsOutlineEditorOpen(true);
+  }
+
+  async function saveOutlineEditorDraft(nodes: NovelOutlineNode[]) {
+    await saveAssets({ ...assets, outlineNodes: nodes });
+    setOutlineEditorDraft(nodes);
+    setIsOutlineEditorOpen(false);
+  }
+
+  async function importOutlineFromText() {
+    const source =
+      assets.outline ||
+      (await onRequestPrompt({
+        title: "从 outline 文本生成章节计划",
+        message: "粘贴大纲文本，支持「第 N 章 标题：目标」格式。",
+        initialValue: assets.outline,
+        multiline: true,
+        confirmLabel: "解析",
+      }));
+
+    if (!source?.trim()) {
+      return;
+    }
+
+    const imported = buildNovelOutlineNodesFromOutlineText(source, {
+      defaultTargetWords: project.chapterWordCount ?? 3000,
+    });
+
+    if (imported.length === 0) {
+      return;
+    }
+
+    setOutlineEditorDraft(imported);
+  }
+
+  function importOutlineFromProject() {
+    setOutlineEditorDraft(buildNovelOutlineNodesFromProject(project));
+  }
+
+  function reverseSyncOutlineFromChapters() {
+    setOutlineEditorDraft(
+      syncNovelOutlineNodesFromChapters(
+        outlineEditorDraft.length > 0 ? outlineEditorDraft : assets.outlineNodes,
+        chapters,
+        project,
+      ),
+    );
   }
 
   async function createKnowledgeAsset() {
@@ -5498,6 +7145,7 @@ function NovelBookPanel({
   }
 
   return (
+    <>
     <aside className={styles.bookContextPanel}>
       <section>
         <h2>书籍信息</h2>
@@ -5837,6 +7485,49 @@ function NovelBookPanel({
                       ))}
                     </div>
                   </div>
+                  {reviewParagraphMarks.length > 0 ? (
+                    <div className={styles.reviewInlineHighlightPanel}>
+                      <div className={styles.reviewInlineHighlightHeader}>
+                        <span>审稿原位高亮</span>
+                        <em>{reviewParagraphMarks.length} 段有问题</em>
+                      </div>
+                      <div className={styles.reviewInlineHighlightBody}>
+                        {reviewParagraphMarks.map((mark) => (
+                          <button
+                            key={mark.paragraphIndex}
+                            type='button'
+                            className={`${styles.reviewInlineHighlightParagraph} ${
+                              mark.issues.some(
+                                (issue) =>
+                                  `${issue.reviewId}:${issue.id}` ===
+                                  locatedReviewIssue?.issueKey,
+                              )
+                                ? styles.reviewInlineHighlightActive
+                                : ""
+                            } ${styles[`reviewSeverity_${mark.highestSeverity}`]}`}
+                            onClick={() => {
+                              setLocatedReviewIssue({
+                                issueKey: `${mark.issues[0]?.reviewId}:${mark.issues[0]?.id}`,
+                                paragraphIndex: mark.paragraphIndex,
+                                paragraph: mark.paragraph,
+                              });
+                              jumpToParagraph(mark.paragraphIndex);
+                            }}
+                          >
+                            <strong>第 {mark.paragraphIndex + 1} 段</strong>
+                            <p>{mark.paragraph}</p>
+                            <div className={styles.reviewInlineHighlightTags}>
+                              {mark.issues.map((issue) => (
+                                <span key={`${issue.reviewId}:${issue.id}`}>
+                                  {issue.title}
+                                </span>
+                              ))}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <label>
                     章节正文
                     <textarea
@@ -5938,7 +7629,7 @@ function NovelBookPanel({
                             <button
                               key={highlight.key}
                               type='button'
-                              onClick={() => jumpToParagraph(highlight.paragraphIndex)}
+                              onClick={() => jumpToReviewHighlight(highlight)}
                             >
                               第 {highlight.paragraphIndex + 1} 段 ·{" "}
                               {highlight.issue.title}
@@ -6095,7 +7786,44 @@ function NovelBookPanel({
                         onChange={(event) => setCompareSearch(event.target.value)}
                         placeholder='搜索差异'
                       />
+                      <div className={styles.compareDiffNav}>
+                        <button
+                          type='button'
+                          disabled={compareDiffMarkers.length === 0}
+                          onClick={() => moveCompareDiff(-1)}
+                        >
+                          上一处差异
+                        </button>
+                        <span>
+                          {compareDiffMarkers.length > 0
+                            ? `${compareDiffIndex + 1} / ${compareDiffMarkers.length}`
+                            : "0 / 0"}
+                        </span>
+                        <button
+                          type='button'
+                          disabled={compareDiffMarkers.length === 0}
+                          onClick={() => moveCompareDiff(1)}
+                        >
+                          下一处差异
+                        </button>
+                      </div>
                     </div>
+                    {activeCompareDiffMarker?.relatedIssues.length ? (
+                      <div className={styles.compareRelatedIssues}>
+                        <strong>关联审稿问题</strong>
+                        <div>
+                          {activeCompareDiffMarker.relatedIssues.map((issue) => (
+                            <button
+                              key={`${issue.reviewId}:${issue.id}`}
+                              type='button'
+                              onClick={() => locateReviewIssue(issue)}
+                            >
+                              {issue.title}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     {compareVersion.revisedFromReviewId ? (
                       <span>
                         处理审稿：{compareVersion.revisedFromReviewId}
@@ -6105,43 +7833,110 @@ function NovelBookPanel({
                       <div>
                         <p>旧版本</p>
                         <div className={styles.chapterVersionCompareText}>
-                          {filteredComparePreviousLines.slice(0, 80).map((line, index) => (
-                            <span
-                              key={`previous-${index}`}
-                              className={
-                                line.state === "removed"
-                                  ? styles.removedCompareLine
-                                  : styles.unchangedCompareLine
-                              }
-                            >
-                              {line.text}
-                              {line.state === "removed" ? (
-                                <button
-                                  type='button'
-                                  onClick={() => restoreCompareLine(line.text)}
-                                >
-                                  恢复此段
-                                </button>
-                              ) : null}
-                            </span>
-                          ))}
+                          {compareView.previousLines.slice(0, 80).map((line, index) => {
+                            if (
+                              compareSearch.trim() &&
+                              !line.text
+                                .toLowerCase()
+                                .includes(compareSearch.trim().toLowerCase())
+                            ) {
+                              return null;
+                            }
+
+                            const markerId =
+                              line.state === "removed" ? `previous-${index}` : null;
+                            const isActive =
+                              activeCompareDiffMarker?.id === markerId;
+
+                            return (
+                              <span
+                                key={`previous-${index}`}
+                                ref={(node) => {
+                                  if (markerId) {
+                                    compareDiffMarkerRefs.current[markerId] = node;
+                                  }
+                                }}
+                                className={`${
+                                  line.state === "removed"
+                                    ? styles.removedCompareLine
+                                    : styles.unchangedCompareLine
+                                } ${isActive ? styles.activeCompareDiffLine : ""}`}
+                                onClick={() => {
+                                  if (line.state === "removed") {
+                                    prepareCompareLineRestore(line.text);
+                                    const marker = compareDiffMarkers.find(
+                                      (item) => item.id === `previous-${index}`,
+                                    );
+                                    if (marker) {
+                                      focusCompareDiffMarker(marker);
+                                    }
+                                  }
+                                }}
+                              >
+                                {line.text}
+                                {line.state === "removed" ? (
+                                  <button
+                                    type='button'
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      prepareCompareLineRestore(line.text);
+                                      restoreCompareLine(line.text);
+                                    }}
+                                  >
+                                    恢复此段
+                                  </button>
+                                ) : null}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                       <div>
                         <p>新版本</p>
                         <div className={styles.chapterVersionCompareText}>
-                          {filteredCompareNextLines.slice(0, 80).map((line, index) => (
-                            <span
-                              key={`next-${index}`}
-                              className={
-                                line.state === "added"
-                                  ? styles.addedCompareLine
-                                  : styles.unchangedCompareLine
-                              }
-                            >
-                              {line.text}
-                            </span>
-                          ))}
+                          {compareView.nextLines.slice(0, 80).map((line, index) => {
+                            if (
+                              compareSearch.trim() &&
+                              !line.text
+                                .toLowerCase()
+                                .includes(compareSearch.trim().toLowerCase())
+                            ) {
+                              return null;
+                            }
+
+                            const markerId =
+                              line.state === "added" ? `next-${index}` : null;
+                            const isActive =
+                              activeCompareDiffMarker?.id === markerId;
+
+                            return (
+                              <span
+                                key={`next-${index}`}
+                                ref={(node) => {
+                                  if (markerId) {
+                                    compareDiffMarkerRefs.current[markerId] = node;
+                                  }
+                                }}
+                                className={`${
+                                  line.state === "added"
+                                    ? styles.addedCompareLine
+                                    : styles.unchangedCompareLine
+                                } ${isActive ? styles.activeCompareDiffLine : ""}`}
+                                onClick={() => {
+                                  if (line.state === "added") {
+                                    const marker = compareDiffMarkers.find(
+                                      (item) => item.id === `next-${index}`,
+                                    );
+                                    if (marker) {
+                                      focusCompareDiffMarker(marker);
+                                    }
+                                  }
+                                }}
+                              >
+                                {line.text}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -6157,10 +7952,9 @@ function NovelBookPanel({
         <div className={styles.contextSectionHeader}>
           <h2>大纲与章节计划</h2>
           <div>
+            <button onClick={() => openOutlineEditor()}>打开编辑器</button>
             <button onClick={() => void addOutlineNode()}>+ 章节</button>
-            <button onClick={() => void syncOutlineToProject()}>
-              同步计划
-            </button>
+            <button onClick={() => void syncOutlineToProject()}>同步计划</button>
           </div>
         </div>
         <div className={styles.outlineNodeList}>
@@ -6228,7 +8022,12 @@ function NovelBookPanel({
       <section>
         <div className={styles.contextSectionHeader}>
           <h2>设定资产</h2>
-          <button onClick={() => void createKnowledgeAsset()}>+ 资产</button>
+          <div>
+            <button onClick={() => setIsKnowledgeLibraryOpen(true)}>
+              打开资产库
+            </button>
+            <button onClick={() => void createKnowledgeAsset()}>+ 资产</button>
+          </div>
         </div>
         {assets.pendingAssetDeltas.length > 0 ? (
           <div className={styles.pendingAssetDeltaList}>
@@ -6311,7 +8110,10 @@ function NovelBookPanel({
               <div>
                 <strong>{item.title}</strong>
                 <span>
-                  {KNOWLEDGE_ASSET_LABELS[item.category]} / {item.status}
+                  {KNOWLEDGE_ASSET_LABELS[item.category]} /{" "}
+                  {item.category === "foreshadowing"
+                    ? FORESHADOWING_STATUS_LABELS[item.status]
+                    : KNOWLEDGE_ASSET_STATUS_LABELS[item.status]}
                 </span>
               </div>
               <p>{item.content || "暂无内容。"}</p>
@@ -6450,6 +8252,51 @@ function NovelBookPanel({
           >
             高亮要求
           </button>
+          <button
+            onClick={async () => {
+              const value = await onRequestPrompt({
+                title: "读者爽点 / 悬疑点",
+                initialValue: assets.contextSelection.thrillPoints ?? "",
+                multiline: true,
+                confirmLabel: "保存",
+              });
+              if (value !== null) {
+                void updateContextSelection({ thrillPoints: value });
+              }
+            }}
+          >
+            爽点 / 悬疑
+          </button>
+          <button
+            onClick={async () => {
+              const value = await onRequestPrompt({
+                title: "禁用词 / 避免表达",
+                initialValue: assets.contextSelection.bannedWords ?? "",
+                multiline: true,
+                confirmLabel: "保存",
+              });
+              if (value !== null) {
+                void updateContextSelection({ bannedWords: value });
+              }
+            }}
+          >
+            禁用词
+          </button>
+          <button
+            onClick={async () => {
+              const value = await onRequestPrompt({
+                title: "额外风格约束",
+                initialValue: assets.contextSelection.styleConstraints ?? "",
+                multiline: true,
+                confirmLabel: "保存",
+              });
+              if (value !== null) {
+                void updateContextSelection({ styleConstraints: value });
+              }
+            }}
+          >
+            风格约束
+          </button>
         </div>
       </section>
 
@@ -6514,6 +8361,23 @@ function NovelBookPanel({
       </section>
 
       <section>
+        <h2>发布记录</h2>
+        {publicationTimeline.length === 0 ? (
+          <p className={styles.emptyMiniState}>暂无发布或导出记录。</p>
+        ) : (
+          <div className={styles.modelCallLogList}>
+            {publicationTimeline.slice(0, 12).map((entry) => (
+              <article key={entry.id} className={styles.modelCallLogItem}>
+                <strong>{entry.label}</strong>
+                <span>{entry.detail || "—"}</span>
+                <time>{new Date(entry.createdAt).toLocaleString()}</time>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
         <h2>设定</h2>
         <div className={styles.foundationList}>
           <button onClick={() => void editAsset("世界观设定", "worldNotes")}>
@@ -6536,6 +8400,301 @@ function NovelBookPanel({
         <MarkdownContent content={promptPreview} compact />
       </section>
     </aside>
+    {isOutlineEditorOpen ? (
+      <OutlineEditorDialog
+        nodes={outlineEditorDraft}
+        outlineText={assets.outline}
+        project={project}
+        onChange={setOutlineEditorDraft}
+        onClose={() => setIsOutlineEditorOpen(false)}
+        onSave={saveOutlineEditorDraft}
+        onImportFromOutlineText={importOutlineFromText}
+        onImportFromProject={importOutlineFromProject}
+        onReverseSyncFromChapters={reverseSyncOutlineFromChapters}
+        onSyncToProject={syncOutlineToProject}
+        onRequestPrompt={onRequestPrompt}
+        onRequestConfirm={onRequestConfirm}
+      />
+    ) : null}
+    {isKnowledgeLibraryOpen ? (
+      <KnowledgeAssetLibraryDialog
+        assets={assets}
+        onClose={() => setIsKnowledgeLibraryOpen(false)}
+        onEditAsset={editKnowledgeAsset}
+        onDeleteAsset={deleteKnowledgeAsset}
+        onCreateAsset={createKnowledgeAsset}
+      />
+    ) : null}
+    </>
+  );
+}
+
+function PublishValidationDialog({
+  report,
+  onClose,
+  onProceed,
+}: {
+  report: NovelPublishValidationReport;
+  onClose: () => void;
+  onProceed: () => void;
+}) {
+  return (
+    <div className={styles.dialogOverlay} role='presentation'>
+      <section className={styles.appDialog} role='dialog' aria-modal='true'>
+        <header>
+          <h2>发布校验</h2>
+          <p>{report.summary}</p>
+        </header>
+        <div className={styles.modelCallLogList}>
+          {report.issues.length === 0 ? (
+            <p className={styles.emptyMiniState}>未发现校验问题。</p>
+          ) : (
+            report.issues.map((issue) => (
+              <article
+                key={issue.id}
+                className={
+                  issue.severity === "error"
+                    ? styles.outlineEditorDriftWarning
+                    : issue.severity === "warning"
+                      ? styles.outlineEditorDriftWarning
+                      : styles.outlineEditorDriftOk
+                }
+              >
+                <strong>{issue.title}</strong>
+                <span>{issue.detail}</span>
+              </article>
+            ))
+          )}
+        </div>
+        <footer>
+          <button onClick={onClose}>取消</button>
+          <button
+            className={styles.primaryButton}
+            disabled={!report.canPublish}
+            onClick={onProceed}
+          >
+            {report.canPublish ? "继续导出" : "无法导出"}
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function ModelRoutePanel({
+  settings,
+  onSettingsChange,
+}: {
+  settings: LocalModelSettings;
+  onSettingsChange: (settings: LocalModelSettings) => void;
+}) {
+  const connectedProviders = settings.providers.filter(isProviderConnected);
+  const globalRoute = getRouteConfig(settings, "global.default");
+
+  function getProviderModels(providerId: string) {
+    const provider = settings.providers.find((item) => item.id === providerId);
+
+    if (!provider) {
+      return [];
+    }
+
+    return Array.from(
+      new Set([
+        ...(provider.availableModels ?? []),
+        ...(MODEL_SUGGESTIONS[provider.id] ?? []),
+      ]),
+    );
+  }
+
+  function updateRoute(
+    routeKey: string,
+    patch: Partial<LocalModelRoute>,
+  ) {
+    const preset = getRoutePreset(routeKey);
+    const current = getRouteConfig(settings, routeKey);
+    const fallbackProviderId =
+      current?.providerId ??
+      globalRoute?.providerId ??
+      connectedProviders[0]?.id ??
+      settings.providers[0]?.id ??
+      "deepseek";
+    const fallbackModel =
+      current?.model ??
+      globalRoute?.model ??
+      getProviderModels(fallbackProviderId)[0] ??
+      "deepseek-chat";
+
+    onSettingsChange(
+      upsertRouteConfig(settings, {
+        routeKey,
+        providerId: patch.providerId ?? fallbackProviderId,
+        model: patch.model ?? fallbackModel,
+        temperature:
+          patch.temperature ??
+          current?.temperature ??
+          preset?.defaultTemperature ??
+          0.7,
+        maxTokens:
+          patch.maxTokens ??
+          current?.maxTokens ??
+          preset?.defaultMaxTokens ??
+          4000,
+        stream: patch.stream ?? current?.stream ?? true,
+      }),
+    );
+  }
+
+  return (
+    <section className={styles.modelRoutePanel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <h2>业务模型路由</h2>
+          <p>
+            聊天使用创作台当前选择；写章、审稿、大纲等 Agent 任务走下方路由。
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.modelRouteGrid}>
+        {NOVEL_MODEL_ROUTE_KEYS.map((routeKey) => {
+          const preset = getRoutePreset(routeKey);
+          const current = getRouteConfig(settings, routeKey);
+          const resolved = resolveModelRoute(settings, routeKey);
+          const providerId =
+            current?.providerId ??
+            (resolved.status === "ready"
+              ? resolved.provider.id
+              : globalRoute?.providerId ?? connectedProviders[0]?.id ?? "");
+          const modelOptions = getProviderModels(providerId);
+
+          return (
+            <article key={routeKey} className={styles.modelRouteCard}>
+              <header>
+                <strong>{preset?.label ?? routeKey}</strong>
+                <span>{preset?.description}</span>
+              </header>
+              <label>
+                服务商
+                <select
+                  value={providerId}
+                  onChange={(event) =>
+                    updateRoute(routeKey, {
+                      providerId: event.target.value,
+                      model: getProviderModels(event.target.value)[0] ?? "",
+                    })
+                  }
+                >
+                  {connectedProviders.length === 0 ? (
+                    <option value=''>暂无已连接服务商</option>
+                  ) : (
+                    connectedProviders.map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label>
+                模型
+                <select
+                  value={
+                    current?.model ??
+                    (resolved.status === "ready" ? resolved.model : modelOptions[0] ?? "")
+                  }
+                  onChange={(event) =>
+                    updateRoute(routeKey, { model: event.target.value })
+                  }
+                >
+                  {modelOptions.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className={styles.modelRouteNumbers}>
+                <label>
+                  温度
+                  <input
+                    type='number'
+                    min={0}
+                    max={2}
+                    step={0.01}
+                    value={
+                      current?.temperature ??
+                      preset?.defaultTemperature ??
+                      0.7
+                    }
+                    onChange={(event) =>
+                      updateRoute(routeKey, {
+                        temperature: Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Max Tokens
+                  <input
+                    type='number'
+                    min={256}
+                    max={128000}
+                    step={256}
+                    value={
+                      current?.maxTokens ?? preset?.defaultMaxTokens ?? 4000
+                    }
+                    onChange={(event) =>
+                      updateRoute(routeKey, {
+                        maxTokens: Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <footer>
+                <StatusPill
+                  status={resolved.status === "ready" ? "ready" : "missing-api-key"}
+                />
+                <span>{buildModelRouteSummary(settings, routeKey)}</span>
+              </footer>
+            </article>
+          );
+        })}
+      </div>
+
+      <section className={styles.modelRouteActions}>
+        <h3>Agent 任务映射</h3>
+        <ul>
+          {Object.entries(INKOS_CORE_ACTION_ROUTE_KEYS).map(([action, routeKey]) => (
+            <li key={action}>
+              <strong>{INKOS_CORE_ACTION_LABELS[action as InkosCoreAction] ?? action}</strong>
+              <span>{buildModelRouteSummary(settings, routeKey)}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {settings.callLogs && settings.callLogs.length > 0 ? (
+        <section className={styles.modelCallLogs}>
+          <h3>最近调用</h3>
+          <div className={styles.modelCallLogList}>
+            {settings.callLogs.slice(0, 12).map((entry) => (
+              <article key={entry.id} className={styles.modelCallLogItem}>
+                <strong>{entry.label}</strong>
+                <span>
+                  {entry.providerName} · {entry.model}
+                </span>
+                <span>
+                  {entry.status}
+                  {entry.latencyMs ? ` · ${entry.latencyMs}ms` : ""}
+                </span>
+                <time>{new Date(entry.endedAt).toLocaleString()}</time>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </section>
   );
 }
 
@@ -6551,6 +8710,7 @@ function ModelSettingsHome({
   onConnectedOnlyChange,
   onOpenProvider,
   onRestorePreset,
+  onSettingsChange,
 }: {
   settings: LocalModelSettings;
   category: ProviderCategory;
@@ -6565,6 +8725,7 @@ function ModelSettingsHome({
   onConnectedOnlyChange: (value: boolean) => void;
   onOpenProvider: (providerId: string) => void;
   onRestorePreset: () => void;
+  onSettingsChange: (settings: LocalModelSettings) => void;
 }) {
   return (
     <div className={styles.keyShell}>
@@ -6621,6 +8782,8 @@ function ModelSettingsHome({
           只看已连接 ({connectedCount})
         </label>
       </section>
+
+      <ModelRoutePanel settings={settings} onSettingsChange={onSettingsChange} />
 
       <section className={styles.serviceBank}>
         {visibleGroups.map((group) => (

@@ -767,6 +767,160 @@
   font-weight: 750;
 }
 
+.composerRouteHint {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: #66777a;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.composerRouteHint > span:first-child {
+  font-weight: 800;
+  color: #48595d;
+}
+
+.composerRouteList {
+  word-break: break-word;
+}
+
+.modelRoutePanel {
+  border: 1px solid #dbe4e7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.modelRouteGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.modelRouteCard {
+  border: 1px solid #e4ecef;
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.modelRouteCard header {
+  display: grid;
+  gap: 4px;
+}
+
+.modelRouteCard header strong {
+  color: #14342f;
+  font-size: 14px;
+}
+
+.modelRouteCard header span {
+  color: #66777a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.modelRouteCard label {
+  display: grid;
+  gap: 6px;
+  color: #48595d;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.modelRouteCard select,
+.modelRouteCard input {
+  width: 100%;
+  height: 36px;
+  border: 1px solid #dbe4e7;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0 10px;
+  color: #182023;
+  font-size: 13px;
+}
+
+.modelRouteNumbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.modelRouteCard footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  color: #66777a;
+  font-size: 12px;
+}
+
+.modelRouteActions h3,
+.modelCallLogs h3 {
+  margin: 0 0 10px;
+  color: #14342f;
+  font-size: 14px;
+}
+
+.modelRouteActions ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.modelRouteActions li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e4ecef;
+  border-radius: 6px;
+  background: #fbfcfd;
+  font-size: 12px;
+}
+
+.modelRouteActions li strong {
+  color: #182023;
+}
+
+.modelRouteActions li span {
+  color: #66777a;
+  text-align: right;
+}
+
+.modelCallLogList {
+  display: grid;
+  gap: 8px;
+}
+
+.modelCallLogItem {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 0.8fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #e4ecef;
+  border-radius: 6px;
+  background: #fbfcfd;
+  font-size: 12px;
+}
+
+.modelCallLogItem strong {
+  color: #182023;
+}
+
+.modelCallLogItem span,
+.modelCallLogItem time {
+  color: #66777a;
+}
+
 .modelPickerRoot {
   position: relative;
   min-width: 0;
@@ -2444,6 +2598,401 @@
   font-weight: 850;
 }
 
+.reviewInlineHighlightPanel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #e4eeef;
+  border-radius: 10px;
+  background: #fbfdfd;
+  padding: 10px;
+}
+
+.reviewInlineHighlightHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.reviewInlineHighlightHeader span {
+  color: #263639;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.reviewInlineHighlightHeader em {
+  color: #53686b;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.reviewInlineHighlightBody {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.reviewInlineHighlightParagraph {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #dce8ea;
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #263639;
+  cursor: pointer;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.reviewInlineHighlightParagraph strong {
+  font-size: 11px;
+}
+
+.reviewInlineHighlightParagraph p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.reviewInlineHighlightTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reviewInlineHighlightTags span {
+  border-radius: 999px;
+  background: #eef4f5;
+  color: #43595d;
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.reviewInlineHighlightActive {
+  box-shadow: 0 0 0 2px #7eb6bf66;
+}
+
+.reviewSeverity_error {
+  border-left-color: #d64545;
+}
+
+.reviewSeverity_warning {
+  border-left-color: #d89a2b;
+}
+
+.reviewSeverity_info {
+  border-left-color: #5f8ea1;
+}
+
+.compareDiffNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compareDiffNav button {
+  border: 1px solid #cad9dc;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #263639;
+  cursor: pointer;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.compareDiffNav button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.compareDiffNav span {
+  color: #53686b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.compareRelatedIssues {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #e4eeef;
+  border-radius: 8px;
+  background: #fbfdfd;
+  padding: 8px 10px;
+}
+
+.compareRelatedIssues strong {
+  font-size: 11px;
+}
+
+.compareRelatedIssues div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.compareRelatedIssues button {
+  border: 1px solid #d8e4e5;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #263639;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.activeCompareDiffLine {
+  outline: 2px solid #5f8ea1;
+  outline-offset: 1px;
+}
+
+.writeChapterConfirmDialog {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.writeChapterConfirmBody {
+  display: grid;
+  gap: 14px;
+  max-height: min(70vh, 640px);
+  overflow: auto;
+}
+
+.writeChapterConfirmFields {
+  display: grid;
+  gap: 10px;
+}
+
+.writeChapterConfirmFields label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.writeChapterConfirmFields input,
+.writeChapterConfirmFields textarea {
+  border: 1px solid #cad9dc;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172426;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.writeChapterDerivedStyle {
+  border: 1px solid #e4eeef;
+  border-radius: 8px;
+  background: #f7fbfb;
+  padding: 10px;
+}
+
+.writeChapterDerivedStyle strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.writeChapterDerivedStyle p {
+  margin: 0;
+  color: #43595d;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.outlineNodeCard .dangerTextButton,
+.knowledgeAssetCard .dangerTextButton,
+.pendingAssetDeltaCard .dangerTextButton {
+  color: #b42318;
+}
+
+.outlineEditorOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 25, 0.48);
+}
+
+.outlineEditorDialog {
+  width: min(1080px, 96vw);
+  max-height: min(92vh, 980px);
+  overflow: auto;
+  border: 1px solid #dbe4e7;
+  border-radius: 12px;
+  background: #f8fafb;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.outlineEditorHeader,
+.outlineVolumeSection > header,
+.outlineEditorFooter {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.outlineEditorHeader h2,
+.outlineEditorHeader p {
+  margin: 0;
+}
+
+.outlineEditorHeader p {
+  margin-top: 6px;
+  color: #66777a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.outlineEditorToolbar,
+.knowledgeLibraryFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.outlineEditorDriftWarning,
+.outlineEditorDriftOk {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.outlineEditorDriftWarning {
+  border: 1px solid #f2c28f;
+  background: #fff8ef;
+  color: #8a4b00;
+}
+
+.outlineEditorDriftOk {
+  border: 1px solid #cfe8dc;
+  background: #f3fbf7;
+  color: #1f5c45;
+}
+
+.outlineEditorBody,
+.knowledgeLibraryList {
+  display: grid;
+  gap: 12px;
+}
+
+.outlineVolumeSection {
+  border: 1px solid #dbe4e7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.outlineEditorNodeList {
+  display: grid;
+  gap: 10px;
+}
+
+.outlineEditorNode,
+.outlineEditorNodeDragging {
+  border: 1px solid #e4ecef;
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.outlineEditorNodeDragging {
+  border-color: #14342f;
+  box-shadow: 0 0 0 2px rgba(20, 52, 47, 0.12);
+}
+
+.outlineEditorNodeHead {
+  display: grid;
+  gap: 6px;
+}
+
+.outlineEditorNodeActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.outlineEditorFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.outlineEditorFields label {
+  display: grid;
+  gap: 6px;
+  color: #48595d;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.outlineEditorFields input,
+.outlineEditorFields textarea {
+  width: 100%;
+  border: 1px solid #dbe4e7;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 8px 10px;
+  color: #182023;
+  font-size: 13px;
+}
+
+.outlineEditorSource pre {
+  margin: 8px 0 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 8px;
+  background: #eef3f4;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.foreshadowingPoolSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.foreshadowingPoolSummary article {
+  border: 1px solid #dbe4e7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.foreshadowingPoolSummary strong {
+  color: #14342f;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.foreshadowingPoolSummary span {
+  color: #66777a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .contextSectionHeader {
   display: flex;
   justify-content: space-between;
@@ -3108,6 +3657,12 @@
   font-style: normal;
 }
 
+.toolActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .toolNotice {
   border: 1px solid #f0d89f;
   border-radius: 8px;
@@ -3116,6 +3671,11 @@
   padding: 12px;
   font-size: 13px;
   line-height: 1.55;
+}
+
+.toolNotice p {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
 }
 
 .novelGrid {
@@ -4471,6 +5031,19 @@
 
   .sendControl {
     justify-content: space-between;
+  }
+
+  .modelRouteGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .modelCallLogItem {
+    grid-template-columns: 1fr;
+  }
+
+  .outlineEditorFields,
+  .foreshadowingPoolSummary {
+    grid-template-columns: 1fr;
   }
 
   .novelToolPanel header {

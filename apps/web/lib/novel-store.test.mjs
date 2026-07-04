@@ -12,21 +12,47 @@ import {
   buildNovelEditorSearchState,
   buildNovelChapterVersionDiff,
   buildNovelChapterVersionCompareView,
+  buildNovelCompareDiffMarkers,
   buildNovelReviewIssueHighlights,
+  buildNovelReviewIssueParagraphMarks,
   buildNovelReviewExportMarkdown,
+  filterNovelCompareDiffMarkers,
+  findNovelReviewIssuesForDiffLine,
+  matchNovelKnowledgeAssetIndex,
+  restoreNovelCompareLineInContent,
   buildNovelKnowledgeSummary,
   buildNovelBatchQueueItems,
   buildNovelBatchQueueReport,
   buildNovelBookExportMarkdown,
   buildNovelBookExportText,
   buildNovelPlatformExportText,
+  buildNovelPublishValidationReport,
+  buildNovelDocxDocumentModel,
+  buildNovelPublicationTimeline,
+  appendNovelPublicationEvent,
   buildNovelVolumeExportBundle,
   buildNovelWorkspaceBackupPayload,
   buildNovelOutlineNodesFromProject,
+  buildNovelOutlineNodesFromOutlineText,
+  buildNovelOutlineSyncDriftReport,
+  buildNovelForeshadowingPoolSummary,
+  groupNovelOutlineNodesByVolume,
+  moveNovelOutlineNode,
+  syncNovelOutlineNodesFromChapters,
   buildNovelReviewIssueViews,
   applyNovelReviewIssueSuggestionToContent,
   applyNovelChapterAssetDelta,
   applyNovelPendingAssetDelta,
+  analyzeNovelGenreProfile,
+  analyzeNovelStyleSample,
+  applyNovelGenreAnalysisToAssets,
+  applyNovelMarketRadarToAssets,
+  applyNovelStyleAnalysisToAssets,
+  buildNovelLocalEnvironmentDiagnostics,
+  extractImportedNovelAssetHints,
+  mergeNovelDiagnostics,
+  processImportedNovelMaterial,
+  splitImportedNovelChapters,
   dismissNovelPendingAssetDelta,
   filterNovelReviewIssueViews,
   findNovelReviewIssueParagraph,
@@ -38,6 +64,7 @@ import {
   buildNovelWorkspaceSnapshotForTest,
   parseNovelWorkspaceBackupPayload,
   countNovelWords,
+  createDefaultNovelAssets,
   deriveNovelChapterProgress,
   deriveNovelReviewStatus,
   formatNovelRelativeAge,
@@ -1909,4 +1936,630 @@ test("novel review status is derived from review notes", () => {
 
 test("novel relative age falls back gracefully", () => {
   assert.equal(formatNovelRelativeAge("not-a-date"), "刚刚");
+});
+
+test("review paragraph marks group issues by paragraph", () => {
+  const content = "第一段正常。\n\n第二段出现黑线印记。\n\n第三段继续推进。";
+  const issues = buildNovelReviewIssueViews(
+    [
+      {
+        id: "review-1",
+        verdict: "needs-revision",
+        summary: "需要修订",
+        issues: [
+          {
+            id: "issue-1",
+            severity: "warning",
+            title: "伏笔未回收",
+            detail: "黑线印记缺少解释",
+            excerpt: "黑线印记",
+            resolved: false,
+          },
+        ],
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    "review-1",
+  );
+  const marks = buildNovelReviewIssueParagraphMarks(content, issues);
+
+  assert.equal(marks.length, 1);
+  assert.equal(marks[0].paragraphIndex, 1);
+  assert.match(marks[0].paragraph, /黑线印记/);
+});
+
+test("compare diff markers link review issues and support navigation filter", () => {
+  const compare = buildNovelChapterVersionCompareView(
+    { content: "旧段落A\n\n旧段落B", wordCount: 8 },
+    { content: "旧段落A\n\n新段落B", wordCount: 8 },
+  );
+  const issues = buildNovelReviewIssueViews(
+    [
+      {
+        id: "review-1",
+        verdict: "needs-revision",
+        summary: "需要修订",
+        issues: [
+          {
+            id: "issue-1",
+            severity: "error",
+            title: "段落B问题",
+            detail: "旧段落B节奏偏慢",
+            excerpt: "旧段落B",
+            resolved: false,
+          },
+        ],
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    "review-1",
+  );
+  const markers = buildNovelCompareDiffMarkers(compare, issues);
+
+  assert.equal(markers.length, 2);
+  assert.equal(markers[0].state, "removed");
+  assert.equal(markers[0].relatedIssues.length, 1);
+  assert.equal(
+    filterNovelCompareDiffMarkers(markers, "新段落").length,
+    1,
+  );
+  assert.equal(
+    findNovelReviewIssuesForDiffLine("旧段落B", issues).length,
+    1,
+  );
+});
+
+test("restore compare line replaces paragraph instead of appending", () => {
+  const content = "第一段保留。\n\n第二段待替换。\n\n第三段保留。";
+  const navigation = buildNovelChapterParagraphNavigation(content);
+  const restored = restoreNovelCompareLineInContent(content, "恢复后的第二段", {
+    paragraphIndex: 1,
+  });
+
+  assert.equal(restored.mode, "replace-paragraph");
+  assert.match(restored.content, /恢复后的第二段/);
+  assert.doesNotMatch(restored.content, /第二段待替换/);
+  assert.match(restored.content, /第一段保留/);
+  assert.match(restored.content, /第三段保留/);
+  assert.equal(restored.paragraphIndex, 1);
+  assert.equal(navigation.paragraphs.length, 3);
+});
+
+test("knowledge asset matcher merges fuzzy foreshadowing entries", () => {
+  const assets = [
+    {
+      id: "asset-1",
+      category: "foreshadowing",
+      title: "黑线印记",
+      content: "黑线会指向旧档案柜。",
+      status: "active",
+      tags: ["主线"],
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  const index = matchNovelKnowledgeAssetIndex(assets, {
+    category: "foreshadowing",
+    title: "新增伏笔·第2章·黑线印记再次出现",
+    content: "第 2 章埋设：黑线印记再次出现",
+    status: "draft",
+    tags: ["新增伏笔"],
+    updatedAt: "2026-01-02T00:00:00.000Z",
+  });
+
+  assert.equal(index, 0);
+
+  const merged = applyNovelChapterAssetDelta(
+    {
+      outline: "",
+      outlineNodes: [],
+      worldNotes: "",
+      characters: "",
+      settings: "",
+      knowledgeAssets: assets,
+      pendingAssetDeltas: [],
+      contextSelection: {
+        includeOutline: true,
+        includePreviousSummary: true,
+        includeWorld: true,
+        includeCharacters: true,
+        includeForeshadowing: true,
+        includeReviewIssues: true,
+        viewpoint: "第三人称",
+        pacing: "快",
+        highlights: "",
+      },
+      genres: [],
+      styleSamples: [],
+      importedMaterials: [],
+      marketRadars: [],
+      diagnostics: [],
+    },
+    {
+      chapterNumber: 2,
+      chapterTitle: "缺页档案",
+      summary: "摘要",
+      characterStates: [],
+      newForeshadowing: ["黑线印记再次出现"],
+      resolvedForeshadowing: [],
+      worldIncrements: [],
+    },
+  );
+
+  assert.equal(merged.knowledgeAssets.length, 1);
+  assert.match(merged.knowledgeAssets[0].content, /旧档案柜/);
+  assert.match(merged.knowledgeAssets[0].content, /再次出现/);
+});
+
+test("write chapter instruction includes banned words and style constraints", () => {
+  const instruction = buildNovelWriteChapterInstruction({
+    project: {
+      title: "长夜行",
+      genre: "悬疑",
+      premise: "黑水城异案。",
+      world: "黑水城。",
+      protagonist: "顾长安。",
+      chapterWordCount: 3000,
+      chapters: [],
+    },
+    assets: {
+      outline: "",
+      outlineNodes: [],
+      worldNotes: "",
+      characters: "",
+      settings: "",
+      knowledgeAssets: [],
+      genres: [
+        {
+          id: "genre-1",
+          name: "悬疑",
+          source: "project",
+          language: "zh",
+          chapterTypes: "强钩子开篇",
+          fatigueWords: "众所周知",
+          pacingRule: "每800字给出新线索",
+        },
+      ],
+      styleSamples: [
+        {
+          id: "style-1",
+          title: "样章",
+          content: "冷色调、短句、压迫感。",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      contextSelection: {
+        includeOutline: true,
+        includePreviousSummary: true,
+        includeWorld: true,
+        includeCharacters: true,
+        includeForeshadowing: true,
+        includeReviewIssues: true,
+        targetWords: 3200,
+        viewpoint: "第三人称有限视角",
+        pacing: "快",
+        highlights: "强化档案室压迫感",
+        bannedWords: "突然、顿时",
+        styleConstraints: "避免解释性旁白",
+        thrillPoints: "档案室门后有人",
+      },
+    },
+    chapters: [],
+    target: {
+      number: 1,
+      title: "雨后裂缝",
+      focus: "进入档案室",
+      targetWords: 3200,
+      reason: "planned",
+    },
+  });
+
+  assert.match(instruction, /禁用词 \/ 避免表达：突然、顿时/);
+  assert.match(instruction, /读者爽点 \/ 悬疑点：档案室门后有人/);
+  assert.match(instruction, /避免解释性旁白/);
+  assert.match(instruction, /避免疲劳词：众所周知/);
+  assert.match(instruction, /文风参考/);
+});
+
+test("split imported novel chapters and extract asset hints", () => {
+  const content = [
+    "第1章 雨后",
+    "林照走进档案室。",
+    "角色：林照",
+    "",
+    "第2章 缺页",
+    "黑线印记再次出现。",
+    "伏笔：缺页档案来源不明",
+  ].join("\n");
+  const chapters = splitImportedNovelChapters(content);
+  const hints = extractImportedNovelAssetHints(content);
+
+  assert.equal(chapters.length, 2);
+  assert.match(chapters[0].summary, /林照/);
+  assert.ok(hints.characters.length > 0);
+  assert.ok(hints.foreshadowing.length > 0);
+});
+
+test("process imported chapters writes outline nodes and knowledge assets", () => {
+  const project = {
+    title: "长夜行",
+    genre: "悬疑",
+    platform: "平台通用",
+    language: "zh",
+    targetChapters: 120,
+    chapterWordCount: 3000,
+    premise: "黑水城异案。",
+    protagonist: "顾长安",
+    world: "黑水城",
+    currentStage: "foundation",
+    chapters: [],
+  };
+  const assets = createDefaultNovelAssets(project);
+  const processed = processImportedNovelMaterial({
+    title: "旧稿导入",
+    content: "第1章 测试\n\n顾长安进入档案室。\n\n伏笔：缺页档案",
+    type: "chapters",
+    project,
+    assets,
+  });
+
+  assert.equal(processed.chapters.length, 1);
+  assert.ok(processed.assets.outlineNodes.length >= 1);
+  assert.ok(processed.assets.knowledgeAssets.length > assets.knowledgeAssets.length);
+  assert.equal(processed.material.status, "processed");
+});
+
+test("style and genre analysis write constraints and assets", () => {
+  const project = {
+    title: "长夜行",
+    genre: "悬疑",
+    platform: "平台通用",
+    language: "zh",
+    targetChapters: 120,
+    chapterWordCount: 3000,
+    premise: "黑水城异案。",
+    protagonist: "顾长安",
+    world: "黑水城",
+    currentStage: "foundation",
+    chapters: [],
+  };
+  const assets = createDefaultNovelAssets(project);
+  const styleAnalysis = analyzeNovelStyleSample(
+    "雨停了。林照站在档案室门口，阴影压在肩头。",
+  );
+  const withStyle = applyNovelStyleAnalysisToAssets(
+    assets,
+    assets.styleSamples[0].id,
+    styleAnalysis,
+  );
+  const genreAnalysis = analyzeNovelGenreProfile(assets.genres[0], project);
+  const withGenre = applyNovelGenreAnalysisToAssets(
+    withStyle,
+    assets.genres[0].id,
+    genreAnalysis,
+  );
+
+  assert.match(withStyle.contextSelection.styleConstraints ?? "", /词汇多样性/);
+  assert.ok(withGenre.genres[0].analysis);
+  assert.ok(
+    withGenre.knowledgeAssets.some((asset) => asset.title.includes("题材策略")),
+  );
+});
+
+test("market radar strategy and local diagnostics persist into assets", () => {
+  const project = {
+    title: "长夜行",
+    genre: "悬疑",
+    platform: "平台通用",
+    language: "zh",
+    targetChapters: 120,
+    chapterWordCount: 3000,
+    premise: "黑水城异案。",
+    protagonist: "顾长安",
+    world: "黑水城",
+    currentStage: "chapter-plan",
+    chapters: [
+      {
+        number: 1,
+        title: "雨后",
+        status: "planned",
+        targetWords: 3000,
+        focus: "进入档案室",
+      },
+    ],
+  };
+  const assets = createDefaultNovelAssets(project);
+  const radars = [
+    {
+      id: "radar-1",
+      platform: "起点",
+      genre: "悬疑",
+      concept: "强钩子 + 档案室异案",
+      score: "82%",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  const withStrategy = applyNovelMarketRadarToAssets(assets, radars, project);
+  const localChecks = buildNovelLocalEnvironmentDiagnostics({
+    project,
+    assets: withStrategy,
+    chapters: [],
+  });
+  const merged = mergeNovelDiagnostics(localChecks, withStrategy.diagnostics);
+
+  assert.ok(withStrategy.projectStrategy?.summary.includes("起点"));
+  assert.ok(localChecks.length >= 4);
+  assert.ok(merged.length >= localChecks.length);
+});
+
+test("outline helpers support volume grouping reorder and text import", () => {
+  const nodes = [
+    {
+      id: "o1",
+      volume: "第一卷",
+      chapterNumber: 1,
+      title: "雨夜",
+      goal: "发现尸体",
+      conflict: "",
+      characters: "",
+      information: "",
+      foreshadowing: "",
+      targetWords: 3000,
+      status: "planned",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+    {
+      id: "o2",
+      volume: "第一卷",
+      chapterNumber: 2,
+      title: "档案",
+      goal: "进入档案室",
+      conflict: "",
+      characters: "",
+      information: "",
+      foreshadowing: "",
+      targetWords: 3200,
+      status: "planned",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+
+  const grouped = groupNovelOutlineNodesByVolume(nodes);
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0]?.nodes.length, 2);
+
+  const moved = moveNovelOutlineNode(nodes, "o2", "up");
+  assert.equal(moved[0]?.title, "档案");
+  assert.equal(moved[0]?.chapterNumber, 1);
+
+  const imported = buildNovelOutlineNodesFromOutlineText(
+    "第一卷\n第1章 雨夜：发现尸体\n2. 档案：进入档案室",
+    { defaultTargetWords: 3000 },
+  );
+  assert.equal(imported.length, 2);
+  assert.match(imported[0]?.goal ?? "", /发现尸体/);
+});
+
+test("outline reverse sync and drift report detect chapter differences", () => {
+  const outlineNodes = [
+    {
+      id: "o1",
+      volume: "第一卷",
+      chapterNumber: 1,
+      title: "雨夜",
+      goal: "发现尸体",
+      conflict: "",
+      characters: "",
+      information: "",
+      foreshadowing: "",
+      targetWords: 3000,
+      status: "planned",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  const chapters = [
+    {
+      id: "c1",
+      bookId: "book-1",
+      number: 1,
+      title: "雨夜（改）",
+      content: "正文",
+      summary: "摘要",
+      status: "approved",
+      wordCount: 2800,
+      reviewNotes: "",
+      reviews: [],
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    },
+    {
+      id: "c2",
+      bookId: "book-1",
+      number: 2,
+      title: "档案",
+      content: "正文",
+      summary: "摘要",
+      status: "draft",
+      wordCount: 3000,
+      reviewNotes: "",
+      reviews: [],
+      createdAt: "2026-01-02T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    },
+  ];
+  const synced = syncNovelOutlineNodesFromChapters(outlineNodes, chapters, {
+    chapterWordCount: 3000,
+  });
+
+  assert.equal(synced.length, 2);
+  assert.equal(synced[0]?.status, "approved");
+  assert.equal(synced[1]?.title, "档案");
+
+  const drift = buildNovelOutlineSyncDriftReport(
+    {
+      chapters: [
+        {
+          number: 1,
+          title: "雨夜",
+          status: "approved",
+          targetWords: 3000,
+          focus: "发现尸体",
+        },
+      ],
+    },
+    synced,
+  );
+
+  assert.equal(drift.hasDrift, true);
+  assert.ok(drift.missingInProject.includes(2));
+});
+
+test("foreshadowing pool summary groups assets by status", () => {
+  const summary = buildNovelForeshadowingPoolSummary({
+    knowledgeAssets: [
+      {
+        id: "f1",
+        category: "foreshadowing",
+        title: "黑线",
+        content: "已埋设",
+        status: "active",
+        tags: [],
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "f2",
+        category: "foreshadowing",
+        title: "旧案",
+        content: "推进中",
+        status: "draft",
+        tags: [],
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "f3",
+        category: "foreshadowing",
+        title: "档案",
+        content: "已回收",
+        status: "resolved",
+        tags: [],
+        updatedAt: new Date().toISOString(),
+      },
+    ],
+  });
+
+  assert.equal(summary.planted.length, 1);
+  assert.equal(summary.progressing.length, 1);
+  assert.equal(summary.resolved.length, 1);
+});
+
+test("publish validation blocks unresolved review issues and short chapters", () => {
+  const chapters = [
+    {
+      id: "c1",
+      bookId: "book-1",
+      number: 1,
+      title: "雨夜",
+      content: "正文",
+      summary: "摘要",
+      status: "drafting",
+      wordCount: 400,
+      reviewNotes: "",
+      reviews: [
+        {
+          id: "review-1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          verdict: "needs-revision",
+          summary: "需要修订",
+          issues: [
+            {
+              id: "issue-1",
+              severity: "error",
+              title: "逻辑问题",
+              detail: "前后矛盾",
+              resolved: false,
+            },
+          ],
+        },
+      ],
+      activeReviewId: "review-1",
+      publicationStatus: "draft",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  const report = buildNovelPublishValidationReport({
+    title: "裂缝中的阳光",
+    platform: "qidian",
+    chapters,
+    project: { premise: "悬疑故事", genre: "悬疑" },
+  });
+
+  assert.equal(report.canPublish, false);
+  assert.ok(report.issues.some((issue) => issue.code === "unresolved-review-issues"));
+  assert.ok(report.issues.some((issue) => issue.code === "chapter-too-short"));
+});
+
+test("docx document model includes title genre and chapter headings", () => {
+  const paragraphs = buildNovelDocxDocumentModel({
+    title: "裂缝中的阳光",
+    genre: "悬疑",
+    premise: "雨夜里的秘密",
+    chapters: [
+      {
+        id: "c1",
+        bookId: "book-1",
+        number: 1,
+        title: "雨夜",
+        content: "第一段。\n\n第二段。",
+        summary: "发现异常",
+        status: "approved",
+        wordCount: 20,
+        reviewNotes: "",
+        reviews: [],
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(paragraphs[0]?.style, "title");
+  assert.ok(paragraphs.some((item) => item.style === "chapter-heading"));
+  assert.ok(paragraphs.some((item) => item.text.includes("第一段")));
+});
+
+test("publication events append and timeline merges chapter publishedAt", () => {
+  const assets = appendNovelPublicationEvent(createDefaultNovelAssets({
+    title: "测试书",
+    genre: "悬疑",
+    premise: "测试",
+    world: "",
+    protagonist: "",
+    language: "zh-CN",
+    chapterWordCount: 3000,
+    chapters: [],
+  }), {
+    action: "exported",
+    platform: "qidian",
+    note: "整书导出",
+  });
+  const timeline = buildNovelPublicationTimeline(assets, [
+    {
+      id: "c1",
+      bookId: "book-1",
+      number: 1,
+      title: "雨夜",
+      content: "正文",
+      summary: "",
+      status: "approved",
+      wordCount: 1000,
+      reviewNotes: "",
+      reviews: [],
+      publicationStatus: "published",
+      publishedAt: "2026-01-02T00:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    },
+  ]);
+
+  assert.equal(assets.publicationEvents?.length, 1);
+  assert.ok(timeline.some((entry) => entry.label.includes("已发布")));
 });

@@ -15,6 +15,8 @@ type InkosActionRequest = {
   action?: InkosCoreAction;
   provider?: LocalModelProvider;
   model?: string;
+  temperature?: number;
+  maxTokens?: number;
   project?: InkosNovelProject;
   assets?: InkosProjectAssetsPatch;
   instruction?: string;
@@ -107,7 +109,10 @@ export async function POST(request: Request) {
         baseUrl: provider.baseUrl,
         apiKey: provider.apiKey,
         model: body.model,
-        temperature: ACTION_TEMPERATURE[body.action],
+        temperature:
+          typeof body.temperature === "number"
+            ? body.temperature
+            : ACTION_TEMPERATURE[body.action],
         stream: false,
       },
     };

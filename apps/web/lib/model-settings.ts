@@ -52,7 +52,30 @@ export type LocalModelSettings = {
   version: 1;
   providers: LocalModelProvider[];
   routes: LocalModelRoute[];
+  recentModels: RecentModelUsage[];
+  callLogs: ModelCallLog[];
   updatedAt: string;
+};
+
+export type RecentModelUsage = {
+  providerId: string;
+  model: string;
+  routeKey: string;
+  usedAt: string;
+};
+
+export type ModelCallLog = {
+  id: string;
+  routeKey: string;
+  label: string;
+  providerId: string;
+  providerName: string;
+  model: string;
+  status: "success" | "error" | "cancelled";
+  latencyMs?: number;
+  startedAt: string;
+  endedAt: string;
+  errorMessage?: string;
 };
 
 export type ResolvedModelRoute =
@@ -209,6 +232,35 @@ export const MODEL_ROUTE_PRESETS: ModelRoutePreset[] = [
 ];
 
 export const DEFAULT_MODEL_ROUTE_PRESET = MODEL_ROUTE_PRESETS[0]!;
+
+export const NOVEL_MODEL_ROUTE_KEYS = [
+  "global.default",
+  "novel.writer",
+  "novel.reviewer",
+  "novel.outliner",
+  "novel.character",
+] as const;
+
+export const INKOS_CORE_ACTION_ROUTE_KEYS: Record<string, string> = {
+  "write-chapter": "novel.writer",
+  review: "novel.reviewer",
+  "revise-chapter": "novel.writer",
+  outline: "novel.outliner",
+  settings: "novel.character",
+  radar: "global.default",
+  diagnostics: "novel.reviewer",
+};
+
+export const INKOS_CORE_ACTION_LABELS: Record<string, string> = {
+  "write-chapter": "写下一章",
+  review: "审稿",
+  "revise-chapter": "修订本章",
+  outline: "生成大纲",
+  settings: "整理设定",
+  radar: "市场雷达",
+  diagnostics: "环境诊断",
+  chat: "聊天回复",
+};
 
 export const PROVIDER_TEMPLATES: LocalModelProvider[] = [
   {
@@ -763,7 +815,17 @@ export const DEFAULT_LOCAL_MODEL_SETTINGS: LocalModelSettings = {
       maxTokens: 5200,
       stream: true,
     },
+    {
+      routeKey: "novel.character",
+      providerId: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.7,
+      maxTokens: 4200,
+      stream: true,
+    },
   ],
+  recentModels: [],
+  callLogs: [],
   updatedAt: new Date(0).toISOString(),
 };
 
@@ -885,6 +947,163 @@ export function resolveModelRoute(
     temperature: route.temperature,
     maxTokens: route.maxTokens,
     stream: route.stream,
+  };
+}
+
+export function resolveRouteKeyForCoreAction(action: string): string {
+  return INKOS_CORE_ACTION_ROUTE_KEYS[action] ?? "global.default";
+}
+
+export function resolveModelRouteForCoreAction(
+  settings: LocalModelSettings,
+  action: string,
+): ResolvedModelRoute {
+  return resolveModelRoute(settings, resolveRouteKeyForCoreAction(action));
+}
+
+export function formatModelPickerValue(providerId: string, model: string): string {
+  return `${providerId}::${model}`;
+}
+
+export function parseModelPickerValue(value: string): {
+  providerId: string;
+  model: string;
+} | null {
+  const parts = value.split("::");
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const providerId = parts[0]?.trim();
+  const model = parts.slice(1).join("::").trim();
+
+  if (!providerId || !model) {
+    return null;
+  }
+
+  return { providerId, model };
+}
+
+export function getDefaultWritingModelSelection(
+  settings: LocalModelSettings,
+): string | null {
+  const resolved = resolveModelRoute(settings, "novel.writer");
+  if (resolved.status !== "ready") {
+    return null;
+  }
+
+  return formatModelPickerValue(resolved.provider.id, resolved.model);
+}
+
+export function getDefaultChatModelSelection(
+  settings: LocalModelSettings,
+): string | null {
+  const resolved = resolveModelRoute(settings, "global.default");
+  if (resolved.status !== "ready") {
+    return null;
+  }
+
+  return formatModelPickerValue(resolved.provider.id, resolved.model);
+}
+
+export function buildModelRouteSummary(
+  settings: LocalModelSettings,
+  routeKey: string,
+): string {
+  const resolved = resolveModelRoute(settings, routeKey);
+  if (resolved.status !== "ready") {
+    return resolved.message;
+  }
+
+  return `${resolved.provider.name} · ${resolved.model}`;
+}
+
+export function appendModelCallLog(
+  settings: LocalModelSettings,
+  input: {
+    routeKey: string;
+    label: string;
+    providerId: string;
+    providerName: string;
+    model: string;
+    status: ModelCallLog["status"];
+    latencyMs?: number;
+    startedAt: string;
+    endedAt: string;
+    errorMessage?: string;
+  },
+): LocalModelSettings {
+  const entry: ModelCallLog = {
+    id: `call-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ...input,
+  };
+  const recentEntry: RecentModelUsage = {
+    providerId: input.providerId,
+    model: input.model,
+    routeKey: input.routeKey,
+    usedAt: input.endedAt,
+  };
+  const recentModels = [
+    recentEntry,
+    ...(settings.recentModels ?? []).filter(
+      (item) =>
+        !(item.providerId === recentEntry.providerId && item.model === recentEntry.model),
+    ),
+  ].slice(0, 8);
+
+  return touchSettings({
+    ...settings,
+    recentModels,
+    callLogs: [entry, ...(settings.callLogs ?? [])].slice(0, 50),
+  });
+}
+
+export function upsertRecentModelSelection(
+  settings: LocalModelSettings,
+  providerId: string,
+  model: string,
+  routeKey = "chat.override",
+): LocalModelSettings {
+  const recentEntry: RecentModelUsage = {
+    providerId,
+    model,
+    routeKey,
+    usedAt: new Date().toISOString(),
+  };
+  const recentModels = [
+    recentEntry,
+    ...(settings.recentModels ?? []).filter(
+      (item) => !(item.providerId === providerId && item.model === model),
+    ),
+  ].slice(0, 8);
+
+  return touchSettings({
+    ...settings,
+    recentModels,
+  });
+}
+
+export function resolveReadyModelBinding(
+  resolved: ResolvedModelRoute,
+):
+  | {
+      provider: LocalModelProvider;
+      model: string;
+      temperature: number;
+      maxTokens: number;
+      routeKey: string;
+    }
+  | { error: string } {
+  if (resolved.status !== "ready") {
+    return { error: resolved.message };
+  }
+
+  return {
+    provider: resolved.provider,
+    model: resolved.model,
+    temperature: resolved.temperature,
+    maxTokens: resolved.maxTokens,
+    routeKey: resolved.route.routeKey,
   };
 }
 
@@ -1348,6 +1567,33 @@ function normalizeSettings(value: unknown): LocalModelSettings {
     routes: Array.isArray(settings.routes)
       ? settings.routes.map(normalizeRoute)
       : DEFAULT_LOCAL_MODEL_SETTINGS.routes,
+    recentModels: Array.isArray(settings.recentModels)
+      ? settings.recentModels
+          .filter(
+            (item) =>
+              typeof item?.providerId === "string" &&
+              typeof item?.model === "string" &&
+              typeof item?.routeKey === "string" &&
+              typeof item?.usedAt === "string",
+          )
+          .slice(0, 8)
+      : [],
+    callLogs: Array.isArray(settings.callLogs)
+      ? settings.callLogs
+          .filter(
+            (item) =>
+              typeof item?.id === "string" &&
+              typeof item?.routeKey === "string" &&
+              typeof item?.label === "string" &&
+              typeof item?.providerId === "string" &&
+              typeof item?.providerName === "string" &&
+              typeof item?.model === "string" &&
+              typeof item?.status === "string" &&
+              typeof item?.startedAt === "string" &&
+              typeof item?.endedAt === "string",
+          )
+          .slice(0, 50)
+      : [],
     updatedAt:
       typeof settings.updatedAt === "string"
         ? settings.updatedAt
@@ -1432,6 +1678,8 @@ function touchSettings(settings: LocalModelSettings): LocalModelSettings {
     ...settings,
     providers: settings.providers.map((provider) => ({ ...provider })),
     routes: settings.routes.map((route) => ({ ...route })),
+    recentModels: [...(settings.recentModels ?? [])],
+    callLogs: [...(settings.callLogs ?? [])],
     updatedAt: new Date().toISOString(),
   };
 }
