@@ -7,6 +7,7 @@ import {
   importLocalModelSettings,
   MODEL_ROUTE_PRESETS,
   appendModelCallLog,
+  buildModelCallStats,
   formatModelPickerValue,
   getDefaultChatModelSelection,
   listProviderModels,
@@ -643,4 +644,52 @@ test("getDefaultChatModelSelection prefers global.default route", () => {
   };
 
   assert.equal(getDefaultChatModelSelection(settings), "openai::gpt-4.1");
+});
+
+test("buildModelCallStats aggregates success rate and latency", () => {
+  const stats = buildModelCallStats([
+    {
+      id: "call-1",
+      routeKey: "novel.write-chapter",
+      label: "写下一章",
+      providerId: "deepseek",
+      providerName: "DeepSeek",
+      model: "deepseek-chat",
+      status: "success",
+      latencyMs: 4000,
+      startedAt: "2026-01-01T00:00:00.000Z",
+      endedAt: "2026-01-01T00:00:04.000Z",
+    },
+    {
+      id: "call-2",
+      routeKey: "novel.review",
+      label: "审稿",
+      providerId: "deepseek",
+      providerName: "DeepSeek",
+      model: "deepseek-chat",
+      status: "error",
+      latencyMs: 2000,
+      startedAt: "2026-01-01T00:01:00.000Z",
+      endedAt: "2026-01-01T00:01:02.000Z",
+      errorMessage: "timeout",
+    },
+    {
+      id: "call-3",
+      routeKey: "novel.revise-chapter",
+      label: "修订",
+      providerId: "deepseek",
+      providerName: "DeepSeek",
+      model: "deepseek-chat",
+      status: "cancelled",
+      startedAt: "2026-01-01T00:02:00.000Z",
+      endedAt: "2026-01-01T00:02:01.000Z",
+    },
+  ]);
+
+  assert.equal(stats.total, 3);
+  assert.equal(stats.success, 1);
+  assert.equal(stats.error, 1);
+  assert.equal(stats.cancelled, 1);
+  assert.equal(stats.avgLatencyMs, 3000);
+  assert.equal(stats.successRate, 33);
 });

@@ -1058,6 +1058,45 @@ export function appendModelCallLog(
   });
 }
 
+export type ModelCallStats = {
+  total: number;
+  success: number;
+  error: number;
+  cancelled: number;
+  avgLatencyMs: number | null;
+  successRate: number | null;
+};
+
+export function buildModelCallStats(
+  callLogs: ModelCallLog[] | undefined,
+): ModelCallStats {
+  const logs = callLogs ?? [];
+  const total = logs.length;
+  const success = logs.filter((entry) => entry.status === "success").length;
+  const error = logs.filter((entry) => entry.status === "error").length;
+  const cancelled = logs.filter((entry) => entry.status === "cancelled").length;
+  const latencies = logs
+    .map((entry) => entry.latencyMs)
+    .filter((value): value is number => typeof value === "number");
+  const avgLatencyMs =
+    latencies.length > 0
+      ? Math.round(
+          latencies.reduce((sum, value) => sum + value, 0) / latencies.length,
+        )
+      : null;
+  const successRate =
+    total > 0 ? Math.round((success / total) * 100) : null;
+
+  return {
+    total,
+    success,
+    error,
+    cancelled,
+    avgLatencyMs,
+    successRate,
+  };
+}
+
 export function upsertRecentModelSelection(
   settings: LocalModelSettings,
   providerId: string,

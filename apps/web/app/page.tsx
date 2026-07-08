@@ -25,6 +25,7 @@ import {
   NOVEL_MODEL_ROUTE_KEYS,
   INKOS_CORE_ACTION_ROUTE_KEYS,
   appendModelCallLog,
+  buildModelCallStats,
   buildModelRouteSummary,
   formatModelPickerValue,
   getDefaultChatModelSelection,
@@ -65,9 +66,11 @@ import {
   buildNovelBatchQueueItems,
   buildNovelBatchQueueReport,
   buildNovelBookExportMarkdown,
+  buildNovelBookExportJson,
   buildNovelBookExportText,
   buildNovelDocxDocumentModel,
   buildNovelPublicationTimeline,
+  buildNovelPublishManifest,
   buildNovelPublishValidationReport,
   buildNovelChapterContextPreview,
   buildNovelChapterDraftMeta,
@@ -75,11 +78,30 @@ import {
   buildNovelChapterParagraphNavigation,
   buildNovelCreationLogExportMarkdown,
   buildNovelEditorSearchState,
+  buildNovelPlatformExportBundle,
   buildNovelPlatformExportText,
+  buildNovelWorkspaceBackupPayload,
+  computeNovelWorkspaceFingerprint,
+  mergeNovelWorkspacePayloads,
+  loadNovelCloudSyncState,
+  saveNovelCloudSyncState,
+  getNovelPlatformProfile,
   buildNovelRecoverableErrorNotice,
+  buildNovelTaskResumePreview,
+  clearStoredNovelTaskCheckpoint,
   buildNovelChapterVersionCompareView,
   buildNovelCompareDiffMarkers,
+  buildNovelPendingAssetDeltaMatchReport,
   buildDefaultNovelContextSelection,
+  applyNovelAssetConflictFixes,
+  buildNovelAssetConflictReport,
+  buildNovelCharacterRelationGraph,
+  buildNovelCharacterStateTimeline,
+  NOVEL_CHARACTER_RELATION_KIND_LABELS,
+  createDefaultNovelCloudSyncWebDavSettings,
+  isNovelAssetConflictAutoFixable,
+  loadNovelCloudSyncWebDavSettings,
+  saveNovelCloudSyncWebDavSettings,
   buildNovelForeshadowingPoolSummary,
   buildNovelOutlineNodesFromOutlineText,
   buildNovelOutlineNodesFromProject,
@@ -88,11 +110,14 @@ import {
   buildNovelReviewIssueHighlights,
   buildNovelReviewIssueParagraphMarks,
   buildNovelReviewIssueViews,
+  buildNovelReviewIssueKey,
+  buildNovelReviewIssueKeysForDiffMarkers,
   buildNovelReviseChapterInstruction,
   buildNovelStyleConstraintsFromAssets,
   buildNovelWriteChapterInstruction,
   buildNovelVolumeExportBundle,
   filterNovelCompareDiffMarkers,
+  findNovelCompareDiffMarkerForReviewIssue,
   filterNovelKnowledgeAssets,
   groupNovelOutlineNodesByVolume,
   moveNovelOutlineNode,
@@ -140,6 +165,9 @@ import {
   updateNovelPendingAssetDelta,
   upsertStoredNovelChapter,
   exportNovelWorkspaceBackup,
+  exportNovelCloudSyncPackage,
+  importNovelWorkspaceMerge,
+  parseNovelCloudSyncPackage,
   restoreNovelWorkspaceBackup,
   type NovelProjectAssets,
   type NovelBatchQueueAction,
@@ -152,6 +180,12 @@ import {
   type NovelDocxParagraph,
   type NovelOutlineNode,
   type NovelPendingAssetDelta,
+  type NovelPlatformId,
+  type NovelCloudSyncState,
+  type NovelCloudSyncWebDavSettings,
+  type NovelCloudSyncPackage,
+  type NovelWorkspaceMergeReport,
+  type NovelAssetConflictReport,
   type NovelPublishValidationReport,
   type NovelRecoverableErrorNotice,
   type NovelReviewIssueFilter,
@@ -164,6 +198,11 @@ import {
   type StoredNovelSession,
   type StoredNovelTask,
 } from "../lib/novel-store";
+import {
+  downloadNovelCloudSyncWebDav,
+  testNovelCloudSyncWebDav,
+  uploadNovelCloudSyncWebDav,
+} from "../lib/cloud-sync-webdav";
 
 type ProviderCategory =
   | "all"
@@ -173,6 +212,17 @@ type ProviderCategory =
   | "local"
   | "coding"
   | "custom";
+
+const PLATFORM_EXPORT_OPTIONS: Array<{
+  platform: Exclude<NovelPlatformId, "generic">;
+  label: string;
+}> = [
+  { platform: "qidian", label: "起点 TXT" },
+  { platform: "fanqie", label: "番茄 TXT" },
+  { platform: "zongheng", label: "纵横 TXT" },
+  { platform: "jjwxc", label: "晋江 TXT" },
+  { platform: "feilu", label: "飞卢 TXT" },
+];
 
 type AppPage = "home" | "novel" | "models";
 
@@ -1353,13 +1403,23 @@ function parseInkosActionStreamEvent(line: string): InkosActionStreamEvent | nul
   return null;
 }
 
-function formatCoreProgressContent(label: string, progressMessages: string[]) {
+function formatCoreProgressContent(
+  label: string,
+  progressMessages: string[],
+  options?: { paused?: boolean },
+) {
   const progress =
     progressMessages.length > 0
       ? progressMessages.map((message) => `- ${message}`).join("\n")
       : "- 等待任务开始";
 
-  return [`## ${label}`, progress].join("\n\n");
+  return [
+    `## ${label}${options?.paused ? "（已暂停）" : ""}`,
+    progress,
+    options?.paused ? "- 任务已暂停，可从任务日志继续执行。" : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function formatCoreFinalContent(
@@ -1490,14 +1550,31 @@ function NovelStudio({
     report: NovelPublishValidationReport;
     onProceed: () => void;
   } | null>(null);
+  const [cloudSyncState, setCloudSyncState] = useState<NovelCloudSyncState>(() =>
+    loadNovelCloudSyncState(),
+  );
+  const [mergePreview, setMergePreview] = useState<{
+    remote: NovelCloudSyncPackage;
+    report: NovelWorkspaceMergeReport;
+    resolutions: Record<string, "local" | "remote">;
+  } | null>(null);
+  const [webDavSettings, setWebDavSettings] =
+    useState<NovelCloudSyncWebDavSettings>(() =>
+      loadNovelCloudSyncWebDavSettings(),
+    );
+  const [webDavBusy, setWebDavBusy] = useState<
+    "test" | "upload" | "download" | null
+  >(null);
   const bookSearchInputRef = useRef<HTMLInputElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const backupImportInputRef = useRef<HTMLInputElement | null>(null);
+  const cloudSyncImportInputRef = useRef<HTMLInputElement | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTaskAbortRef = useRef<AbortController | null>(null);
   const activeCoreTaskIdRef = useRef("");
   const activeCoreProgressRef = useRef<string[]>([]);
   const activeCoreAssistantMessageIdRef = useRef("");
+  const activeTaskPauseRequestedRef = useRef(false);
   const dialogResolverRef = useRef<
     ((value: string | boolean | null) => void) | null
   >(null);
@@ -1694,6 +1771,8 @@ function NovelStudio({
 
   async function pauseActiveTask() {
     const taskId = activeCoreTaskIdRef.current;
+
+    activeTaskPauseRequestedRef.current = true;
 
     if (taskId) {
       await pauseStoredNovelTaskWithCheckpoint(taskId, {
@@ -2223,6 +2302,7 @@ function NovelStudio({
       targetStoredChapter?: StoredNovelChapter;
       selectedIssueIds?: string[];
       existingTaskId?: string;
+      resumeTask?: StoredNovelTask;
       labelOverride?: string;
       contextSelectionOverride?: NovelContextSelection;
     },
@@ -2250,26 +2330,46 @@ function NovelStudio({
       return false;
     }
 
-    const label = options?.labelOverride ?? INKOS_CORE_ACTION_LABELS[action];
+    const resumeTask = options?.resumeTask;
+    const checkpoint = resumeTask?.checkpoint;
+    const isResume = Boolean(checkpoint);
+    const label =
+      options?.labelOverride ??
+      resumeTask?.label ??
+      INKOS_CORE_ACTION_LABELS[action];
     const requestSessionId = activeSessionId;
     if (options?.targetStoredChapter) {
       setActiveChapterId(options.targetStoredChapter.id);
     }
-    const userMessage: NovelChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: label,
-    };
-    const nextMessages = [...messages, userMessage];
-    const assistantMessageId = `assistant-core-${Date.now()}`;
-    const progressMessages: string[] = [];
+    const progressMessages: string[] = isResume
+      ? [
+          ...(checkpoint?.progressMessages ?? []),
+          "从断点重新发起 Agent 调用。",
+        ]
+      : [];
+    const assistantMessageId =
+      isResume && checkpoint?.assistantMessageId
+        ? checkpoint.assistantMessageId
+        : `assistant-core-${Date.now()}`;
     const pendingAssistantMessage: NovelChatMessage = {
       id: assistantMessageId,
       role: "assistant",
       content: formatCoreProgressContent(label, progressMessages),
       streaming: true,
     };
-    const visibleMessages = [...nextMessages, pendingAssistantMessage];
+    const userMessage: NovelChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: label,
+    };
+    const sessionMessages = messagesBySession[requestSessionId] ?? messages;
+    const visibleMessages = isResume
+      ? sessionMessages.some((item) => item.id === assistantMessageId)
+        ? sessionMessages.map((item) =>
+            item.id === assistantMessageId ? pendingAssistantMessage : item,
+          )
+        : [...sessionMessages, pendingAssistantMessage]
+      : [...sessionMessages, userMessage, pendingAssistantMessage];
 
     setMessagesBySession((current) => ({
       ...current,
@@ -2305,7 +2405,9 @@ function NovelStudio({
       activeCoreTaskIdRef.current = taskId;
       activeCoreAssistantMessageIdRef.current = assistantMessageId;
       activeCoreProgressRef.current = [...progressMessages];
-      await appendStoredNovelMessage(requestSessionId, userMessage);
+      if (!isResume) {
+        await appendStoredNovelMessage(requestSessionId, userMessage);
+      }
       const writeTarget =
         action === "write-chapter"
           ? options?.targetChapter ??
@@ -2372,13 +2474,16 @@ function NovelStudio({
           ),
         }));
       };
+      const coreMessages = visibleMessages.filter(
+        (message) => message.id !== assistantMessageId,
+      );
       const result = await streamInkosCoreAction(
         action,
         bindingResult.provider,
         bindingResult.model,
         project,
         activeBook.assets,
-        nextMessages,
+        coreMessages,
         (event) => {
           if (event.type === "progress") {
             updateCoreProgress(event.message);
@@ -2557,7 +2662,7 @@ function NovelStudio({
             rereviewBinding.model,
             nextProject,
             nextAssets,
-            nextMessages,
+            coreMessages,
             (event) => {
               if (event.type === "progress") {
                 updateCoreProgress(event.message);
@@ -2631,6 +2736,7 @@ function NovelStudio({
       await appendStoredNovelMessage(requestSessionId, assistantMessage);
       if (taskId) {
         await finishStoredNovelTask(taskId, "success");
+        await clearStoredNovelTaskCheckpoint(taskId).catch(() => undefined);
       }
       await refreshNovelWorkspace();
       setMessagesBySession((current) => ({
@@ -2651,6 +2757,35 @@ function NovelStudio({
       showToast(result.message);
       return true;
     } catch (error) {
+      if (activeTaskPauseRequestedRef.current) {
+        activeTaskPauseRequestedRef.current = false;
+        const pausedProgress =
+          activeCoreProgressRef.current.length > 0
+            ? activeCoreProgressRef.current
+            : progressMessages;
+        const pausedAssistantMessage: NovelChatMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          status: "sent",
+          content: formatCoreProgressContent(label, pausedProgress, {
+            paused: true,
+          }),
+        };
+
+        await appendStoredNovelMessage(requestSessionId, pausedAssistantMessage).catch(
+          () => undefined,
+        );
+        await refreshNovelWorkspace().catch(() => undefined);
+        setMessagesBySession((current) => ({
+          ...current,
+          [requestSessionId]: (current[requestSessionId] ?? visibleMessages).map(
+            (item) =>
+              item.id === assistantMessageId ? pausedAssistantMessage : item,
+          ),
+        }));
+        return false;
+      }
+
       const errorNotice = buildNovelRecoverableErrorNotice(error);
       const isAbortError = errorNotice.category === "cancelled";
       trackModelCall(
@@ -3142,7 +3277,7 @@ function NovelStudio({
   }
 
   async function recordExportPublicationEvent(
-    platform: "generic" | "qidian" | "fanqie",
+    platform: NovelPlatformId,
     note: string,
   ) {
     if (!activeBook) {
@@ -3160,7 +3295,7 @@ function NovelStudio({
   }
 
   function openPublishValidation(
-    platform: "generic" | "qidian" | "fanqie",
+    platform: NovelPlatformId,
     onProceed: () => void | Promise<void>,
   ) {
     if (!activeBook) {
@@ -3292,10 +3427,12 @@ function NovelStudio({
     showToast("创作日志已导出。");
   }
 
-  function exportPlatformText(platform: "qidian" | "fanqie") {
+  function exportPlatformText(platform: Exclude<NovelPlatformId, "generic">) {
     if (!activeBook) {
       return;
     }
+
+    const profile = getNovelPlatformProfile(platform);
 
     openPublishValidation(platform, () => {
       downloadTextFile(
@@ -3304,14 +3441,311 @@ function NovelStudio({
           title: activeBook.title,
           platform,
           chapters: activeBook.chapters,
+          genre: activeBook.meta,
+          premise: activeBook.project.premise,
         }),
         "text/plain;charset=utf-8",
       );
+      void recordExportPublicationEvent(platform, `${profile.label} TXT 导出`);
+      showToast(`${profile.label} 格式文本已导出。`);
+    });
+  }
+
+  function exportPlatformChapterBundle(
+    platform: Exclude<NovelPlatformId, "generic">,
+  ) {
+    if (!activeBook) {
+      return;
+    }
+
+    const profile = getNovelPlatformProfile(platform);
+
+    openPublishValidation(platform, () => {
+      const bundle = buildNovelPlatformExportBundle({
+        title: activeBook.title,
+        platform,
+        chapters: activeBook.chapters,
+      });
+
+      if (bundle.length === 0) {
+        showToast("暂无可导出的章节正文。", "warning");
+        return;
+      }
+
+      bundle.forEach((file) => {
+        downloadTextFile(file.filename, file.content, "text/plain;charset=utf-8");
+      });
       void recordExportPublicationEvent(
         platform,
-        `${platform === "qidian" ? "起点" : "番茄"} TXT 导出`,
+        `${profile.label} 分章 TXT 导出（${bundle.length} 章）`,
       );
-      showToast("平台格式文本已导出。");
+      showToast(`已导出 ${bundle.length} 个 ${profile.label} 分章 TXT。`);
+    });
+  }
+
+  function exportPublishManifest(platform: NovelPlatformId) {
+    if (!activeBook) {
+      return;
+    }
+
+    const report = buildNovelPublishValidationReport({
+      title: activeBook.title,
+      platform,
+      chapters: activeBook.chapters,
+      project: activeBook.project,
+    });
+
+    downloadTextFile(
+      `${activeBook.title}-发布清单.md`,
+      buildNovelPublishManifest({
+        title: activeBook.title,
+        genre: activeBook.meta,
+        premise: activeBook.project.premise,
+        platform,
+        chapters: activeBook.chapters,
+        validation: report,
+      }),
+      "text/markdown;charset=utf-8",
+    );
+    void recordExportPublicationEvent(platform, "发布清单 Markdown 导出");
+    showToast("发布清单已导出。");
+  }
+
+  function exportActiveBookJson() {
+    if (!activeBook) {
+      return;
+    }
+
+    downloadTextFile(
+      `${activeBook.title}-整本书.json`,
+      buildNovelBookExportJson({
+        title: activeBook.title,
+        genre: activeBook.meta,
+        premise: activeBook.project.premise,
+        project: activeBook.project,
+        assets: activeBook.assets,
+        chapters: activeBook.chapters,
+      }),
+      "application/json;charset=utf-8",
+    );
+    void recordExportPublicationEvent("generic", "整本书 JSON 导出");
+    showToast("整本书 JSON 已导出。");
+  }
+
+  async function exportCloudSyncPackage() {
+    const payload = await exportNovelCloudSyncPackage({
+      deviceId: cloudSyncState.deviceId,
+      deviceLabel: cloudSyncState.deviceLabel,
+      modelSettings: settings,
+    });
+
+    downloadTextFile(
+      `sxy-cloud-sync-${new Date().toISOString().slice(0, 10)}.json`,
+      JSON.stringify(payload, null, 2),
+      "application/json;charset=utf-8",
+    );
+
+    const nextState: NovelCloudSyncState = {
+      ...cloudSyncState,
+      lastExportedAt: new Date().toISOString(),
+    };
+    saveNovelCloudSyncState(nextState);
+    setCloudSyncState(nextState);
+    showToast("云端同步包已导出，可通过网盘或文件在另一设备导入合并。");
+  }
+
+  async function importCloudSyncFromFile(file: File) {
+    try {
+      const raw = await file.text();
+      const remote = parseNovelCloudSyncPackage(raw);
+      const snapshot = await loadNovelWorkspace();
+      const local = buildNovelWorkspaceBackupPayload(snapshot, settings);
+      const report = mergeNovelWorkspacePayloads(local, remote);
+      const resolutions = Object.fromEntries(
+        report.conflicts.map((conflict) => [conflict.entityId, conflict.resolution]),
+      );
+
+      setMergePreview({
+        remote,
+        report,
+        resolutions,
+      });
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "导入同步包失败。",
+        "error",
+      );
+    } finally {
+      if (cloudSyncImportInputRef.current) {
+        cloudSyncImportInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function applyCloudSyncMerge() {
+    if (!mergePreview) {
+      return;
+    }
+
+    const snapshot = await loadNovelWorkspace();
+    const local = buildNovelWorkspaceBackupPayload(snapshot, settings);
+    const report = mergeNovelWorkspacePayloads(
+      local,
+      mergePreview.remote,
+      mergePreview.resolutions,
+    );
+
+    try {
+      await importNovelWorkspaceMerge(report.merged);
+
+      const nextState: NovelCloudSyncState = {
+        ...cloudSyncState,
+        lastImportedAt: new Date().toISOString(),
+        lastMergeAt: new Date().toISOString(),
+        lastRemoteFingerprint: computeNovelWorkspaceFingerprint(report.merged),
+      };
+      saveNovelCloudSyncState(nextState);
+      setCloudSyncState(nextState);
+      setMergePreview(null);
+      await refreshNovelWorkspace();
+      showToast(report.summary);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "合并同步失败。",
+        "error",
+      );
+    }
+  }
+
+  function updateCloudSyncDeviceLabel(deviceLabel: string) {
+    const nextState = { ...cloudSyncState, deviceLabel };
+    saveNovelCloudSyncState(nextState);
+    setCloudSyncState(nextState);
+  }
+
+  function updateWebDavSettings(
+    patch: Partial<NovelCloudSyncWebDavSettings>,
+  ) {
+    const nextSettings = { ...webDavSettings, ...patch };
+    setWebDavSettings(nextSettings);
+    saveNovelCloudSyncWebDavSettings(nextSettings);
+  }
+
+  async function testWebDavConnection() {
+    setWebDavBusy("test");
+
+    try {
+      const result = await testNovelCloudSyncWebDav(webDavSettings);
+      showToast(result.message, result.ok ? "success" : "error");
+    } finally {
+      setWebDavBusy(null);
+    }
+  }
+
+  async function uploadCloudSyncToWebDav() {
+    setWebDavBusy("upload");
+
+    try {
+      const payload = await exportNovelCloudSyncPackage({
+        deviceId: cloudSyncState.deviceId,
+        deviceLabel: cloudSyncState.deviceLabel,
+        modelSettings: settings,
+      });
+      const result = await uploadNovelCloudSyncWebDav(
+        webDavSettings,
+        JSON.stringify(payload, null, 2),
+      );
+
+      if (!result.ok) {
+        showToast(result.message, "error");
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const nextState: NovelCloudSyncState = {
+        ...cloudSyncState,
+        lastExportedAt: now,
+        lastWebDavUploadAt: now,
+        lastRemoteFingerprint: payload.fingerprint,
+      };
+      saveNovelCloudSyncState(nextState);
+      setCloudSyncState(nextState);
+      showToast(result.message);
+    } finally {
+      setWebDavBusy(null);
+    }
+  }
+
+  async function downloadCloudSyncFromWebDav() {
+    setWebDavBusy("download");
+
+    try {
+      const result = await downloadNovelCloudSyncWebDav(webDavSettings);
+
+      if (!result.ok || !result.payload) {
+        showToast(result.message, "error");
+        return;
+      }
+
+      const remote = parseNovelCloudSyncPackage(result.payload);
+      const snapshot = await loadNovelWorkspace();
+      const local = buildNovelWorkspaceBackupPayload(snapshot, settings);
+      const report = mergeNovelWorkspacePayloads(local, remote);
+      const resolutions = Object.fromEntries(
+        report.conflicts.map((conflict) => [conflict.entityId, conflict.resolution]),
+      );
+
+      const nextState: NovelCloudSyncState = {
+        ...cloudSyncState,
+        lastWebDavDownloadAt: new Date().toISOString(),
+      };
+      saveNovelCloudSyncState(nextState);
+      setCloudSyncState(nextState);
+      setMergePreview({
+        remote,
+        report,
+        resolutions,
+      });
+      showToast("已从 WebDAV 拉取同步包，请确认合并预览。");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "WebDAV 拉取失败。",
+        "error",
+      );
+    } finally {
+      setWebDavBusy(null);
+    }
+  }
+
+  function resetWebDavSettings() {
+    const nextSettings = createDefaultNovelCloudSyncWebDavSettings();
+    setWebDavSettings(nextSettings);
+    saveNovelCloudSyncWebDavSettings(nextSettings);
+    showToast("WebDAV 配置已重置。");
+  }
+
+  function toggleMergeConflictResolution(entityId: string) {
+    setMergePreview((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const conflict = current.report.conflicts.find(
+        (item) => item.entityId === entityId,
+      );
+
+      if (!conflict) {
+        return current;
+      }
+
+      return {
+        ...current,
+        resolutions: {
+          ...current.resolutions,
+          [entityId]:
+            current.resolutions[entityId] === "local" ? "remote" : "local",
+        },
+      };
     });
   }
 
@@ -3798,12 +4232,21 @@ function NovelStudio({
                 <button onClick={exportActiveBookChapters}>分章导出</button>
                 <button onClick={exportActiveBookVolumes}>按卷导出</button>
                 <button onClick={exportCreationLog}>创作日志</button>
-                <button onClick={() => exportPlatformText("qidian")}>
-                  起点 TXT
+                {PLATFORM_EXPORT_OPTIONS.map((option) => (
+                  <button
+                    key={option.platform}
+                    onClick={() => exportPlatformText(option.platform)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <button onClick={() => exportPlatformChapterBundle("qidian")}>
+                  起点分章
                 </button>
-                <button onClick={() => exportPlatformText("fanqie")}>
-                  番茄 TXT
+                <button onClick={() => exportPublishManifest("generic")}>
+                  发布清单
                 </button>
+                <button onClick={exportActiveBookJson}>整书 JSON</button>
                 <button onClick={() => void exportWorkspaceBackup()}>
                   备份数据
                 </button>
@@ -3825,6 +4268,31 @@ function NovelStudio({
                   }}
                 />
               </div>
+              <CloudSyncPanel
+                state={cloudSyncState}
+                webDavSettings={webDavSettings}
+                webDavBusy={webDavBusy}
+                onDeviceLabelChange={updateCloudSyncDeviceLabel}
+                onExport={() => void exportCloudSyncPackage()}
+                onImportClick={() => cloudSyncImportInputRef.current?.click()}
+                onWebDavSettingsChange={updateWebDavSettings}
+                onWebDavTest={() => void testWebDavConnection()}
+                onWebDavUpload={() => void uploadCloudSyncToWebDav()}
+                onWebDavDownload={() => void downloadCloudSyncFromWebDav()}
+                onWebDavReset={resetWebDavSettings}
+              />
+              <input
+                ref={cloudSyncImportInputRef}
+                type='file'
+                accept='application/json,.json'
+                className={styles.hiddenFileInput}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    void importCloudSyncFromFile(file);
+                  }
+                }}
+              />
               {batchQueueItems.length > 0 ? (
                 <div className={styles.batchQueueBar}>
                   <div>
@@ -3981,6 +4449,7 @@ function NovelStudio({
               const row = activeChapterRows.find(
                 (chapter) => chapter.number === task.targetChapterNumber,
               );
+              const resumePreview = buildNovelTaskResumePreview(task);
               void runCoreAction(action, {
                 targetChapter:
                   action === "write-chapter" && row
@@ -3996,13 +4465,18 @@ function NovelStudio({
                   action === "review" || action === "revise-chapter"
                     ? row?.chapter
                     : undefined,
-                existingTaskId: task.status === "queued" ? task.id : undefined,
+                existingTaskId:
+                  task.status === "queued" || task.status === "paused"
+                    ? task.id
+                    : undefined,
+                resumeTask: resumePreview.canResume ? task : undefined,
                 labelOverride: task.label,
               });
             }}
             onProjectChange={updateActiveProject}
             onRequestPrompt={requestPrompt}
             onRequestConfirm={requestConfirm}
+            onShowToast={showToast}
           />
         </section>
       ) : activeTool !== "AI创作" ? (
@@ -4052,6 +4526,16 @@ function NovelStudio({
           report={publishValidation.report}
           onClose={() => setPublishValidation(null)}
           onProceed={publishValidation.onProceed}
+        />
+      ) : null}
+      {mergePreview ? (
+        <CloudSyncMergeDialog
+          remoteLabel={mergePreview.remote.deviceLabel}
+          report={mergePreview.report}
+          resolutions={mergePreview.resolutions}
+          onClose={() => setMergePreview(null)}
+          onToggleResolution={toggleMergeConflictResolution}
+          onConfirm={() => void applyCloudSyncMerge()}
         />
       ) : null}
     </div>
@@ -6045,12 +6529,15 @@ function OutlineEditorDialog({
 
 function KnowledgeAssetLibraryDialog({
   assets,
+  project,
   onClose,
   onEditAsset,
   onDeleteAsset,
   onCreateAsset,
+  onRunConflictCheck,
 }: {
   assets: NovelProjectAssets;
+  project: InkosNovelProject;
   onClose: () => void;
   onEditAsset: (
     item: NovelKnowledgeAsset,
@@ -6058,13 +6545,27 @@ function KnowledgeAssetLibraryDialog({
   ) => void | Promise<void>;
   onDeleteAsset: (item: NovelKnowledgeAsset) => void | Promise<void>;
   onCreateAsset: () => void | Promise<void>;
+  onRunConflictCheck: () => void;
 }) {
+  const [view, setView] = useState<"assets" | "timeline" | "relations">("assets");
   const [category, setCategory] = useState<NovelKnowledgeAssetCategory | "all">(
     "all",
+  );
+  const conflictPreview = useMemo(
+    () => buildNovelAssetConflictReport({ project, assets }),
+    [project, assets],
   );
   const foreshadowingPool = useMemo(
     () => buildNovelForeshadowingPoolSummary(assets),
     [assets],
+  );
+  const characterTimeline = useMemo(
+    () => buildNovelCharacterStateTimeline({ assets, project }),
+    [assets, project],
+  );
+  const characterRelations = useMemo(
+    () => buildNovelCharacterRelationGraph({ assets, project }),
+    [assets, project],
   );
   const visibleAssets = useMemo(
     () => filterNovelKnowledgeAssets(assets, category),
@@ -6077,99 +6578,339 @@ function KnowledgeAssetLibraryDialog({
         <header className={styles.outlineEditorHeader}>
           <div>
             <h2>设定资产库</h2>
-            <p>按类型浏览世界观、角色、伏笔等资产，伏笔池会按状态分组展示。</p>
+            <p>
+              {view === "assets"
+                ? "按类型浏览世界观、角色、伏笔等资产，伏笔池会按状态分组展示。"
+                : view === "timeline"
+                  ? characterTimeline.summary
+                  : characterRelations.summary}
+            </p>
+            {view === "assets" && conflictPreview.issues.length > 0 ? (
+              <em className={styles.assetConflictHint}>{conflictPreview.summary}</em>
+            ) : null}
           </div>
-          <button onClick={onClose}>关闭</button>
+          <div className={styles.outlineEditorHeaderActions}>
+            {view === "assets" ? (
+              <button onClick={onRunConflictCheck}>检测冲突</button>
+            ) : null}
+            <button onClick={onClose}>关闭</button>
+          </div>
         </header>
-
-        <div className={styles.foreshadowingPoolSummary}>
-          <article>
-            <strong>{foreshadowingPool.planted.length}</strong>
-            <span>已埋设</span>
-          </article>
-          <article>
-            <strong>{foreshadowingPool.progressing.length}</strong>
-            <span>推进中</span>
-          </article>
-          <article>
-            <strong>{foreshadowingPool.resolved.length}</strong>
-            <span>已回收</span>
-          </article>
-          <article>
-            <strong>{foreshadowingPool.stale.length}</strong>
-            <span>遗忘风险</span>
-          </article>
-        </div>
 
         <div className={styles.knowledgeLibraryFilters}>
           <button
-            className={category === "all" ? styles.activeFilterButton : ""}
-            onClick={() => setCategory("all")}
+            className={view === "assets" ? styles.activeFilterButton : ""}
+            onClick={() => setView("assets")}
           >
-            全部 {assets.knowledgeAssets.length}
+            全部资产
           </button>
-          {(Object.keys(KNOWLEDGE_ASSET_LABELS) as NovelKnowledgeAssetCategory[]).map(
-            (key) => (
-              <button
-                key={key}
-                className={category === key ? styles.activeFilterButton : ""}
-                onClick={() => setCategory(key)}
-              >
-                {KNOWLEDGE_ASSET_LABELS[key]}{" "}
-                {
-                  assets.knowledgeAssets.filter((item) => item.category === key)
-                    .length
-                }
-              </button>
-            ),
-          )}
-          <button onClick={() => void onCreateAsset()}>+ 资产</button>
+          <button
+            className={view === "timeline" ? styles.activeFilterButton : ""}
+            onClick={() => setView("timeline")}
+          >
+            状态追踪 ({characterTimeline.characters.length})
+          </button>
+          <button
+            className={view === "relations" ? styles.activeFilterButton : ""}
+            onClick={() => setView("relations")}
+          >
+            关系图 ({characterRelations.nodes.length})
+          </button>
         </div>
 
-        <div className={styles.knowledgeLibraryList}>
-          {visibleAssets.length === 0 ? (
-            <p className={styles.emptyMiniState}>当前分类下暂无设定资产。</p>
-          ) : (
-            visibleAssets.map((item) => (
-              <article key={item.id} className={styles.knowledgeAssetCard}>
-                <div>
-                  <strong>{item.title}</strong>
-                  <span>
-                    {KNOWLEDGE_ASSET_LABELS[item.category]} /{" "}
-                    {item.category === "foreshadowing"
-                      ? FORESHADOWING_STATUS_LABELS[item.status]
-                      : KNOWLEDGE_ASSET_STATUS_LABELS[item.status]}
-                  </span>
-                </div>
-                <p>{item.content || "暂无内容。"}</p>
-                {item.tags.length > 0 ? (
-                  <em>{item.tags.map((tag) => `#${tag}`).join(" ")}</em>
-                ) : null}
-                <div>
-                  <button onClick={() => void onEditAsset(item, "title")}>
-                    标题
-                  </button>
-                  <button onClick={() => void onEditAsset(item, "content")}>
-                    内容
-                  </button>
-                  <button onClick={() => void onEditAsset(item, "tags")}>
-                    标签
-                  </button>
-                  <button onClick={() => void onEditAsset(item, "status")}>
-                    状态
-                  </button>
-                  <button
-                    className={styles.dangerTextButton}
-                    onClick={() => void onDeleteAsset(item)}
-                  >
-                    删除
-                  </button>
-                </div>
+        {view === "assets" ? (
+          <>
+            <div className={styles.foreshadowingPoolSummary}>
+              <article>
+                <strong>{foreshadowingPool.planted.length}</strong>
+                <span>已埋设</span>
               </article>
-            ))
-          )}
-        </div>
+              <article>
+                <strong>{foreshadowingPool.progressing.length}</strong>
+                <span>推进中</span>
+              </article>
+              <article>
+                <strong>{foreshadowingPool.resolved.length}</strong>
+                <span>已回收</span>
+              </article>
+              <article>
+                <strong>{foreshadowingPool.stale.length}</strong>
+                <span>遗忘风险</span>
+              </article>
+            </div>
+
+            <div className={styles.knowledgeLibraryFilters}>
+              <button
+                className={category === "all" ? styles.activeFilterButton : ""}
+                onClick={() => setCategory("all")}
+              >
+                全部 {assets.knowledgeAssets.length}
+              </button>
+              {(Object.keys(KNOWLEDGE_ASSET_LABELS) as NovelKnowledgeAssetCategory[]).map(
+                (key) => (
+                  <button
+                    key={key}
+                    className={category === key ? styles.activeFilterButton : ""}
+                    onClick={() => setCategory(key)}
+                  >
+                    {KNOWLEDGE_ASSET_LABELS[key]}{" "}
+                    {
+                      assets.knowledgeAssets.filter((item) => item.category === key)
+                        .length
+                    }
+                  </button>
+                ),
+              )}
+              <button onClick={() => void onCreateAsset()}>+ 资产</button>
+            </div>
+
+            <div className={styles.knowledgeLibraryList}>
+              {visibleAssets.length === 0 ? (
+                <p className={styles.emptyMiniState}>当前分类下暂无设定资产。</p>
+              ) : (
+                visibleAssets.map((item) => (
+                  <article key={item.id} className={styles.knowledgeAssetCard}>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>
+                        {KNOWLEDGE_ASSET_LABELS[item.category]} /{" "}
+                        {item.category === "foreshadowing"
+                          ? FORESHADOWING_STATUS_LABELS[item.status]
+                          : KNOWLEDGE_ASSET_STATUS_LABELS[item.status]}
+                      </span>
+                    </div>
+                    <p>{item.content || "暂无内容。"}</p>
+                    {item.tags.length > 0 ? (
+                      <em>{item.tags.map((tag) => `#${tag}`).join(" ")}</em>
+                    ) : null}
+                    <div>
+                      <button onClick={() => void onEditAsset(item, "title")}>
+                        标题
+                      </button>
+                      <button onClick={() => void onEditAsset(item, "content")}>
+                        内容
+                      </button>
+                      <button onClick={() => void onEditAsset(item, "tags")}>
+                        标签
+                      </button>
+                      <button onClick={() => void onEditAsset(item, "status")}>
+                        状态
+                      </button>
+                      <button
+                        className={styles.dangerTextButton}
+                        onClick={() => void onDeleteAsset(item)}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          </>
+        ) : null}
+
+        {view === "timeline" ? (
+          <CharacterStateTimelinePanel timeline={characterTimeline} />
+        ) : null}
+
+        {view === "relations" ? (
+          <CharacterRelationGraphPanel graph={characterRelations} />
+        ) : null}
       </section>
+    </div>
+  );
+}
+
+function CharacterStateTimelinePanel({
+  timeline,
+}: {
+  timeline: ReturnType<typeof buildNovelCharacterStateTimeline>;
+}) {
+  if (timeline.characters.length === 0) {
+    return (
+      <p className={styles.emptyMiniState}>暂无角色状态记录。写章沉淀后会自动生成。</p>
+    );
+  }
+
+  return (
+    <div className={styles.characterTimelinePanel}>
+      {timeline.characters.map((group) => (
+        <article key={group.name} className={styles.characterTimelineGroup}>
+          <header>
+            <strong>{group.name}</strong>
+            <span>
+              {group.entries.length} 条记录
+              {group.status ? ` / ${KNOWLEDGE_ASSET_STATUS_LABELS[group.status]}` : ""}
+            </span>
+          </header>
+          <p className={styles.characterTimelineLatest}>{group.latestContent}</p>
+          {group.entries.length > 0 ? (
+            <ol className={styles.characterTimelineEntries}>
+              {group.entries.map((entry) => (
+                <li key={entry.id}>
+                  <div>
+                    {entry.chapterNumber ? (
+                      <strong>
+                        第 {entry.chapterNumber} 章
+                        {entry.chapterTitle ? `《${entry.chapterTitle}》` : ""}
+                      </strong>
+                    ) : (
+                      <strong>
+                        {entry.source === "asset"
+                          ? "角色卡"
+                          : entry.source === "pending-delta"
+                            ? "待确认"
+                            : entry.source === "change-event"
+                              ? "变更记录"
+                              : "状态追踪"}
+                      </strong>
+                    )}
+                    <time>{formatNovelRelativeAge(entry.updatedAt)}前</time>
+                  </div>
+                  <p>{entry.content}</p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className={styles.emptyMiniState}>暂无章节级状态变化。</p>
+          )}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function CharacterRelationGraphPanel({
+  graph,
+}: {
+  graph: ReturnType<typeof buildNovelCharacterRelationGraph>;
+}) {
+  const layout = useMemo(() => {
+    const width = 560;
+    const height = 360;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.max(90, Math.min(150, graph.nodes.length * 16));
+    const nodePositions = new Map<string, { x: number; y: number }>();
+
+    graph.nodes.forEach((node, index) => {
+      const angle = (Math.PI * 2 * index) / Math.max(graph.nodes.length, 1) - Math.PI / 2;
+      nodePositions.set(node.id, {
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle),
+      });
+    });
+
+    return {
+      width,
+      height,
+      nodePositions,
+    };
+  }, [graph.nodes]);
+
+  if (graph.nodes.length === 0) {
+    return (
+      <p className={styles.emptyMiniState}>
+        暂无可视化角色。请先添加角色资产或在大纲节点中标注出场角色。
+      </p>
+    );
+  }
+
+  return (
+    <div className={styles.characterRelationPanel}>
+      <svg
+        className={styles.characterRelationGraph}
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        role='img'
+        aria-label='角色关系图'
+      >
+        {graph.edges.map((edge) => {
+          const source = layout.nodePositions.get(edge.sourceId);
+          const target = layout.nodePositions.get(edge.targetId);
+
+          if (!source || !target) {
+            return null;
+          }
+
+          const midX = (source.x + target.x) / 2;
+          const midY = (source.y + target.y) / 2;
+
+          return (
+            <g key={edge.id}>
+              <line
+                x1={source.x}
+                y1={source.y}
+                x2={target.x}
+                y2={target.y}
+                className={styles.characterRelationEdge}
+                data-kind={edge.kind}
+              />
+              <text
+                x={midX}
+                y={midY}
+                className={styles.characterRelationEdgeLabel}
+              >
+                {edge.label}
+              </text>
+            </g>
+          );
+        })}
+        {graph.nodes.map((node) => {
+          const position = layout.nodePositions.get(node.id);
+
+          if (!position) {
+            return null;
+          }
+
+          return (
+            <g key={node.id} className={styles.characterRelationNode}>
+              <circle cx={position.x} cy={position.y} r={18} />
+              <text x={position.x} y={position.y + 34} textAnchor='middle'>
+                {node.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      {graph.edges.length > 0 ? (
+        <div className={styles.characterRelationLegend}>
+          {(
+            Object.keys(NOVEL_CHARACTER_RELATION_KIND_LABELS) as Array<
+              keyof typeof NOVEL_CHARACTER_RELATION_KIND_LABELS
+            >
+          ).map((kind) => (
+            <span key={kind} data-kind={kind}>
+              {NOVEL_CHARACTER_RELATION_KIND_LABELS[kind]}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className={styles.characterRelationList}>
+        {graph.edges.length === 0 ? (
+          <p className={styles.emptyMiniState}>
+            尚未推断关系。可在角色卡中写明「与 XX 是盟友/对手」等描述。
+          </p>
+        ) : (
+          graph.edges.map((edge) => {
+            const source = graph.nodes.find((node) => node.id === edge.sourceId);
+            const target = graph.nodes.find((node) => node.id === edge.targetId);
+
+            return (
+              <article key={edge.id} className={styles.characterRelationItem}>
+                <strong>
+                  {source?.label} ↔ {target?.label}
+                </strong>
+                <span>
+                  {NOVEL_CHARACTER_RELATION_KIND_LABELS[edge.kind]} · {edge.label}
+                </span>
+              </article>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
@@ -6195,6 +6936,7 @@ function NovelBookPanel({
   onProjectChange,
   onRequestPrompt,
   onRequestConfirm,
+  onShowToast,
 }: {
   project: InkosNovelProject;
   assets: NovelProjectAssets;
@@ -6241,9 +6983,17 @@ function NovelBookPanel({
     confirmLabel?: string;
     danger?: boolean;
   }) => Promise<boolean>;
+  onShowToast: (
+    message: string,
+    tone?: "success" | "warning" | "error",
+  ) => void;
 }) {
   const chapterRows = mergeNovelChapterPlan(project, chapters);
   const publicationTimeline = buildNovelPublicationTimeline(assets, chapters);
+  const assetConflictPreview = useMemo(
+    () => buildNovelAssetConflictReport({ project, assets }),
+    [project, assets],
+  );
   const activeRow =
     chapterRows.find((chapter) => chapter.key === activeChapterId) ??
     chapterRows.at(-1) ??
@@ -6275,6 +7025,9 @@ function NovelBookPanel({
     [],
   );
   const [isKnowledgeLibraryOpen, setIsKnowledgeLibraryOpen] = useState(false);
+  const [assetConflictReport, setAssetConflictReport] =
+    useState<NovelAssetConflictReport | null>(null);
+  const [isApplyingConflictFixes, setIsApplyingConflictFixes] = useState(false);
   const [locatedReviewIssue, setLocatedReviewIssue] = useState<{
     issueKey: string;
     paragraphIndex: number;
@@ -6310,10 +7063,6 @@ function NovelBookPanel({
         activeChapter.activeReviewId,
       )
     : [];
-  const filteredReviewIssueViews = filterNovelReviewIssueViews(
-    reviewIssueViews,
-    reviewIssueFilter,
-  );
   const openReviewIssueCount = reviewIssueViews.filter(
     (issue) => !issue.resolved,
   ).length;
@@ -6344,15 +7093,37 @@ function NovelBookPanel({
     (isChapterEditorOpen ? chapterEditorContent : activeChapter?.content) ?? "",
     reviewIssueViews,
   );
-  const compareDiffMarkers =
+  const allCompareDiffMarkers =
     compareView && activeChapter
-      ? filterNovelCompareDiffMarkers(
-          buildNovelCompareDiffMarkers(compareView, reviewIssueViews),
-          compareSearch,
-        )
+      ? buildNovelCompareDiffMarkers(compareView, reviewIssueViews)
       : [];
+  const compareDiffMarkers = filterNovelCompareDiffMarkers(
+    allCompareDiffMarkers,
+    compareSearch,
+  );
   const activeCompareDiffMarker =
     compareDiffMarkers[compareDiffIndex] ?? compareDiffMarkers[0] ?? null;
+  const compareDiffIssueKeys =
+    reviewIssueFilter === "diff"
+      ? activeCompareDiffMarker &&
+        activeCompareDiffMarker.relatedIssues.length > 0
+        ? new Set(
+            activeCompareDiffMarker.relatedIssues.map((issue) =>
+              buildNovelReviewIssueKey(issue),
+            ),
+          )
+        : buildNovelReviewIssueKeysForDiffMarkers(allCompareDiffMarkers)
+      : undefined;
+  const filteredReviewIssueViews = filterNovelReviewIssueViews(
+    reviewIssueViews,
+    reviewIssueFilter,
+    { diffIssueKeys: compareDiffIssueKeys },
+  );
+  const activeDiffRelatedIssueKeys = new Set(
+    activeCompareDiffMarker?.relatedIssues.map((issue) =>
+      buildNovelReviewIssueKey(issue),
+    ) ?? [],
+  );
   const generatedRows = chapterRows.filter((row) => row.chapter);
   const activeGeneratedIndex = activeChapter
     ? generatedRows.findIndex((row) => row.chapter?.id === activeChapter.id)
@@ -6465,7 +7236,17 @@ function NovelBookPanel({
   useEffect(() => {
     setCompareDiffIndex(0);
     compareDiffMarkerRefs.current = {};
-  }, [compareVersionId, compareSearch]);
+  }, [compareVersionId]);
+
+  useEffect(() => {
+    setCompareDiffIndex((current) => {
+      if (compareDiffMarkers.length === 0) {
+        return 0;
+      }
+
+      return current >= compareDiffMarkers.length ? 0 : current;
+    });
+  }, [compareDiffMarkers.length, compareSearch]);
 
   useEffect(() => {
     if (!activeCompareDiffMarker) {
@@ -6654,6 +7435,41 @@ function NovelBookPanel({
     if (markerIndex >= 0) {
       setCompareDiffIndex(markerIndex);
     }
+  }
+
+  function jumpToDiffForReviewIssue(
+    issue: (typeof reviewIssueViews)[number],
+  ) {
+    const marker = findNovelCompareDiffMarkerForReviewIssue(
+      issue,
+      allCompareDiffMarkers,
+    );
+
+    if (!marker) {
+      return;
+    }
+
+    if (compareSearch.trim()) {
+      setCompareSearch("");
+    }
+
+    const markerIndex = allCompareDiffMarkers.findIndex(
+      (item) => item.id === marker.id,
+    );
+
+    if (markerIndex >= 0) {
+      setCompareDiffIndex(markerIndex);
+    }
+
+    setReviewIssueFilter("diff");
+  }
+
+  function filterReviewIssuesByActiveDiff() {
+    if (!compareView) {
+      return;
+    }
+
+    setReviewIssueFilter("diff");
   }
 
   function prepareCompareLineRestore(lineText: string) {
@@ -6968,6 +7784,47 @@ function NovelBookPanel({
         project,
       ),
     );
+  }
+
+  function openAssetConflictReport() {
+    setAssetConflictReport(
+      buildNovelAssetConflictReport({
+        project,
+        assets,
+      }),
+    );
+  }
+
+  async function applyAssetConflictFixes() {
+    if (isApplyingConflictFixes) {
+      return;
+    }
+
+    setIsApplyingConflictFixes(true);
+
+    try {
+      const result = applyNovelAssetConflictFixes({
+        project,
+        assets,
+        chapters,
+      });
+
+      if (result.applied.length === 0) {
+        onShowToast(result.summary, "warning");
+        return;
+      }
+
+      await onProjectChange(result.project, result.assets);
+      setAssetConflictReport(
+        buildNovelAssetConflictReport({
+          project: result.project,
+          assets: result.assets,
+        }),
+      );
+      onShowToast(result.summary);
+    } finally {
+      setIsApplyingConflictFixes(false);
+    }
   }
 
   async function createKnowledgeAsset() {
@@ -7600,6 +8457,7 @@ function NovelBookPanel({
                             ["resolved", "已解决"],
                             ["current", "本轮新增"],
                             ["history", "历史问题"],
+                            ["diff", "差异关联"],
                           ] satisfies Array<[NovelReviewIssueFilter, string]>
                         ).map(([value, label]) => (
                           <button
@@ -7637,10 +8495,29 @@ function NovelBookPanel({
                           ))}
                         </div>
                       ) : null}
+                      {reviewIssueFilter === "diff" && !compareView ? (
+                        <p className={styles.emptyMiniState}>
+                          请先打开版本对比，再筛选差异关联问题。
+                        </p>
+                      ) : null}
                       {filteredReviewIssueViews.length > 0 ? (
                         <ul className={styles.reviewIssueList}>
-                          {filteredReviewIssueViews.slice(0, 8).map((issue) => (
-                            <li key={`${issue.reviewId}-${issue.id}`}>
+                          {filteredReviewIssueViews.slice(0, 8).map((issue) => {
+                            const issueKey = buildNovelReviewIssueKey(issue);
+                            const diffMarker = findNovelCompareDiffMarkerForReviewIssue(
+                              issue,
+                              allCompareDiffMarkers,
+                            );
+
+                            return (
+                            <li
+                              key={issueKey}
+                              className={
+                                activeDiffRelatedIssueKeys.has(issueKey)
+                                  ? styles.reviewIssueDiffLinked
+                                  : undefined
+                              }
+                            >
                               <label className={styles.reviewIssueSelect}>
                                 <input
                                   type='checkbox'
@@ -7691,6 +8568,14 @@ function NovelBookPanel({
                                 >
                                   定位
                                 </button>
+                                {diffMarker ? (
+                                  <button
+                                    type='button'
+                                    onClick={() => jumpToDiffForReviewIssue(issue)}
+                                  >
+                                    跳转差异
+                                  </button>
+                                ) : null}
                                 {issue.suggestion && !issue.resolved ? (
                                   <button
                                     type='button'
@@ -7703,7 +8588,8 @@ function NovelBookPanel({
                                 ) : null}
                               </div>
                             </li>
-                          ))}
+                            );
+                          })}
                         </ul>
                       ) : (
                         <p>当前筛选下没有审稿问题。</p>
@@ -7805,6 +8691,13 @@ function NovelBookPanel({
                           onClick={() => moveCompareDiff(1)}
                         >
                           下一处差异
+                        </button>
+                        <button
+                          type='button'
+                          disabled={!activeCompareDiffMarker?.relatedIssues.length}
+                          onClick={filterReviewIssuesByActiveDiff}
+                        >
+                          筛选关联问题
                         </button>
                       </div>
                     </div>
@@ -8025,13 +8918,37 @@ function NovelBookPanel({
           <div>
             <button onClick={() => setIsKnowledgeLibraryOpen(true)}>
               打开资产库
+              {assetConflictPreview.issues.length > 0
+                ? ` (${assetConflictPreview.warningCount + assetConflictPreview.errorCount})`
+                : ""}
             </button>
+            <button onClick={openAssetConflictReport}>检测冲突</button>
             <button onClick={() => void createKnowledgeAsset()}>+ 资产</button>
           </div>
         </div>
+        {assets.assetChangeEvents && assets.assetChangeEvents.length > 0 ? (
+          <div className={styles.assetChangeTimeline}>
+            <strong>资产变更记录</strong>
+            <div className={styles.modelCallLogList}>
+              {assets.assetChangeEvents.slice(0, 6).map((entry) => (
+                <article key={entry.id} className={styles.modelCallLogItem}>
+                  <strong>{entry.label}</strong>
+                  <span>{entry.detail}</span>
+                  <time>{formatNovelRelativeAge(entry.createdAt)}前</time>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {assets.pendingAssetDeltas.length > 0 ? (
           <div className={styles.pendingAssetDeltaList}>
-            {assets.pendingAssetDeltas.slice(0, 4).map((item) => (
+            {assets.pendingAssetDeltas.slice(0, 4).map((item) => {
+              const matchReport = buildNovelPendingAssetDeltaMatchReport(
+                assets,
+                item,
+              );
+
+              return (
               <article key={item.id} className={styles.pendingAssetDeltaCard}>
                 <div>
                   <strong>
@@ -8040,6 +8957,30 @@ function NovelBookPanel({
                   <span>待确认</span>
                 </div>
                 <p>{item.summary || "暂无摘要。"}</p>
+                {matchReport.newForeshadowing.length > 0 ||
+                matchReport.resolvedForeshadowing.length > 0 ? (
+                  <div className={styles.pendingAssetMatchPreview}>
+                    <strong>{matchReport.summary}</strong>
+                    <ul>
+                      {matchReport.newForeshadowing.map((entry) => (
+                        <li key={`match-new-${entry.text}`}>
+                          新增：{entry.text} → {entry.preview.label}
+                          {entry.preview.score > 0
+                            ? ` (${Math.round(entry.preview.score * 100)}%)`
+                            : ""}
+                        </li>
+                      ))}
+                      {matchReport.resolvedForeshadowing.map((entry) => (
+                        <li key={`match-resolved-${entry.text}`}>
+                          回收：{entry.text} → {entry.preview.label}
+                          {entry.preview.score > 0
+                            ? ` (${Math.round(entry.preview.score * 100)}%)`
+                            : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 <ul>
                   {item.characterStates.map((state) => (
                     <li key={`character-${state.title}`}>
@@ -8101,7 +9042,8 @@ function NovelBookPanel({
                   </button>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         ) : null}
         <div className={styles.knowledgeAssetList}>
@@ -8307,8 +9249,10 @@ function NovelBookPanel({
             const errorNotice = task.errorMessage
               ? buildNovelRecoverableErrorNotice(task.errorMessage)
               : null;
+            const resumePreview = buildNovelTaskResumePreview(task);
             const canRetryTask =
               task.status === "queued" ||
+              task.status === "paused" ||
               task.status === "cancelled" ||
               (task.status === "error" && errorNotice?.canRetry !== false);
 
@@ -8328,12 +9272,18 @@ function NovelBookPanel({
                     {task.targetChapterTitle ? ` · ${task.targetChapterTitle}` : ""}
                   </em>
                 ) : null}
+                {resumePreview.canResume ? (
+                  <div className={styles.taskRecoveryHint}>
+                    <strong>断点已保存</strong>
+                    <p>{resumePreview.summary}</p>
+                  </div>
+                ) : null}
                 <ul>
                   {task.logs.slice(-4).map((log) => (
                     <li key={log.id}>{log.message}</li>
                   ))}
                 </ul>
-                {errorNotice ? (
+                {errorNotice && task.status !== "paused" ? (
                   <div className={styles.taskRecoveryHint}>
                     <strong>{errorNotice.title}</strong>
                     <p>{errorNotice.detail}</p>
@@ -8346,7 +9296,11 @@ function NovelBookPanel({
                     className={styles.taskRetryButton}
                     onClick={() => onRetryTask(task)}
                   >
-                    {task.status === "queued" ? "执行任务" : "重试任务"}
+                    {task.status === "queued"
+                      ? "执行任务"
+                      : task.status === "paused"
+                        ? "继续执行"
+                        : "重试任务"}
                   </button>
                 ) : null}
               </article>
@@ -8419,13 +9373,94 @@ function NovelBookPanel({
     {isKnowledgeLibraryOpen ? (
       <KnowledgeAssetLibraryDialog
         assets={assets}
+        project={project}
         onClose={() => setIsKnowledgeLibraryOpen(false)}
         onEditAsset={editKnowledgeAsset}
         onDeleteAsset={deleteKnowledgeAsset}
         onCreateAsset={createKnowledgeAsset}
+        onRunConflictCheck={openAssetConflictReport}
+      />
+    ) : null}
+    {assetConflictReport ? (
+      <AssetConflictDialog
+        report={assetConflictReport}
+        isApplying={isApplyingConflictFixes}
+        onClose={() => setAssetConflictReport(null)}
+        onApplyFixes={() => void applyAssetConflictFixes()}
       />
     ) : null}
     </>
+  );
+}
+
+function AssetConflictDialog({
+  report,
+  isApplying,
+  onClose,
+  onApplyFixes,
+}: {
+  report: NovelAssetConflictReport;
+  isApplying: boolean;
+  onClose: () => void;
+  onApplyFixes: () => void;
+}) {
+  const fixableCount = report.issues.filter((issue) =>
+    isNovelAssetConflictAutoFixable(issue.code),
+  ).length;
+
+  return (
+    <div className={styles.dialogOverlay} role='presentation'>
+      <section className={styles.appDialog} role='dialog' aria-modal='true'>
+        <header>
+          <h2>设定冲突检测</h2>
+          <p>{report.summary}</p>
+          {fixableCount > 0 ? (
+            <p className={styles.cloudSyncMeta}>
+              其中 {fixableCount} 项可一键自动修复（合并重复资产、同步大纲状态等）。
+            </p>
+          ) : null}
+        </header>
+        <div className={styles.modelCallLogList}>
+          {report.issues.length === 0 ? (
+            <p className={styles.emptyMiniState}>未发现设定冲突。</p>
+          ) : (
+            report.issues.map((issue) => (
+              <article
+                key={issue.id}
+                className={
+                  issue.severity === "error"
+                    ? styles.outlineEditorDriftWarning
+                    : issue.severity === "warning"
+                      ? styles.outlineEditorDriftWarning
+                      : styles.outlineEditorDriftOk
+                }
+              >
+                <strong>{issue.title}</strong>
+                <span>{issue.detail}</span>
+                {issue.chapterNumbers?.length ? (
+                  <em>章节：{issue.chapterNumbers.join("、")}</em>
+                ) : null}
+                {isNovelAssetConflictAutoFixable(issue.code) ? (
+                  <em>可自动修复</em>
+                ) : null}
+              </article>
+            ))
+          )}
+        </div>
+        <footer>
+          <button onClick={onClose}>关闭</button>
+          {fixableCount > 0 ? (
+            <button
+              className={styles.primaryButton}
+              disabled={isApplying}
+              onClick={onApplyFixes}
+            >
+              {isApplying ? "修复中…" : `一键修复 (${fixableCount})`}
+            </button>
+          ) : null}
+        </footer>
+      </section>
+    </div>
   );
 }
 
@@ -8481,6 +9516,198 @@ function PublishValidationDialog({
   );
 }
 
+function CloudSyncPanel({
+  state,
+  webDavSettings,
+  webDavBusy,
+  onDeviceLabelChange,
+  onExport,
+  onImportClick,
+  onWebDavSettingsChange,
+  onWebDavTest,
+  onWebDavUpload,
+  onWebDavDownload,
+  onWebDavReset,
+}: {
+  state: NovelCloudSyncState;
+  webDavSettings: NovelCloudSyncWebDavSettings;
+  webDavBusy: "test" | "upload" | "download" | null;
+  onDeviceLabelChange: (label: string) => void;
+  onExport: () => void;
+  onImportClick: () => void;
+  onWebDavSettingsChange: (patch: Partial<NovelCloudSyncWebDavSettings>) => void;
+  onWebDavTest: () => void;
+  onWebDavUpload: () => void;
+  onWebDavDownload: () => void;
+  onWebDavReset: () => void;
+}) {
+  return (
+    <div className={styles.cloudSyncPanel}>
+      <div className={styles.cloudSyncHeader}>
+        <strong>云端同步 v2</strong>
+        <span>本地文件导出 / WebDAV 自动同步</span>
+      </div>
+      <label className={styles.cloudSyncField}>
+        <span>本设备名称</span>
+        <input
+          value={state.deviceLabel}
+          onChange={(event) => onDeviceLabelChange(event.target.value)}
+          placeholder='例如：MacBook / 办公室电脑'
+        />
+      </label>
+      <div className={styles.cloudSyncMeta}>
+        {state.lastExportedAt ? (
+          <span>上次导出：{formatNovelRelativeAge(state.lastExportedAt)}</span>
+        ) : (
+          <span>尚未导出同步包</span>
+        )}
+        {state.lastMergeAt ? (
+          <span>上次合并：{formatNovelRelativeAge(state.lastMergeAt)}</span>
+        ) : null}
+        {state.lastWebDavUploadAt ? (
+          <span>
+            WebDAV 上传：{formatNovelRelativeAge(state.lastWebDavUploadAt)}
+          </span>
+        ) : null}
+        {state.lastWebDavDownloadAt ? (
+          <span>
+            WebDAV 拉取：{formatNovelRelativeAge(state.lastWebDavDownloadAt)}
+          </span>
+        ) : null}
+      </div>
+      <div className={styles.cloudSyncActions}>
+        <button onClick={onExport}>导出同步包</button>
+        <button onClick={onImportClick}>导入并合并</button>
+      </div>
+
+      <div className={styles.cloudSyncDivider} />
+
+      <div className={styles.cloudSyncHeader}>
+        <strong>WebDAV</strong>
+        <span>坚果云 / Nextcloud 等，经服务端代理避免 CORS</span>
+      </div>
+      <label className={styles.cloudSyncField}>
+        <span>服务地址</span>
+        <input
+          value={webDavSettings.url}
+          onChange={(event) =>
+            onWebDavSettingsChange({ url: event.target.value })
+          }
+          placeholder='https://dav.example.com/remote.php/dav/files/user'
+        />
+      </label>
+      <label className={styles.cloudSyncField}>
+        <span>远端文件路径</span>
+        <input
+          value={webDavSettings.remotePath}
+          onChange={(event) =>
+            onWebDavSettingsChange({ remotePath: event.target.value })
+          }
+          placeholder='sxy-cloud-sync.json'
+        />
+      </label>
+      <label className={styles.cloudSyncField}>
+        <span>用户名</span>
+        <input
+          value={webDavSettings.username}
+          onChange={(event) =>
+            onWebDavSettingsChange({ username: event.target.value })
+          }
+          autoComplete='username'
+        />
+      </label>
+      <label className={styles.cloudSyncField}>
+        <span>密码 / 应用专用密码</span>
+        <input
+          type='password'
+          value={webDavSettings.password}
+          onChange={(event) =>
+            onWebDavSettingsChange({ password: event.target.value })
+          }
+          autoComplete='current-password'
+        />
+      </label>
+      <div className={styles.cloudSyncActions}>
+        <button
+          disabled={webDavBusy !== null}
+          onClick={onWebDavTest}
+        >
+          {webDavBusy === "test" ? "测试中…" : "测试连接"}
+        </button>
+        <button
+          disabled={webDavBusy !== null}
+          onClick={onWebDavUpload}
+        >
+          {webDavBusy === "upload" ? "上传中…" : "上传到 WebDAV"}
+        </button>
+        <button
+          disabled={webDavBusy !== null}
+          onClick={onWebDavDownload}
+        >
+          {webDavBusy === "download" ? "拉取中…" : "从 WebDAV 拉取合并"}
+        </button>
+        <button disabled={webDavBusy !== null} onClick={onWebDavReset}>
+          重置配置
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CloudSyncMergeDialog({
+  remoteLabel,
+  report,
+  resolutions,
+  onClose,
+  onToggleResolution,
+  onConfirm,
+}: {
+  remoteLabel: string;
+  report: NovelWorkspaceMergeReport;
+  resolutions: Record<string, "local" | "remote">;
+  onClose: () => void;
+  onToggleResolution: (entityId: string) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className={styles.dialogOverlay} role='presentation'>
+      <section className={styles.appDialog} role='dialog' aria-modal='true'>
+        <header>
+          <h2>同步合并预览</h2>
+          <p>
+            来自「{remoteLabel}」的同步包。{report.summary}
+          </p>
+        </header>
+        <div className={styles.modelCallLogList}>
+          {report.conflicts.length === 0 ? (
+            <p className={styles.emptyMiniState}>未发现冲突，可直接合并。</p>
+          ) : (
+            report.conflicts.map((conflict) => (
+              <article key={conflict.id} className={styles.cloudSyncConflictItem}>
+                <strong>{conflict.label}</strong>
+                <span>
+                  本地 {formatNovelRelativeAge(conflict.localUpdatedAt)} · 远端{" "}
+                  {formatNovelRelativeAge(conflict.remoteUpdatedAt)}
+                </span>
+                <button onClick={() => onToggleResolution(conflict.entityId)}>
+                  保留：
+                  {resolutions[conflict.entityId] === "local" ? "本地" : "远端"}
+                </button>
+              </article>
+            ))
+          )}
+        </div>
+        <footer>
+          <button onClick={onClose}>取消</button>
+          <button className={styles.primaryButton} onClick={onConfirm}>
+            确认合并
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 function ModelRoutePanel({
   settings,
   onSettingsChange,
@@ -8490,6 +9717,7 @@ function ModelRoutePanel({
 }) {
   const connectedProviders = settings.providers.filter(isProviderConnected);
   const globalRoute = getRouteConfig(settings, "global.default");
+  const callStats = buildModelCallStats(settings.callLogs);
 
   function getProviderModels(providerId: string) {
     const provider = settings.providers.find((item) => item.id === providerId);
@@ -8677,6 +9905,19 @@ function ModelRoutePanel({
       {settings.callLogs && settings.callLogs.length > 0 ? (
         <section className={styles.modelCallLogs}>
           <h3>最近调用</h3>
+          <div className={styles.cloudSyncMeta}>
+            <span>总计 {callStats.total} 次</span>
+            {callStats.successRate !== null ? (
+              <span>成功率 {callStats.successRate}%</span>
+            ) : null}
+            {callStats.avgLatencyMs !== null ? (
+              <span>平均耗时 {callStats.avgLatencyMs}ms</span>
+            ) : null}
+            <span>
+              成功 {callStats.success} · 失败 {callStats.error} · 取消{" "}
+              {callStats.cancelled}
+            </span>
+          </div>
           <div className={styles.modelCallLogList}>
             {settings.callLogs.slice(0, 12).map((entry) => (
               <article key={entry.id} className={styles.modelCallLogItem}>

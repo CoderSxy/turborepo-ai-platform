@@ -13,6 +13,9 @@ import {
   buildNovelChapterVersionDiff,
   buildNovelChapterVersionCompareView,
   buildNovelCompareDiffMarkers,
+  buildNovelReviewIssueKeysForDiffMarkers,
+  buildNovelPendingAssetDeltaMatchReport,
+  findNovelCompareDiffMarkerForReviewIssue,
   buildNovelReviewIssueHighlights,
   buildNovelReviewIssueParagraphMarks,
   buildNovelReviewExportMarkdown,
@@ -26,7 +29,21 @@ import {
   buildNovelBookExportMarkdown,
   buildNovelBookExportText,
   buildNovelPlatformExportText,
+  buildNovelPlatformExportBundle,
+  buildNovelPlatformChapterHeading,
+  buildNovelPublishManifest,
+  buildNovelBookExportJson,
   buildNovelPublishValidationReport,
+  buildNovelTaskResumePreview,
+  buildNovelAssetConflictReport,
+  applyNovelAssetConflictFixes,
+  buildNovelCharacterRelationGraph,
+  buildNovelCharacterStateTimeline,
+  isNovelAssetConflictAutoFixable,
+  appendNovelAssetChangeEvent,
+  computeNovelWorkspaceFingerprint,
+  mergeNovelWorkspacePayloads,
+  getNovelPlatformProfile,
   buildNovelDocxDocumentModel,
   buildNovelPublicationTimeline,
   appendNovelPublicationEvent,
@@ -2090,6 +2107,126 @@ test("knowledge asset matcher merges fuzzy foreshadowing entries", () => {
   assert.match(merged.knowledgeAssets[0].content, /再次出现/);
 });
 
+test("resolved foreshadowing merges into existing pool item", () => {
+  const assets = {
+    outline: "",
+    outlineNodes: [],
+    worldNotes: "",
+    characters: "",
+    settings: "",
+    knowledgeAssets: [
+      {
+        id: "asset-1",
+        category: "foreshadowing",
+        title: "黑线印记",
+        content: "黑线会指向旧档案柜。",
+        status: "active",
+        tags: ["主线"],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    pendingAssetDeltas: [],
+    contextSelection: {
+      includeOutline: true,
+      includePreviousSummary: true,
+      includeWorld: true,
+      includeCharacters: true,
+      includeForeshadowing: true,
+      includeReviewIssues: true,
+      viewpoint: "第三人称",
+      pacing: "快",
+      highlights: "",
+    },
+    genres: [],
+    styleSamples: [],
+    importedMaterials: [],
+    marketRadars: [],
+    diagnostics: [],
+  };
+  const merged = applyNovelChapterAssetDelta(assets, {
+    chapterNumber: 5,
+    chapterTitle: "终章",
+    summary: "摘要",
+    characterStates: [],
+    newForeshadowing: [],
+    resolvedForeshadowing: ["黑线印记被揭开"],
+    worldIncrements: [],
+  });
+
+  assert.equal(merged.knowledgeAssets.length, 1);
+  assert.equal(merged.knowledgeAssets[0].status, "resolved");
+  assert.match(merged.knowledgeAssets[0].content, /被揭开/);
+});
+
+test("review diff filter and issue key helpers link markers", () => {
+  const compare = buildNovelChapterVersionCompareView(
+    { content: "旧段落A\n\n旧段落B", wordCount: 8 },
+    { content: "旧段落A\n\n新段落B", wordCount: 8 },
+  );
+  const issues = buildNovelReviewIssueViews(
+    [
+      {
+        id: "review-1",
+        verdict: "needs-revision",
+        summary: "需要修订",
+        issues: [
+          {
+            id: "issue-1",
+            severity: "error",
+            title: "段落B问题",
+            detail: "旧段落B节奏偏慢",
+            excerpt: "旧段落B",
+            resolved: false,
+          },
+        ],
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    "review-1",
+  );
+  const markers = buildNovelCompareDiffMarkers(compare, issues);
+  const diffKeys = buildNovelReviewIssueKeysForDiffMarkers(markers);
+
+  assert.equal(diffKeys.size, 1);
+  assert.equal(
+    filterNovelReviewIssueViews(issues, "diff", { diffIssueKeys: diffKeys })
+      .length,
+    1,
+  );
+  assert.ok(
+    findNovelCompareDiffMarkerForReviewIssue(issues[0], markers),
+  );
+});
+
+test("pending asset delta match report previews foreshadowing merge", () => {
+  const assets = {
+    knowledgeAssets: [
+      {
+        id: "asset-1",
+        category: "foreshadowing",
+        title: "黑线印记",
+        content: "黑线会指向旧档案柜。",
+        status: "active",
+        tags: [],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+  };
+  const report = buildNovelPendingAssetDeltaMatchReport(assets, {
+    chapterNumber: 2,
+    chapterTitle: "缺页档案",
+    summary: "摘要",
+    characterStates: [],
+    newForeshadowing: ["黑线印记再次出现"],
+    resolvedForeshadowing: ["黑线印记"],
+    worldIncrements: [],
+  });
+
+  assert.match(report.summary, /合并/);
+  assert.equal(report.newForeshadowing[0].preview.action, "merge");
+  assert.equal(report.resolvedForeshadowing[0].preview.action, "resolve");
+});
+
 test("write chapter instruction includes banned words and style constraints", () => {
   const instruction = buildNovelWriteChapterInstruction({
     project: {
@@ -2562,4 +2699,551 @@ test("publication events append and timeline merges chapter publishedAt", () => 
 
   assert.equal(assets.publicationEvents?.length, 1);
   assert.ok(timeline.some((entry) => entry.label.includes("已发布")));
+});
+
+test("platform export supports zongheng jjwxc feilu heading formats", () => {
+  const chapter = {
+    number: 3,
+    title: "雨夜追踪",
+    wordCount: 1200,
+  };
+
+  assert.match(
+    buildNovelPlatformChapterHeading("zongheng", chapter),
+    /第 3 章/,
+  );
+  assert.equal(buildNovelPlatformChapterHeading("jjwxc", chapter), "雨夜追踪");
+  assert.match(
+    buildNovelPlatformChapterHeading("feilu", chapter),
+    /第3章/,
+  );
+
+  const text = buildNovelPlatformExportText({
+    title: "长夜行",
+    platform: "jjwxc",
+    genre: "悬疑",
+    premise: "闭环追凶。",
+    chapters: [
+      {
+        id: "c1",
+        bookId: "b1",
+        number: 1,
+        title: "雨夜",
+        content: "正文段落。",
+        summary: "发现异常",
+        status: "approved",
+        wordCount: 1200,
+        reviewNotes: "",
+        reviews: [],
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+  });
+
+  assert.match(text, /晋江格式/);
+  assert.match(text, /摘要：发现异常/);
+});
+
+test("publish manifest and book json export include stats", () => {
+  const chapters = [
+    {
+      id: "c1",
+      bookId: "b1",
+      number: 1,
+      title: "雨夜",
+      content: "正文。",
+      summary: "",
+      status: "approved",
+      wordCount: 1200,
+      reviewNotes: "",
+      reviews: [],
+      publicationStatus: "ready",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  const manifest = buildNovelPublishManifest({
+    title: "长夜行",
+    genre: "悬疑",
+    premise: "闭环。",
+    platform: "qidian",
+    chapters,
+    validation: buildNovelPublishValidationReport({
+      title: "长夜行",
+      platform: "qidian",
+      chapters,
+    }),
+  });
+
+  assert.match(manifest, /发布清单/);
+  assert.match(manifest, /起点/);
+
+  const json = JSON.parse(
+    buildNovelBookExportJson({
+      title: "长夜行",
+      genre: "悬疑",
+      premise: "闭环。",
+      project: {
+        title: "长夜行",
+        genre: "悬疑",
+        platform: "web",
+        language: "zh",
+        targetChapters: 10,
+        chapterWordCount: 3000,
+        premise: "闭环。",
+        protagonist: "",
+        world: "",
+        currentStage: "writing",
+        chapters: [],
+      },
+      assets: createDefaultNovelAssets({
+        title: "长夜行",
+        genre: "悬疑",
+        premise: "闭环。",
+        world: "",
+        protagonist: "",
+        language: "zh-CN",
+        chapterWordCount: 3000,
+        chapters: [],
+      }),
+      chapters,
+    }),
+  );
+
+  assert.equal(json.stats.chapterCount, 1);
+  assert.equal(json.stats.totalWords, 1200);
+});
+
+test("platform export bundle creates per-chapter txt files", () => {
+  const bundle = buildNovelPlatformExportBundle({
+    title: "长夜行",
+    platform: "fanqie",
+    chapters: [
+      {
+        id: "c1",
+        bookId: "b1",
+        number: 2,
+        title: "追踪",
+        content: "第二段正文。",
+        summary: "",
+        status: "approved",
+        wordCount: 900,
+        reviewNotes: "",
+        reviews: [],
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(bundle.length, 1);
+  assert.match(bundle[0].filename, /\.txt$/);
+  assert.match(bundle[0].content, /第2章 追踪/);
+});
+
+test("workspace merge combines unique entities and resolves conflicts", () => {
+  const local = {
+    version: 1,
+    exportedAt: "2026-01-01T00:00:00.000Z",
+    app: "sxy-creative-studio",
+    modelSettings: { providers: [] },
+    books: [
+      {
+        id: "book-1",
+        title: "本地书",
+        genre: "悬疑",
+        premise: "本地",
+        project: { title: "本地书", genre: "悬疑" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ],
+    sessions: [],
+    messages: [],
+    chapters: [
+      {
+        id: "c1",
+        bookId: "book-1",
+        number: 1,
+        title: "本地章",
+        content: "本地正文",
+        summary: "",
+        status: "approved",
+        wordCount: 1000,
+        reviewNotes: "",
+        reviews: [],
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-03T00:00:00.000Z",
+      },
+    ],
+    chapterVersions: [],
+    tasks: [],
+  };
+  const remote = {
+    ...local,
+    exportedAt: "2026-01-04T00:00:00.000Z",
+    books: [
+      {
+        ...local.books[0],
+        title: "远端书",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    chapters: [
+      {
+        ...local.chapters[0],
+        title: "远端章",
+        content: "远端正文",
+        updatedAt: "2026-01-04T00:00:00.000Z",
+      },
+      {
+        id: "c2",
+        bookId: "book-1",
+        number: 2,
+        title: "仅远端",
+        content: "新增章节",
+        summary: "",
+        status: "draft",
+        wordCount: 800,
+        reviewNotes: "",
+        reviews: [],
+        createdAt: "2026-01-04T00:00:00.000Z",
+        updatedAt: "2026-01-04T00:00:00.000Z",
+      },
+    ],
+  };
+
+  const report = mergeNovelWorkspacePayloads(local, remote);
+
+  assert.equal(report.merged.chapters.length, 2);
+  assert.equal(report.merged.chapters.find((item) => item.id === "c1")?.title, "远端章");
+  assert.ok(report.conflicts.some((item) => item.entityId === "c1"));
+  assert.ok(report.conflicts.some((item) => item.entityId === "book-1"));
+  assert.notEqual(
+    computeNovelWorkspaceFingerprint(local),
+    computeNovelWorkspaceFingerprint(report.merged),
+  );
+  assert.equal(getNovelPlatformProfile("zongheng").minWords, 1400);
+});
+
+test("task resume preview exposes checkpoint progress", () => {
+  const preview = buildNovelTaskResumePreview({
+    id: "task-1",
+    bookId: "book-1",
+    sessionId: "session-1",
+    action: "write-chapter",
+    label: "写下一章",
+    status: "paused",
+    logs: [],
+    startedAt: "2026-01-01T00:00:00.000Z",
+    endedAt: "2026-01-01T01:00:00.000Z",
+    checkpoint: {
+      progressMessages: ["正在读取书籍资产", "正在调用 WriterAgent"],
+      savedAt: "2026-01-01T01:00:00.000Z",
+      assistantMessageId: "assistant-core-1",
+    },
+  });
+
+  assert.equal(preview.canResume, true);
+  assert.equal(preview.progressCount, 2);
+  assert.match(preview.summary, /2 条进度/);
+});
+
+test("task resume preview rejects non-paused tasks", () => {
+  const preview = buildNovelTaskResumePreview({
+    id: "task-2",
+    bookId: "book-1",
+    sessionId: "session-1",
+    action: "review",
+    label: "审稿",
+    status: "success",
+    logs: [],
+    startedAt: "2026-01-01T00:00:00.000Z",
+  });
+
+  assert.equal(preview.canResume, false);
+});
+
+test("asset conflict report detects duplicate characters and outline drift", () => {
+  const report = buildNovelAssetConflictReport({
+    project: {
+      title: "长夜行",
+      genre: "悬疑",
+      premise: "",
+      world: "",
+      protagonist: "",
+      chapterWordCount: 3000,
+      chapters: [
+        {
+          number: 1,
+          title: "雨夜",
+          status: "approved",
+          targetWords: 3000,
+          focus: "发现异常",
+        },
+      ],
+    },
+    assets: {
+      outline: "",
+      outlineNodes: [
+        {
+          id: "node-1",
+          volume: "第一卷",
+          chapterNumber: 2,
+          title: "追踪",
+          goal: "",
+          conflict: "",
+          characters: "",
+          information: "",
+          foreshadowing: "黑线印记指向档案柜",
+          targetWords: 3000,
+          status: "planned",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      worldNotes: "",
+      characters: "",
+      settings: "",
+      knowledgeAssets: [
+        {
+          id: "c1",
+          category: "character",
+          title: "顾长安",
+          content: "状态A",
+          status: "active",
+          tags: [],
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "c2",
+          category: "character",
+          title: "顾长安",
+          content: "状态B",
+          status: "active",
+          tags: [],
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        },
+      ],
+      pendingAssetDeltas: [],
+      contextSelection: {
+        includeOutline: true,
+        includePreviousSummary: true,
+        includeWorld: true,
+        includeCharacters: true,
+        includeForeshadowing: true,
+        includeReviewIssues: true,
+        viewpoint: "第三人称",
+        pacing: "快",
+        highlights: "",
+      },
+      genres: [],
+      styleSamples: [],
+      importedMaterials: [],
+      marketRadars: [],
+      diagnostics: [],
+    },
+  });
+
+  assert.ok(report.issues.some((issue) => issue.code === "character-title-collision"));
+  assert.ok(report.issues.some((issue) => issue.code === "outline-foreshadowing-drift"));
+});
+
+test("asset conflict auto fix merges duplicate characters", () => {
+  const project = {
+    title: "长夜行",
+    genre: "悬疑",
+    premise: "",
+    world: "",
+    protagonist: "",
+    chapterWordCount: 3000,
+    chapters: [
+      {
+        number: 1,
+        title: "雨夜",
+        status: "approved",
+        targetWords: 3000,
+        focus: "发现异常",
+      },
+    ],
+  };
+  const assets = {
+    outline: "",
+    outlineNodes: [
+      {
+        id: "node-1",
+        volume: "第一卷",
+        chapterNumber: 1,
+        title: "雨夜",
+        goal: "",
+        conflict: "",
+        characters: "",
+        information: "",
+        foreshadowing: "",
+        targetWords: 3000,
+        status: "planned",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    worldNotes: "",
+    characters: "",
+    settings: "",
+    knowledgeAssets: [
+      {
+        id: "c1",
+        category: "character",
+        title: "顾长安",
+        content: "状态A",
+        status: "active",
+        tags: [],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      {
+        id: "c2",
+        category: "character",
+        title: "顾长安",
+        content: "状态B",
+        status: "active",
+        tags: [],
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ],
+    pendingAssetDeltas: [],
+    contextSelection: {
+      includeOutline: true,
+      includePreviousSummary: true,
+      includeWorld: true,
+      includeCharacters: true,
+      includeForeshadowing: true,
+      includeReviewIssues: true,
+      viewpoint: "第三人称",
+      pacing: "快",
+      highlights: "",
+    },
+    genres: [],
+    styleSamples: [],
+    importedMaterials: [],
+    marketRadars: [],
+    diagnostics: [],
+  };
+
+  assert.equal(isNovelAssetConflictAutoFixable("character-title-collision"), true);
+  assert.equal(isNovelAssetConflictAutoFixable("stale-foreshadowing"), false);
+
+  const result = applyNovelAssetConflictFixes({ project, assets, chapters: [] });
+  assert.ok(result.applied.length >= 1);
+  assert.equal(result.assets.knowledgeAssets?.length, 1);
+  assert.match(result.assets.knowledgeAssets?.[0]?.content ?? "", /状态A/);
+  assert.match(result.assets.knowledgeAssets?.[0]?.content ?? "", /状态B/);
+});
+
+test("character state timeline aggregates assets pending deltas and tracking text", () => {
+  const assets = createDefaultNovelAssets({
+    title: "长夜行",
+    genre: "悬疑",
+    premise: "",
+    world: "",
+    protagonist: "顾长安",
+    language: "zh-CN",
+    chapterWordCount: 3000,
+    chapters: [],
+  });
+  assets.knowledgeAssets = [
+    {
+      id: "c1",
+      category: "character",
+      title: "顾长安",
+      content: "冷静调查者",
+      status: "active",
+      tags: [],
+      updatedAt: "2026-01-03T00:00:00.000Z",
+    },
+    {
+      id: "c2",
+      category: "character",
+      title: "李沉",
+      content: "与顾长安是搭档",
+      status: "active",
+      tags: [],
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    },
+  ];
+  assets.characters = [
+    "## 角色状态追踪",
+    "- 顾长安：发现黑线印记",
+    "- 李沉：隐藏身份",
+  ].join("\n\n");
+  assets.pendingAssetDeltas = [
+    {
+      id: "pending-1",
+      chapterNumber: 2,
+      chapterTitle: "追踪",
+      summary: "摘要",
+      characterStates: [{ title: "顾长安", content: "锁定嫌疑人" }],
+      newForeshadowing: [],
+      resolvedForeshadowing: [],
+      worldIncrements: [],
+      createdAt: "2026-01-04T00:00:00.000Z",
+    },
+  ];
+  assets.outlineNodes = [
+    {
+      id: "node-1",
+      volume: "第一卷",
+      chapterNumber: 2,
+      title: "追踪",
+      goal: "",
+      conflict: "",
+      characters: "顾长安、李沉",
+      information: "",
+      foreshadowing: "",
+      targetWords: 3000,
+      status: "planned",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+
+  const timeline = buildNovelCharacterStateTimeline({ assets });
+  const graph = buildNovelCharacterRelationGraph({ assets });
+
+  assert.equal(timeline.characters.length, 2);
+  assert.ok(
+    timeline.characters.some(
+      (item) =>
+        item.name === "顾长安" &&
+        item.entries.some((entry) => entry.content.includes("锁定嫌疑人")),
+    ),
+  );
+  assert.ok(graph.nodes.some((node) => node.label === "顾长安"));
+  assert.ok(graph.edges.some((edge) => edge.kind === "ally" || edge.kind === "coappearance"));
+});
+
+test("chapter asset delta appends asset change events", () => {
+  const assets = createDefaultNovelAssets({
+    title: "长夜行",
+    genre: "悬疑",
+    premise: "",
+    world: "",
+    protagonist: "",
+    language: "zh-CN",
+    chapterWordCount: 3000,
+    chapters: [],
+  });
+  const next = applyNovelChapterAssetDelta(assets, {
+    chapterNumber: 1,
+    chapterTitle: "雨夜",
+    summary: "摘要",
+    characterStates: [{ title: "顾长安", content: "发现异常" }],
+    newForeshadowing: ["黑线印记"],
+    resolvedForeshadowing: [],
+    worldIncrements: [],
+  });
+
+  assert.ok((next.assetChangeEvents?.length ?? 0) > 0);
+  const withManual = appendNovelAssetChangeEvent(next, {
+    action: "delete",
+    label: "手动删除测试资产",
+    detail: "测试",
+  });
+  assert.equal(withManual.assetChangeEvents?.[0]?.action, "delete");
 });

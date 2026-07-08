@@ -112,13 +112,121 @@ export type NovelProjectAssets = {
   }>;
   projectStrategy?: NovelProjectStrategy;
   publicationEvents?: NovelPublicationEvent[];
+  assetChangeEvents?: NovelAssetChangeEvent[];
 };
+
+export type NovelAssetConflictSeverity = "error" | "warning" | "info";
+
+export type NovelAssetConflict = {
+  id: string;
+  severity: NovelAssetConflictSeverity;
+  code: string;
+  title: string;
+  detail: string;
+  assetIds?: string[];
+  chapterNumbers?: number[];
+};
+
+export type NovelAssetConflictReport = {
+  errorCount: number;
+  warningCount: number;
+  issues: NovelAssetConflict[];
+  summary: string;
+};
+
+export type NovelAssetConflictFixResult = {
+  project: InkosNovelProject;
+  assets: NovelProjectAssets;
+  applied: Array<{ issueId: string; label: string }>;
+  skipped: Array<{ issueId: string; reason: string }>;
+  summary: string;
+};
+
+export type NovelAssetChangeEvent = {
+  id: string;
+  action: "create" | "update" | "merge" | "resolve" | "delete";
+  category?: NovelKnowledgeAssetCategory;
+  assetId?: string;
+  label: string;
+  detail: string;
+  createdAt: string;
+};
+
+export type NovelCharacterStateTimelineEntry = {
+  id: string;
+  characterName: string;
+  content: string;
+  chapterNumber?: number;
+  chapterTitle?: string;
+  source:
+    | "chapter-delta"
+    | "pending-delta"
+    | "asset"
+    | "tracking-text"
+    | "change-event";
+  updatedAt: string;
+};
+
+export type NovelCharacterStateTimelineGroup = {
+  name: string;
+  assetId?: string;
+  status?: NovelKnowledgeAsset["status"];
+  entries: NovelCharacterStateTimelineEntry[];
+  latestContent: string;
+  latestUpdatedAt: string;
+};
+
+export type NovelCharacterStateTimeline = {
+  characters: NovelCharacterStateTimelineGroup[];
+  summary: string;
+};
+
+export type NovelCharacterRelationEdgeKind =
+  | "ally"
+  | "enemy"
+  | "family"
+  | "romance"
+  | "mentor"
+  | "coappearance"
+  | "other";
+
+export type NovelCharacterRelationNode = {
+  id: string;
+  label: string;
+  assetId?: string;
+  status?: NovelKnowledgeAsset["status"];
+  degree: number;
+};
+
+export type NovelCharacterRelationEdge = {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  label: string;
+  kind: NovelCharacterRelationEdgeKind;
+  source: "explicit" | "coappearance" | "matrix";
+  weight: number;
+};
+
+export type NovelCharacterRelationGraph = {
+  nodes: NovelCharacterRelationNode[];
+  edges: NovelCharacterRelationEdge[];
+  summary: string;
+};
+
+export type NovelPlatformId =
+  | "generic"
+  | "qidian"
+  | "fanqie"
+  | "zongheng"
+  | "jjwxc"
+  | "feilu";
 
 export type NovelPublicationEvent = {
   id: string;
   chapterNumber?: number;
   chapterTitle?: string;
-  platform?: "generic" | "qidian" | "fanqie";
+  platform?: NovelPlatformId;
   action: "marked-ready" | "marked-published" | "exported";
   note?: string;
   createdAt: string;
@@ -136,7 +244,7 @@ export type NovelPublishValidationIssue = {
 };
 
 export type NovelPublishValidationReport = {
-  platform: "generic" | "qidian" | "fanqie";
+  platform: NovelPlatformId;
   canPublish: boolean;
   errorCount: number;
   warningCount: number;
@@ -184,6 +292,25 @@ export type NovelKnowledgeAssetCategory =
   | "faction"
   | "item"
   | "term";
+
+export type NovelKnowledgeAssetMatchPreview = {
+  action: "merge" | "create" | "resolve";
+  score: number;
+  label: string;
+  matchedAsset?: NovelKnowledgeAsset;
+};
+
+export type NovelPendingAssetDeltaMatchReport = {
+  newForeshadowing: Array<{
+    text: string;
+    preview: NovelKnowledgeAssetMatchPreview;
+  }>;
+  resolvedForeshadowing: Array<{
+    text: string;
+    preview: NovelKnowledgeAssetMatchPreview;
+  }>;
+  summary: string;
+};
 
 export type NovelKnowledgeAsset = {
   id: string;
@@ -320,7 +447,8 @@ export type NovelReviewIssueFilter =
   | "open"
   | "resolved"
   | "current"
-  | "history";
+  | "history"
+  | "diff";
 
 export type NovelReviewIssueParagraphLocation = {
   index: number;
@@ -575,6 +703,52 @@ export type NovelWorkspaceBackupPayload = {
   tasks: StoredNovelTask[];
 };
 
+export const NOVEL_CLOUD_SYNC_STORAGE_KEY = "sxy.novel-cloud-sync.v1";
+export const NOVEL_CLOUD_SYNC_WEBDAV_STORAGE_KEY =
+  "sxy.novel-cloud-sync-webdav.v1";
+
+export type NovelCloudSyncWebDavSettings = {
+  url: string;
+  remotePath: string;
+  username: string;
+  password: string;
+};
+
+export type NovelCloudSyncState = {
+  deviceId: string;
+  deviceLabel: string;
+  lastExportedAt?: string;
+  lastImportedAt?: string;
+  lastMergeAt?: string;
+  lastRemoteFingerprint?: string;
+  lastWebDavUploadAt?: string;
+  lastWebDavDownloadAt?: string;
+};
+
+export type NovelCloudSyncPackage = NovelWorkspaceBackupPayload & {
+  syncVersion: 1;
+  deviceId: string;
+  deviceLabel: string;
+  fingerprint: string;
+};
+
+export type NovelWorkspaceMergeConflict = {
+  id: string;
+  entityType: "book" | "session" | "message" | "chapter" | "chapterVersion" | "task";
+  entityId: string;
+  label: string;
+  localUpdatedAt: string;
+  remoteUpdatedAt: string;
+  resolution: "local" | "remote";
+};
+
+export type NovelWorkspaceMergeReport = {
+  autoMerged: number;
+  conflicts: NovelWorkspaceMergeConflict[];
+  merged: NovelWorkspaceBackupPayload;
+  summary: string;
+};
+
 export type CreateStoredNovelBookInput = {
   title: string;
   genre: string;
@@ -822,9 +996,43 @@ export function buildNovelReviewIssueViews(
     });
 }
 
+export function buildNovelReviewIssueKey(
+  issue: Pick<NovelChapterReviewIssueView, "reviewId" | "id">,
+): string {
+  return `${issue.reviewId}:${issue.id}`;
+}
+
+export function buildNovelReviewIssueKeysForDiffMarkers(
+  markers: NovelCompareDiffMarker[],
+): Set<string> {
+  return new Set(
+    markers.flatMap((marker) =>
+      marker.relatedIssues.map((issue) => buildNovelReviewIssueKey(issue)),
+    ),
+  );
+}
+
+export function findNovelCompareDiffMarkerForReviewIssue(
+  issue: Pick<NovelChapterReviewIssueView, "reviewId" | "id">,
+  markers: NovelCompareDiffMarker[],
+): NovelCompareDiffMarker | null {
+  const issueKey = buildNovelReviewIssueKey(issue);
+
+  return (
+    markers.find((marker) =>
+      marker.relatedIssues.some(
+        (related) => buildNovelReviewIssueKey(related) === issueKey,
+      ),
+    ) ?? null
+  );
+}
+
 export function filterNovelReviewIssueViews(
   issues: NovelChapterReviewIssueView[],
   filter: NovelReviewIssueFilter,
+  options?: {
+    diffIssueKeys?: Set<string>;
+  },
 ): NovelChapterReviewIssueView[] {
   if (filter === "open") return issues.filter((issue) => !issue.resolved);
   if (filter === "resolved") return issues.filter((issue) => issue.resolved);
@@ -833,6 +1041,16 @@ export function filterNovelReviewIssueViews(
   }
   if (filter === "history") {
     return issues.filter((issue) => !issue.isCurrentReview);
+  }
+  if (filter === "diff") {
+    const diffIssueKeys = options?.diffIssueKeys;
+    if (!diffIssueKeys || diffIssueKeys.size === 0) {
+      return [];
+    }
+
+    return issues.filter((issue) =>
+      diffIssueKeys.has(buildNovelReviewIssueKey(issue)),
+    );
   }
   return issues;
 }
@@ -1830,6 +2048,16 @@ export function buildNovelLocalEnvironmentDiagnostics(input: {
         : "尚未生成市场策略，建议运行市场雷达。",
     },
   ];
+  const conflictReport = buildNovelAssetConflictReport({
+    project: input.project,
+    assets: input.assets,
+  });
+
+  checks.push({
+    label: "设定冲突",
+    ok: conflictReport.errorCount === 0 && conflictReport.warningCount <= 2,
+    detail: conflictReport.summary,
+  });
 
   return checks.map((check, index) => ({
     id: `local-diagnostic-${Date.now()}-${index}`,
@@ -1861,6 +2089,473 @@ export function mergeNovelDiagnostics(
   }
 
   return merged;
+}
+
+export function appendNovelAssetChangeEvent(
+  assets: NovelProjectAssets,
+  event: Omit<NovelAssetChangeEvent, "id" | "createdAt"> & {
+    id?: string;
+    createdAt?: string;
+  },
+): NovelProjectAssets {
+  const entry: NovelAssetChangeEvent = {
+    id: event.id ?? `asset-change-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: event.createdAt ?? new Date().toISOString(),
+    ...event,
+  };
+
+  return {
+    ...assets,
+    assetChangeEvents: [entry, ...(assets.assetChangeEvents ?? [])].slice(0, 100),
+  };
+}
+
+export function buildNovelAssetConflictReport(input: {
+  project: InkosNovelProject;
+  assets: NovelProjectAssets;
+}): NovelAssetConflictReport {
+  const issues: NovelAssetConflict[] = [];
+  const knowledgeAssets = input.assets.knowledgeAssets ?? [];
+  const seenDuplicatePairs = new Set<string>();
+
+  knowledgeAssets.forEach((left, leftIndex) => {
+    knowledgeAssets.slice(leftIndex + 1).forEach((right) => {
+      const score = scoreNovelKnowledgeAssetMatch(left, {
+        category: right.category,
+        title: right.title,
+        content: right.content,
+        status: right.status,
+        tags: right.tags,
+        updatedAt: right.updatedAt,
+      });
+
+      if (score < 0.85) {
+        return;
+      }
+
+      const pairKey = [left.id, right.id].sort().join(":");
+      if (seenDuplicatePairs.has(pairKey)) {
+        return;
+      }
+
+      seenDuplicatePairs.add(pairKey);
+
+      if (
+        left.category === "foreshadowing" &&
+        right.category === "foreshadowing" &&
+        left.status !== right.status &&
+        (left.status === "resolved" || right.status === "resolved")
+      ) {
+        issues.push({
+          id: `resolved-dup-${pairKey}`,
+          severity: "warning",
+          code: "foreshadowing-status-mismatch",
+          title: "伏笔状态不一致",
+          detail: `「${left.title}」(${left.status}) 与「${right.title}」(${right.status}) 高度相似，建议合并。`,
+          assetIds: [left.id, right.id],
+        });
+        return;
+      }
+
+      issues.push({
+        id: `duplicate-${pairKey}`,
+        severity: left.category === "character" ? "warning" : "info",
+        code: "duplicate-asset",
+        title: `疑似重复${getNovelKnowledgeAssetCategoryLabel(left.category)}`,
+        detail: `「${left.title}」与「${right.title}」相似度 ${Math.round(score * 100)}%。`,
+        assetIds: [left.id, right.id],
+      });
+    });
+  });
+
+  const foreshadowingPool = buildNovelForeshadowingPoolSummary(input.assets);
+  foreshadowingPool.stale.forEach((asset) => {
+    issues.push({
+      id: `stale-foreshadowing-${asset.id}`,
+      severity: "warning",
+      code: "stale-foreshadowing",
+      title: "伏笔遗忘风险",
+      detail: `「${asset.title}」长期未更新且尚未回收，建议推进或标记 resolved。`,
+      assetIds: [asset.id],
+    });
+  });
+
+  (input.assets.outlineNodes ?? []).forEach((node) => {
+    const foreshadowing = node.foreshadowing.trim();
+    if (foreshadowing.length < 4) {
+      return;
+    }
+
+    const matched = knowledgeAssets.some(
+      (asset) =>
+        asset.category === "foreshadowing" &&
+        scoreNovelKnowledgeAssetMatch(asset, {
+          category: "foreshadowing",
+          title: foreshadowing,
+          content: foreshadowing,
+          status: asset.status,
+          tags: asset.tags,
+          updatedAt: asset.updatedAt,
+        }) >= 0.45,
+    );
+
+    if (!matched) {
+      issues.push({
+        id: `outline-drift-${node.id}`,
+        severity: "info",
+        code: "outline-foreshadowing-drift",
+        title: `第 ${node.chapterNumber} 章大纲伏笔未入库`,
+        detail: foreshadowing,
+        chapterNumbers: [node.chapterNumber],
+      });
+    }
+  });
+
+  const characterGroups = new Map<string, NovelKnowledgeAsset[]>();
+  knowledgeAssets
+    .filter((asset) => asset.category === "character")
+    .forEach((asset) => {
+      const key = normalizeNovelAssetText(asset.title);
+      characterGroups.set(key, [...(characterGroups.get(key) ?? []), asset]);
+    });
+
+  characterGroups.forEach((group, key) => {
+    if (!key || group.length <= 1) {
+      return;
+    }
+
+    issues.push({
+      id: `character-title-collision-${key}`,
+      severity: "warning",
+      code: "character-title-collision",
+      title: "角色标题重复",
+      detail: `检测到 ${group.length} 条标题为「${group[0]?.title}」的角色资产，建议合并状态追踪。`,
+      assetIds: group.map((asset) => asset.id),
+    });
+  });
+
+  const generatedChapterNumbers = new Set(
+    input.project.chapters
+      .filter((chapter) => chapter.status !== "planned")
+      .map((chapter) => chapter.number),
+  );
+  (input.assets.outlineNodes ?? []).forEach((node) => {
+    if (
+      generatedChapterNumbers.has(node.chapterNumber) &&
+      node.status === "planned"
+    ) {
+      issues.push({
+        id: `outline-status-${node.id}`,
+        severity: "info",
+        code: "outline-status-drift",
+        title: `第 ${node.chapterNumber} 章大纲状态未同步`,
+        detail: "章节已生成，但大纲节点仍标记为 planned。",
+        chapterNumbers: [node.chapterNumber],
+      });
+    }
+  });
+
+  const errorCount = issues.filter((issue) => issue.severity === "error").length;
+  const warningCount = issues.filter((issue) => issue.severity === "warning").length;
+  const summary =
+    issues.length === 0
+      ? "未发现设定冲突。"
+      : errorCount > 0
+        ? `发现 ${errorCount} 个错误、${warningCount} 个警告的设定冲突。`
+        : `发现 ${warningCount} 个警告、${issues.length - warningCount} 条提示。`;
+
+  return {
+    errorCount,
+    warningCount,
+    issues,
+    summary,
+  };
+}
+
+export function isNovelAssetConflictAutoFixable(code: string): boolean {
+  return [
+    "character-title-collision",
+    "duplicate-asset",
+    "foreshadowing-status-mismatch",
+    "outline-foreshadowing-drift",
+    "outline-status-drift",
+  ].includes(code);
+}
+
+function mergeNovelKnowledgeAssetsByIds(
+  assets: NovelKnowledgeAsset[],
+  keepId: string,
+  mergeIds: string[],
+): NovelKnowledgeAsset[] {
+  const removeIds = new Set(mergeIds.filter((id) => id !== keepId));
+  const group = assets.filter(
+    (asset) => asset.id === keepId || removeIds.has(asset.id),
+  );
+  const keep = assets.find((asset) => asset.id === keepId);
+
+  if (!keep || group.length <= 1) {
+    return assets;
+  }
+
+  const merged: NovelKnowledgeAsset = {
+    ...keep,
+    content: group
+      .map((asset) => asset.content)
+      .filter(Boolean)
+      .filter((content, index, list) => list.indexOf(content) === index)
+      .join("\n\n"),
+    tags: Array.from(new Set(group.flatMap((asset) => asset.tags))),
+    status: group.some((asset) => asset.status === "resolved")
+      ? "resolved"
+      : group.some((asset) => asset.status === "draft")
+        ? "draft"
+        : keep.status,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return [
+    merged,
+    ...assets.filter(
+      (asset) => asset.id !== keepId && !removeIds.has(asset.id),
+    ),
+  ];
+}
+
+export function applyNovelAssetConflictFixes(input: {
+  project: InkosNovelProject;
+  assets: NovelProjectAssets;
+  chapters?: StoredNovelChapter[];
+  issueIds?: string[];
+}): NovelAssetConflictFixResult {
+  const report = buildNovelAssetConflictReport(input);
+  const issueFilter = input.issueIds ? new Set(input.issueIds) : null;
+  let assets = input.assets;
+  const project = input.project;
+  const applied: NovelAssetConflictFixResult["applied"] = [];
+  const skipped: NovelAssetConflictFixResult["skipped"] = [];
+  const mergedAssetIds = new Set<string>();
+  let outlineSynced = false;
+
+  for (const issue of report.issues) {
+    if (issueFilter && !issueFilter.has(issue.id)) {
+      continue;
+    }
+
+    if (!isNovelAssetConflictAutoFixable(issue.code)) {
+      skipped.push({
+        issueId: issue.id,
+        reason: "需人工处理。",
+      });
+      continue;
+    }
+
+    if (
+      issue.code === "character-title-collision" ||
+      issue.code === "duplicate-asset" ||
+      issue.code === "foreshadowing-status-mismatch"
+    ) {
+      const ids = (issue.assetIds ?? []).filter((id) => !mergedAssetIds.has(id));
+
+      if (ids.length < 2) {
+        skipped.push({
+          issueId: issue.id,
+          reason: "相关资产已被其他修复合并。",
+        });
+        continue;
+      }
+
+      const keepId = ids[0]!;
+      assets = appendNovelAssetChangeEvent(
+        {
+          ...assets,
+          knowledgeAssets: mergeNovelKnowledgeAssetsByIds(
+            assets.knowledgeAssets ?? [],
+            keepId,
+            ids.slice(1),
+          ),
+        },
+        {
+          action: "merge",
+          category: assets.knowledgeAssets?.find((item) => item.id === keepId)
+            ?.category,
+          assetId: keepId,
+          label: "冲突修复：合并重复资产",
+          detail: issue.title,
+        },
+      );
+      ids.slice(1).forEach((id) => mergedAssetIds.add(id));
+      applied.push({ issueId: issue.id, label: issue.title });
+      continue;
+    }
+
+    if (issue.code === "outline-foreshadowing-drift") {
+      const nodeId = issue.id.replace(/^outline-drift-/, "");
+      const node = assets.outlineNodes.find((item) => item.id === nodeId);
+
+      if (!node || !node.foreshadowing.trim()) {
+        skipped.push({
+          issueId: issue.id,
+          reason: "找不到对应大纲节点。",
+        });
+        continue;
+      }
+
+      assets = applyNovelChapterAssetDelta(assets, {
+        chapterNumber: node.chapterNumber,
+        chapterTitle: node.title,
+        summary: node.goal,
+        characterStates: [],
+        newForeshadowing: [node.foreshadowing.trim()],
+        resolvedForeshadowing: [],
+        worldIncrements: [],
+      });
+      applied.push({ issueId: issue.id, label: issue.title });
+      continue;
+    }
+
+    if (issue.code === "outline-status-drift") {
+      if (input.chapters && !outlineSynced) {
+        assets = {
+          ...assets,
+          outlineNodes: syncNovelOutlineNodesFromChapters(
+            assets.outlineNodes,
+            input.chapters,
+            project,
+          ),
+        };
+        outlineSynced = true;
+        applied.push({
+          issueId: issue.id,
+          label: "同步大纲节点状态",
+        });
+      } else {
+        const nodeId = issue.id.replace(/^outline-status-/, "");
+        const node = assets.outlineNodes.find((item) => item.id === nodeId);
+        const chapter = project.chapters.find(
+          (item) => item.number === node?.chapterNumber,
+        );
+
+        if (!node || !chapter || chapter.status === "planned") {
+          skipped.push({
+            issueId: issue.id,
+            reason: "无法从章节计划推断目标状态。",
+          });
+          continue;
+        }
+
+        assets = {
+          ...assets,
+          outlineNodes: assets.outlineNodes.map((item) =>
+            item.id === nodeId
+              ? {
+                  ...item,
+                  status: chapter.status,
+                  updatedAt: new Date().toISOString(),
+                }
+              : item,
+          ),
+        };
+        applied.push({ issueId: issue.id, label: issue.title });
+      }
+    }
+  }
+
+  const summary =
+    applied.length > 0
+      ? `已自动修复 ${applied.length} 项${skipped.length > 0 ? `，跳过 ${skipped.length} 项` : ""}。`
+      : skipped.length > 0
+        ? `没有可自动修复项，跳过 ${skipped.length} 项。`
+        : "没有需要处理的冲突。";
+
+  return {
+    project,
+    assets,
+    applied,
+    skipped,
+    summary,
+  };
+}
+
+function getNovelKnowledgeAssetCategoryLabel(
+  category: NovelKnowledgeAssetCategory,
+): string {
+  switch (category) {
+    case "world":
+      return "世界观";
+    case "character":
+      return "角色";
+    case "foreshadowing":
+      return "伏笔";
+    case "location":
+      return "地点";
+    case "faction":
+      return "势力";
+    case "item":
+      return "物品";
+    case "term":
+      return "术语";
+    default:
+      return "资产";
+  }
+}
+
+function buildNovelAssetChangeEventsForDelta(
+  beforeAssets: NovelKnowledgeAsset[],
+  afterAssets: NovelKnowledgeAsset[],
+  delta: NovelChapterAssetDelta,
+): NovelAssetChangeEvent[] {
+  const now = new Date().toISOString();
+  const events: NovelAssetChangeEvent[] = [];
+  const chapterLabel = `第 ${delta.chapterNumber} 章《${delta.chapterTitle}》`;
+
+  afterAssets.forEach((asset) => {
+    const previous = beforeAssets.find((item) => item.id === asset.id);
+    if (!previous) {
+      events.push({
+        id: `asset-change-${asset.id}-create`,
+        action: "create",
+        category: asset.category,
+        assetId: asset.id,
+        label: `${chapterLabel} 新建${getNovelKnowledgeAssetCategoryLabel(asset.category)}`,
+        detail: asset.title,
+        createdAt: now,
+      });
+      return;
+    }
+
+    if (
+      previous.content !== asset.content ||
+      previous.status !== asset.status ||
+      previous.title !== asset.title
+    ) {
+      events.push({
+        id: `asset-change-${asset.id}-update-${Date.now()}`,
+        action:
+          previous.status !== "resolved" && asset.status === "resolved"
+            ? "resolve"
+            : previous.content.includes(asset.content)
+              ? "merge"
+              : "update",
+        category: asset.category,
+        assetId: asset.id,
+        label: `${chapterLabel} 更新${getNovelKnowledgeAssetCategoryLabel(asset.category)}`,
+        detail: asset.title,
+        createdAt: now,
+      });
+    }
+  });
+
+  if (events.length === 0 && hasNovelChapterAssetDeltaContent(delta)) {
+    events.push({
+      id: `asset-change-delta-${delta.chapterNumber}`,
+      action: "update",
+      label: `${chapterLabel} 资产沉淀`,
+      detail: "章节资产增量已写入设定库。",
+      createdAt: now,
+    });
+  }
+
+  return events;
 }
 
 export function buildNovelBookExportMarkdown(input: {
@@ -1975,7 +2670,7 @@ export function buildNovelVolumeExportBundle(input: {
 
 export function buildNovelPublishValidationReport(input: {
   title: string;
-  platform: "generic" | "qidian" | "fanqie";
+  platform: NovelPlatformId;
   chapters: StoredNovelChapter[];
   project?: Pick<InkosNovelProject, "premise" | "genre">;
 }): NovelPublishValidationReport {
@@ -1983,9 +2678,7 @@ export function buildNovelPublishValidationReport(input: {
   const chapters = sortStoredNovelChapters(input.chapters).filter((chapter) =>
     chapter.content.trim().length > 0,
   );
-  const minWords =
-    input.platform === "fanqie" ? 800 : input.platform === "qidian" ? 1500 : 500;
-  const maxTitleLength = input.platform === "fanqie" ? 30 : 40;
+  const profile = getNovelPlatformProfile(input.platform);
 
   if (!input.title.trim()) {
     issues.push({
@@ -2029,25 +2722,25 @@ export function buildNovelPublishValidationReport(input: {
       });
     }
 
-    if (chapter.title.trim().length > maxTitleLength) {
+    if (chapter.title.trim().length > profile.maxTitleLength) {
       issues.push({
         id: `chapter-title-length-${chapter.number}`,
         severity: "warning",
         chapterNumber: chapter.number,
         code: "chapter-title-too-long",
         title: `第 ${chapter.number} 章标题偏长`,
-        detail: `当前 ${chapter.title.trim().length} 字，${input.platform === "fanqie" ? "番茄" : "平台"}建议不超过 ${maxTitleLength} 字。`,
+        detail: `当前 ${chapter.title.trim().length} 字，${profile.label}建议不超过 ${profile.maxTitleLength} 字。`,
       });
     }
 
-    if (chapter.wordCount < minWords) {
+    if (chapter.wordCount < profile.minWords) {
       issues.push({
         id: `chapter-words-${chapter.number}`,
         severity: input.platform === "generic" ? "info" : "warning",
         chapterNumber: chapter.number,
         code: "chapter-too-short",
         title: `第 ${chapter.number} 章字数偏少`,
-        detail: `当前 ${chapter.wordCount} 字，建议至少 ${minWords} 字。`,
+        detail: `当前 ${chapter.wordCount} 字，建议至少 ${profile.minWords} 字。`,
       });
     }
 
@@ -2091,18 +2784,12 @@ export function buildNovelPublishValidationReport(input: {
 
   const errorCount = issues.filter((issue) => issue.severity === "error").length;
   const warningCount = issues.filter((issue) => issue.severity === "warning").length;
-  const platformLabel =
-    input.platform === "qidian"
-      ? "起点"
-      : input.platform === "fanqie"
-        ? "番茄"
-        : "通用";
   const summary =
     errorCount > 0
-      ? `${platformLabel}发布校验未通过：${errorCount} 个错误，${warningCount} 个警告。`
+      ? `${profile.label}发布校验未通过：${errorCount} 个错误，${warningCount} 个警告。`
       : warningCount > 0
-        ? `${platformLabel}发布校验通过，但有 ${warningCount} 个警告。`
-        : `${platformLabel}发布校验通过，共 ${chapters.length} 章可发布。`;
+        ? `${profile.label}发布校验通过，但有 ${warningCount} 个警告。`
+        : `${profile.label}发布校验通过，共 ${chapters.length} 章可发布。`;
 
   return {
     platform: input.platform,
@@ -2128,33 +2815,205 @@ function countUnresolvedNovelReviewIssues(chapter: StoredNovelChapter): number {
 
 export function buildNovelPlatformExportText(input: {
   title: string;
-  platform: "generic" | "qidian" | "fanqie";
+  platform: NovelPlatformId;
   chapters: StoredNovelChapter[];
+  genre?: string;
+  premise?: string;
 }): string {
-  const platformLabel =
-    input.platform === "qidian"
-      ? "起点格式"
-      : input.platform === "fanqie"
-        ? "番茄格式"
-        : "通用格式";
+  const profile = getNovelPlatformProfile(input.platform);
   const chapters = sortStoredNovelChapters(input.chapters).filter((chapter) =>
-    chapter.content.trim().length > 0
+    chapter.content.trim().length > 0,
   );
 
   return [
     `作品名：${input.title}`,
-    `导出格式：${platformLabel}`,
+    input.genre ? `题材：${input.genre}` : "",
+    input.premise ? `简介：${input.premise}` : "",
+    `导出格式：${profile.exportLabel}`,
+    `章节数：${chapters.length}`,
     "",
     ...chapters.map((chapter) =>
       [
-        input.platform === "fanqie"
-          ? `第${chapter.number}章 ${chapter.title}`
-          : `第 ${chapter.number} 章 ${chapter.title}`,
+        buildNovelPlatformChapterHeading(input.platform, chapter),
+        input.platform === "jjwxc" && chapter.summary
+          ? `摘要：${chapter.summary}`
+          : "",
+        "",
+        chapter.content.trim(),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function buildNovelPlatformChapterHeading(
+  platform: NovelPlatformId,
+  chapter: Pick<StoredNovelChapter, "number" | "title" | "wordCount">,
+): string {
+  switch (platform) {
+    case "fanqie":
+    case "feilu":
+      return `第${chapter.number}章 ${chapter.title}`;
+    case "jjwxc":
+      return `${chapter.title}`;
+    default:
+      return `第 ${chapter.number} 章 ${chapter.title}`;
+  }
+}
+
+export function buildNovelPlatformExportBundle(input: {
+  title: string;
+  platform: NovelPlatformId;
+  chapters: StoredNovelChapter[];
+}): Array<{ filename: string; content: string; type: "text" }> {
+  return sortStoredNovelChapters(input.chapters)
+    .filter((chapter) => chapter.content.trim().length > 0)
+    .map((chapter) => ({
+      filename: `${sanitizeNovelExportFilename(
+        buildNovelPlatformChapterHeading(input.platform, chapter),
+      )}.txt`,
+      content: [
+        buildNovelPlatformChapterHeading(input.platform, chapter),
         "",
         chapter.content.trim(),
       ].join("\n"),
+      type: "text" as const,
+    }));
+}
+
+export function buildNovelPublishManifest(input: {
+  title: string;
+  genre?: string;
+  premise?: string;
+  platform: NovelPlatformId;
+  chapters: StoredNovelChapter[];
+  validation?: NovelPublishValidationReport;
+}): string {
+  const profile = getNovelPlatformProfile(input.platform);
+  const chapters = sortStoredNovelChapters(input.chapters).filter((chapter) =>
+    chapter.content.trim().length > 0,
+  );
+  const totalWords = chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0);
+
+  return [
+    `# ${input.title} 发布清单`,
+    "",
+    `- 平台：${profile.label}`,
+    `- 题材：${input.genre || "未填写"}`,
+    `- 简介：${input.premise || "未填写"}`,
+    `- 章节数：${chapters.length}`,
+    `- 总字数：${totalWords}`,
+    input.validation
+      ? `- 校验：${input.validation.summary}`
+      : "",
+    "",
+    "## 章节列表",
+    "",
+    "| 章 | 标题 | 字数 | 章节状态 | 发布状态 |",
+    "| --- | --- | ---: | --- | --- |",
+    ...chapters.map(
+      (chapter) =>
+        `| ${chapter.number} | ${chapter.title} | ${chapter.wordCount} | ${chapter.status} | ${chapter.publicationStatus ?? "draft"} |`,
     ),
-  ].join("\n\n");
+    "",
+    "## 待处理项",
+    "",
+    ...(input.validation?.issues.length
+      ? input.validation.issues.map(
+          (issue) =>
+            `- [${issue.severity}] ${issue.title}${issue.chapterNumber ? `（第 ${issue.chapterNumber} 章）` : ""}：${issue.detail}`,
+        )
+      : ["- 无"]),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function buildNovelBookExportJson(input: {
+  title: string;
+  genre?: string;
+  premise?: string;
+  project: InkosNovelProject;
+  assets: NovelProjectAssets;
+  chapters: StoredNovelChapter[];
+}): string {
+  const chapters = sortStoredNovelChapters(input.chapters).filter((chapter) =>
+    chapter.content.trim().length > 0,
+  );
+
+  return JSON.stringify(
+    {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      title: input.title,
+      genre: input.genre,
+      premise: input.premise,
+      project: input.project,
+      assets: input.assets,
+      chapters,
+      stats: {
+        chapterCount: chapters.length,
+        totalWords: chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0),
+      },
+    },
+    null,
+    2,
+  );
+}
+
+export function getNovelPlatformProfile(platform: NovelPlatformId): {
+  label: string;
+  exportLabel: string;
+  minWords: number;
+  maxTitleLength: number;
+} {
+  switch (platform) {
+    case "qidian":
+      return {
+        label: "起点",
+        exportLabel: "起点格式",
+        minWords: 1500,
+        maxTitleLength: 40,
+      };
+    case "fanqie":
+      return {
+        label: "番茄",
+        exportLabel: "番茄格式",
+        minWords: 800,
+        maxTitleLength: 30,
+      };
+    case "zongheng":
+      return {
+        label: "纵横",
+        exportLabel: "纵横格式",
+        minWords: 1400,
+        maxTitleLength: 35,
+      };
+    case "jjwxc":
+      return {
+        label: "晋江",
+        exportLabel: "晋江格式",
+        minWords: 1000,
+        maxTitleLength: 20,
+      };
+    case "feilu":
+      return {
+        label: "飞卢",
+        exportLabel: "飞卢格式",
+        minWords: 900,
+        maxTitleLength: 35,
+      };
+    default:
+      return {
+        label: "通用",
+        exportLabel: "通用格式",
+        minWords: 500,
+        maxTitleLength: 40,
+      };
+  }
 }
 
 export function appendNovelPublicationEvent(
@@ -2463,6 +3322,394 @@ export function parseNovelWorkspaceBackupPayload(
     ),
     tasks: payload.tasks!,
   };
+}
+
+export function computeNovelWorkspaceFingerprint(
+  payload: Pick<
+    NovelWorkspaceBackupPayload,
+    | "books"
+    | "sessions"
+    | "messages"
+    | "chapters"
+    | "chapterVersions"
+    | "tasks"
+  >,
+): string {
+  const parts = [
+    ...payload.books.map((book) => `book:${book.id}:${book.updatedAt}`),
+    ...payload.sessions.map(
+      (session) => `session:${session.id}:${session.updatedAt}`,
+    ),
+    ...payload.messages.map(
+      (message) => `message:${message.id}:${message.createdAt}`,
+    ),
+    ...payload.chapters.map(
+      (chapter) => `chapter:${chapter.id}:${chapter.updatedAt}`,
+    ),
+    ...payload.chapterVersions.map(
+      (version) => `version:${version.id}:${version.createdAt}`,
+    ),
+    ...payload.tasks.map(
+      (task) => `task:${task.id}:${task.endedAt ?? task.startedAt}`,
+    ),
+  ].sort();
+
+  return parts.join("|");
+}
+
+export function createDefaultNovelCloudSyncState(): NovelCloudSyncState {
+  return {
+    deviceId: `device-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    deviceLabel:
+      typeof navigator !== "undefined"
+        ? navigator.platform || "本地设备"
+        : "本地设备",
+  };
+}
+
+export function loadNovelCloudSyncState(): NovelCloudSyncState {
+  if (typeof localStorage === "undefined") {
+    return createDefaultNovelCloudSyncState();
+  }
+
+  try {
+    const raw = localStorage.getItem(NOVEL_CLOUD_SYNC_STORAGE_KEY);
+
+    if (!raw) {
+      return createDefaultNovelCloudSyncState();
+    }
+
+    const parsed = JSON.parse(raw) as Partial<NovelCloudSyncState>;
+
+    if (!parsed.deviceId) {
+      return createDefaultNovelCloudSyncState();
+    }
+
+    return {
+      deviceId: parsed.deviceId,
+      deviceLabel: parsed.deviceLabel ?? "本地设备",
+      lastExportedAt: parsed.lastExportedAt,
+      lastImportedAt: parsed.lastImportedAt,
+      lastMergeAt: parsed.lastMergeAt,
+      lastRemoteFingerprint: parsed.lastRemoteFingerprint,
+      lastWebDavUploadAt: parsed.lastWebDavUploadAt,
+      lastWebDavDownloadAt: parsed.lastWebDavDownloadAt,
+    };
+  } catch {
+    return createDefaultNovelCloudSyncState();
+  }
+}
+
+export function createDefaultNovelCloudSyncWebDavSettings(): NovelCloudSyncWebDavSettings {
+  return {
+    url: "",
+    remotePath: "sxy-cloud-sync.json",
+    username: "",
+    password: "",
+  };
+}
+
+export function loadNovelCloudSyncWebDavSettings(): NovelCloudSyncWebDavSettings {
+  if (typeof localStorage === "undefined") {
+    return createDefaultNovelCloudSyncWebDavSettings();
+  }
+
+  try {
+    const raw = localStorage.getItem(NOVEL_CLOUD_SYNC_WEBDAV_STORAGE_KEY);
+
+    if (!raw) {
+      return createDefaultNovelCloudSyncWebDavSettings();
+    }
+
+    const parsed = JSON.parse(raw) as Partial<NovelCloudSyncWebDavSettings>;
+
+    return {
+      url: parsed.url ?? "",
+      remotePath: parsed.remotePath ?? "sxy-cloud-sync.json",
+      username: parsed.username ?? "",
+      password: parsed.password ?? "",
+    };
+  } catch {
+    return createDefaultNovelCloudSyncWebDavSettings();
+  }
+}
+
+export function saveNovelCloudSyncWebDavSettings(
+  settings: NovelCloudSyncWebDavSettings,
+): void {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+
+  localStorage.setItem(
+    NOVEL_CLOUD_SYNC_WEBDAV_STORAGE_KEY,
+    JSON.stringify(settings),
+  );
+}
+
+export function saveNovelCloudSyncState(state: NovelCloudSyncState): void {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+
+  localStorage.setItem(NOVEL_CLOUD_SYNC_STORAGE_KEY, JSON.stringify(state));
+}
+
+export function buildNovelCloudSyncPackage(
+  snapshot: NovelWorkspaceSnapshot,
+  input: {
+    deviceId: string;
+    deviceLabel: string;
+    modelSettings?: Parameters<typeof buildNovelWorkspaceBackupPayload>[1];
+  },
+): NovelCloudSyncPackage {
+  const base = buildNovelWorkspaceBackupPayload(snapshot, input.modelSettings);
+
+  return {
+    ...base,
+    syncVersion: 1,
+    deviceId: input.deviceId,
+    deviceLabel: input.deviceLabel,
+    fingerprint: computeNovelWorkspaceFingerprint(base),
+  };
+}
+
+export function parseNovelCloudSyncPackage(raw: string): NovelCloudSyncPackage {
+  const parsed = JSON.parse(raw) as Partial<NovelCloudSyncPackage>;
+  const base = parseNovelWorkspaceBackupPayload(raw);
+
+  if (parsed.syncVersion !== 1 || !parsed.deviceId || !parsed.fingerprint) {
+    throw new Error("同步文件格式不正确。");
+  }
+
+  return {
+    ...base,
+    syncVersion: 1,
+    deviceId: String(parsed.deviceId),
+    deviceLabel: String(parsed.deviceLabel ?? "未知设备"),
+    fingerprint: String(parsed.fingerprint),
+  };
+}
+
+type NovelWorkspaceMergeEntityType =
+  NovelWorkspaceMergeConflict["entityType"];
+
+function mergeNovelWorkspaceEntityGroup<T extends { id: string }>(input: {
+  entityType: NovelWorkspaceMergeEntityType;
+  localItems: T[];
+  remoteItems: T[];
+  getTimestamp: (item: T) => string;
+  getLabel: (item: T) => string;
+  resolutions?: Record<string, "local" | "remote">;
+}): {
+  items: T[];
+  conflicts: NovelWorkspaceMergeConflict[];
+  autoMerged: number;
+} {
+  const localMap = new Map(input.localItems.map((item) => [item.id, item]));
+  const remoteMap = new Map(input.remoteItems.map((item) => [item.id, item]));
+  const allIds = new Set([...localMap.keys(), ...remoteMap.keys()]);
+  const items: T[] = [];
+  const conflicts: NovelWorkspaceMergeConflict[] = [];
+  let autoMerged = 0;
+
+  allIds.forEach((entityId) => {
+    const localItem = localMap.get(entityId);
+    const remoteItem = remoteMap.get(entityId);
+
+    if (localItem && !remoteItem) {
+      items.push(localItem);
+      return;
+    }
+
+    if (!localItem && remoteItem) {
+      items.push(remoteItem);
+      autoMerged += 1;
+      return;
+    }
+
+    if (!localItem || !remoteItem) {
+      return;
+    }
+
+    const localUpdatedAt = input.getTimestamp(localItem);
+    const remoteUpdatedAt = input.getTimestamp(remoteItem);
+    const sameSnapshot =
+      localUpdatedAt === remoteUpdatedAt ||
+      JSON.stringify(localItem) === JSON.stringify(remoteItem);
+
+    if (sameSnapshot) {
+      items.push(localItem);
+      return;
+    }
+
+    const localNewer =
+      Date.parse(localUpdatedAt) >= Date.parse(remoteUpdatedAt);
+    const resolution =
+      input.resolutions?.[entityId] ?? (localNewer ? "local" : "remote");
+
+    conflicts.push({
+      id: `${input.entityType}-${entityId}`,
+      entityType: input.entityType,
+      entityId,
+      label: input.getLabel(localItem),
+      localUpdatedAt,
+      remoteUpdatedAt,
+      resolution,
+    });
+    autoMerged += 1;
+    items.push(resolution === "local" ? localItem : remoteItem);
+  });
+
+  return { items, conflicts, autoMerged };
+}
+
+export function mergeNovelWorkspacePayloads(
+  local: NovelWorkspaceBackupPayload,
+  remote: NovelWorkspaceBackupPayload,
+  resolutions?: Record<string, "local" | "remote">,
+): NovelWorkspaceMergeReport {
+  const books = mergeNovelWorkspaceEntityGroup({
+    entityType: "book",
+    localItems: local.books,
+    remoteItems: remote.books,
+    getTimestamp: (item) => item.updatedAt,
+    getLabel: (item) => item.title,
+    resolutions,
+  });
+  const sessions = mergeNovelWorkspaceEntityGroup({
+    entityType: "session",
+    localItems: local.sessions,
+    remoteItems: remote.sessions,
+    getTimestamp: (item) => item.updatedAt,
+    getLabel: (item) => item.title,
+    resolutions,
+  });
+  const messages = mergeNovelWorkspaceEntityGroup({
+    entityType: "message",
+    localItems: local.messages,
+    remoteItems: remote.messages,
+    getTimestamp: (item) => item.createdAt,
+    getLabel: (item) => `${item.role} · ${item.content.slice(0, 24)}`,
+    resolutions,
+  });
+  const chapters = mergeNovelWorkspaceEntityGroup({
+    entityType: "chapter",
+    localItems: local.chapters,
+    remoteItems: remote.chapters,
+    getTimestamp: (item) => item.updatedAt,
+    getLabel: (item) => `第 ${item.number} 章 ${item.title}`,
+    resolutions,
+  });
+  const chapterVersions = mergeNovelWorkspaceEntityGroup({
+    entityType: "chapterVersion",
+    localItems: local.chapterVersions,
+    remoteItems: remote.chapterVersions,
+    getTimestamp: (item) => item.createdAt,
+    getLabel: (item) => `版本 ${item.number} · ${item.title}`,
+    resolutions,
+  });
+  const tasks = mergeNovelWorkspaceEntityGroup({
+    entityType: "task",
+    localItems: local.tasks,
+    remoteItems: remote.tasks,
+    getTimestamp: (item) => item.endedAt ?? item.startedAt,
+    getLabel: (item) => item.label,
+    resolutions,
+  });
+  const autoMerged =
+    books.autoMerged +
+    sessions.autoMerged +
+    messages.autoMerged +
+    chapters.autoMerged +
+    chapterVersions.autoMerged +
+    tasks.autoMerged;
+  const conflicts = [
+    ...books.conflicts,
+    ...sessions.conflicts,
+    ...messages.conflicts,
+    ...chapters.conflicts,
+    ...chapterVersions.conflicts,
+    ...tasks.conflicts,
+  ];
+  const merged: NovelWorkspaceBackupPayload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    app: "sxy-creative-studio",
+    modelSettings: local.modelSettings,
+    books: books.items,
+    sessions: sessions.items,
+    messages: messages.items,
+    chapters: chapters.items,
+    chapterVersions: chapterVersions.items,
+    tasks: tasks.items,
+  };
+  const summary =
+    conflicts.length > 0
+      ? `合并完成：自动合并 ${autoMerged} 项，${conflicts.length} 项存在版本冲突（默认保留较新版本）。`
+      : `合并完成：自动合并 ${autoMerged} 项，未发现冲突。`;
+
+  return {
+    autoMerged,
+    conflicts,
+    merged,
+    summary,
+  };
+}
+
+export async function importNovelWorkspaceMerge(
+  payload: NovelWorkspaceBackupPayload,
+): Promise<void> {
+  const db = await openNovelDb();
+
+  try {
+    const transaction = db.transaction(
+      [
+        BOOKS_STORE,
+        SESSIONS_STORE,
+        MESSAGES_STORE,
+        CHAPTERS_STORE,
+        CHAPTER_VERSIONS_STORE,
+        TASKS_STORE,
+      ],
+      "readwrite",
+    );
+
+    payload.books.forEach((book) => {
+      transaction.objectStore(BOOKS_STORE).put(book);
+    });
+    payload.sessions.forEach((session) => {
+      transaction.objectStore(SESSIONS_STORE).put(session);
+    });
+    payload.messages.forEach((message) => {
+      transaction.objectStore(MESSAGES_STORE).put(message);
+    });
+    payload.chapters.forEach((chapter) => {
+      transaction.objectStore(CHAPTERS_STORE).put(chapter);
+    });
+    payload.chapterVersions.forEach((version) => {
+      transaction.objectStore(CHAPTER_VERSIONS_STORE).put(version);
+    });
+    payload.tasks.forEach((task) => {
+      transaction.objectStore(TASKS_STORE).put(task);
+    });
+
+    await transactionDone(transaction);
+  } finally {
+    db.close();
+  }
+}
+
+export async function exportNovelCloudSyncPackage(
+  input: {
+    deviceId: string;
+    deviceLabel: string;
+    modelSettings?: Parameters<typeof buildNovelWorkspaceBackupPayload>[1];
+  },
+): Promise<NovelCloudSyncPackage> {
+  const snapshot = await loadNovelWorkspace();
+
+  return buildNovelCloudSyncPackage(snapshot, input);
 }
 
 export function recoverInterruptedNovelTasks(
@@ -3050,6 +4297,447 @@ export function buildNovelForeshadowingPoolSummary(
   };
 }
 
+export const NOVEL_CHARACTER_RELATION_KIND_LABELS: Record<
+  NovelCharacterRelationEdgeKind,
+  string
+> = {
+  ally: "同盟",
+  enemy: "对立",
+  family: "亲族",
+  romance: "情感",
+  mentor: "师徒",
+  coappearance: "同场",
+  other: "关联",
+};
+
+function slugNovelCharacterId(name: string): string {
+  return `character-${name.trim().replace(/\s+/g, "-")}`;
+}
+
+function parseNovelCharacterTrackingLines(content: string): Array<{
+  characterName: string;
+  content: string;
+  chapterNumber?: number;
+  chapterTitle?: string;
+}> {
+  const lines = content.replace(/\r\n/g, "\n").split("\n");
+  const entries: Array<{
+    characterName: string;
+    content: string;
+    chapterNumber?: number;
+    chapterTitle?: string;
+  }> = [];
+  let currentChapterNumber: number | undefined;
+  let currentChapterTitle: string | undefined;
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+
+    if (!line || line.startsWith("##")) {
+      return;
+    }
+
+    const chapterMatch = line.match(/^第\s*(\d+)\s*章[《「](.+?)[》」]/);
+
+    if (chapterMatch) {
+      currentChapterNumber = Number(chapterMatch[1]);
+      currentChapterTitle = chapterMatch[2]?.trim();
+      return;
+    }
+
+    const normalized = line.replace(/^[-*]\s*/, "").trim();
+    const splitIndex = normalized.search(/[：:]/);
+
+    if (splitIndex <= 0) {
+      return;
+    }
+
+    const characterName = normalized.slice(0, splitIndex).trim();
+    const stateContent = normalized.slice(splitIndex + 1).trim();
+
+    if (!characterName || !stateContent || isEmptyNovelAssetMarker(stateContent)) {
+      return;
+    }
+
+    entries.push({
+      characterName,
+      content: stateContent,
+      chapterNumber: currentChapterNumber,
+      chapterTitle: currentChapterTitle,
+    });
+  });
+
+  return entries;
+}
+
+function collectNovelCharacterNames(input: {
+  assets: NovelProjectAssets;
+  project?: InkosNovelProject;
+}): string[] {
+  const names = new Set<string>();
+
+  (input.assets.knowledgeAssets ?? [])
+    .filter((asset) => asset.category === "character")
+    .forEach((asset) => {
+      if (asset.title.trim()) {
+        names.add(asset.title.trim());
+      }
+    });
+
+  parseNovelCharacterTrackingLines(input.assets.characters).forEach((entry) => {
+    names.add(entry.characterName);
+  });
+
+  (input.assets.pendingAssetDeltas ?? []).forEach((delta) => {
+    delta.characterStates.forEach((state) => {
+      if (state.title.trim()) {
+        names.add(state.title.trim());
+      }
+    });
+  });
+
+  if (input.project?.protagonist?.trim()) {
+    names.add(input.project.protagonist.trim());
+  }
+
+  input.assets.outlineNodes.forEach((node) => {
+    node.characters
+      .split(/[、，,/|]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .forEach((name) => names.add(name));
+  });
+
+  return [...names].sort((left, right) => left.localeCompare(right, "zh-CN"));
+}
+
+export function buildNovelCharacterStateTimeline(input: {
+  assets: NovelProjectAssets;
+  project?: InkosNovelProject;
+}): NovelCharacterStateTimeline {
+  const characterAssets = (input.assets.knowledgeAssets ?? []).filter(
+    (asset) => asset.category === "character",
+  );
+  const entriesByName = new Map<string, NovelCharacterStateTimelineEntry[]>();
+
+  function pushEntry(
+    characterName: string,
+    entry: Omit<NovelCharacterStateTimelineEntry, "id" | "characterName">,
+  ) {
+    const normalizedName = characterName.trim();
+
+    if (!normalizedName) {
+      return;
+    }
+
+    const list = entriesByName.get(normalizedName) ?? [];
+    list.push({
+      id: `${slugNovelCharacterId(normalizedName)}-${list.length}-${entry.source}`,
+      characterName: normalizedName,
+      ...entry,
+    });
+    entriesByName.set(normalizedName, list);
+  }
+
+  characterAssets.forEach((asset) => {
+    pushEntry(asset.title, {
+      content: asset.content.trim() || "暂无状态描述。",
+      source: "asset",
+      updatedAt: asset.updatedAt,
+    });
+  });
+
+  parseNovelCharacterTrackingLines(input.assets.characters).forEach(
+    (entry, index) => {
+      pushEntry(entry.characterName, {
+        content: entry.content,
+        chapterNumber: entry.chapterNumber,
+        chapterTitle: entry.chapterTitle,
+        source: "tracking-text",
+        updatedAt: new Date(
+          Date.parse("2026-01-01T00:00:00.000Z") + index,
+        ).toISOString(),
+      });
+    },
+  );
+
+  (input.assets.pendingAssetDeltas ?? []).forEach((delta) => {
+    delta.characterStates.forEach((state, index) => {
+      pushEntry(state.title, {
+        content: state.content,
+        chapterNumber: delta.chapterNumber,
+        chapterTitle: delta.chapterTitle,
+        source: "pending-delta",
+        updatedAt: delta.createdAt || new Date(Date.now() + index).toISOString(),
+      });
+    });
+  });
+
+  (input.assets.assetChangeEvents ?? [])
+    .filter((event) => event.category === "character")
+    .forEach((event, index) => {
+      const matchedAsset = characterAssets.find(
+        (asset) => asset.id === event.assetId || event.detail.includes(asset.title),
+      );
+      const characterName =
+        matchedAsset?.title ??
+        event.detail.match(/[「『](.+?)[」』]/)?.[1] ??
+        event.label.replace(/^.*[:：]/, "").trim();
+
+      if (!characterName) {
+        return;
+      }
+
+      pushEntry(characterName, {
+        content: event.detail,
+        source: "change-event",
+        updatedAt: event.createdAt || new Date(Date.now() + index).toISOString(),
+      });
+    });
+
+  collectNovelCharacterNames(input).forEach((name) => {
+    if (!entriesByName.has(name)) {
+      entriesByName.set(name, []);
+    }
+  });
+
+  const characters = [...entriesByName.entries()]
+    .map(([name, entries]) => {
+      const sortedEntries = [...entries].sort((left, right) => {
+        const chapterDelta =
+          (left.chapterNumber ?? Number.MAX_SAFE_INTEGER) -
+          (right.chapterNumber ?? Number.MAX_SAFE_INTEGER);
+
+        if (chapterDelta !== 0) {
+          return chapterDelta;
+        }
+
+        return (
+          new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime()
+        );
+      });
+      const asset = characterAssets.find((item) => item.title === name);
+      const latest = sortedEntries.at(-1);
+
+      return {
+        name,
+        assetId: asset?.id,
+        status: asset?.status,
+        entries: sortedEntries,
+        latestContent: latest?.content ?? asset?.content ?? "暂无状态记录。",
+        latestUpdatedAt:
+          latest?.updatedAt ?? asset?.updatedAt ?? new Date(0).toISOString(),
+      };
+    })
+    .sort(
+      (left, right) =>
+        new Date(right.latestUpdatedAt).getTime() -
+          new Date(left.latestUpdatedAt).getTime() ||
+        left.name.localeCompare(right.name, "zh-CN"),
+    );
+
+  const trackedCount = characters.filter((item) => item.entries.length > 0).length;
+  const summary =
+    trackedCount === 0
+      ? "暂无角色状态追踪记录。写章沉淀或手动维护角色资产后会自动生成时间线。"
+      : `共追踪 ${characters.length} 名角色，其中 ${trackedCount} 名有状态变化记录。`;
+
+  return {
+    characters,
+    summary,
+  };
+}
+
+function detectNovelCharacterRelationKind(
+  text: string,
+): { kind: NovelCharacterRelationEdgeKind; label: string } {
+  if (/恋人|情侣|爱慕|暗恋|喜欢|情感/.test(text)) {
+    return { kind: "romance", label: "情感" };
+  }
+
+  if (/师徒|师父|徒弟|传授/.test(text)) {
+    return { kind: "mentor", label: "师徒" };
+  }
+
+  if (/父|母|子|女|兄|弟|姐|妹|家族|血缘|亲属/.test(text)) {
+    return { kind: "family", label: "亲族" };
+  }
+
+  if (/敌|对手|对立|仇|宿敌|追杀/.test(text)) {
+    return { kind: "enemy", label: "对立" };
+  }
+
+  if (/友|盟友|搭档|同伴|同盟|合作|同事/.test(text)) {
+    return { kind: "ally", label: "同盟" };
+  }
+
+  return { kind: "other", label: "关联" };
+}
+
+function extractNovelExplicitCharacterRelations(input: {
+  sourceName: string;
+  content: string;
+  knownNames: string[];
+}): Array<{
+  targetName: string;
+  label: string;
+  kind: NovelCharacterRelationEdgeKind;
+}> {
+  const relations: Array<{
+    targetName: string;
+    label: string;
+    kind: NovelCharacterRelationEdgeKind;
+  }> = [];
+
+  input.knownNames.forEach((targetName) => {
+    if (targetName === input.sourceName) {
+      return;
+    }
+
+    if (!input.content.includes(targetName)) {
+      return;
+    }
+
+    const contextStart = Math.max(0, input.content.indexOf(targetName) - 12);
+    const contextEnd = Math.min(
+      input.content.length,
+      input.content.indexOf(targetName) + targetName.length + 12,
+    );
+    const context = input.content.slice(contextStart, contextEnd);
+    const detected = detectNovelCharacterRelationKind(context);
+
+    relations.push({
+      targetName,
+      label: detected.label,
+      kind: detected.kind,
+    });
+  });
+
+  return relations;
+}
+
+export function buildNovelCharacterRelationGraph(input: {
+  assets: NovelProjectAssets;
+  project?: InkosNovelProject;
+}): NovelCharacterRelationGraph {
+  const names = collectNovelCharacterNames(input);
+  const characterAssets = (input.assets.knowledgeAssets ?? []).filter(
+    (asset) => asset.category === "character",
+  );
+  const edgeMap = new Map<string, NovelCharacterRelationEdge>();
+
+  function upsertEdge(
+    sourceName: string,
+    targetName: string,
+    edge: Omit<NovelCharacterRelationEdge, "id" | "sourceId" | "targetId">,
+  ) {
+    if (sourceName === targetName) {
+      return;
+    }
+
+    const sourceId = slugNovelCharacterId(sourceName);
+    const targetId = slugNovelCharacterId(targetName);
+    const pairKey = [sourceId, targetId].sort().join("|");
+    const existing = edgeMap.get(pairKey);
+
+    if (!existing || edge.weight > existing.weight) {
+      edgeMap.set(pairKey, {
+        id: `relation-${pairKey}`,
+        sourceId,
+        targetId,
+        ...edge,
+      });
+    }
+  }
+
+  characterAssets.forEach((asset) => {
+    extractNovelExplicitCharacterRelations({
+      sourceName: asset.title,
+      content: asset.content,
+      knownNames: names,
+    }).forEach((relation) => {
+      upsertEdge(asset.title, relation.targetName, {
+        label: relation.label,
+        kind: relation.kind,
+        source: "explicit",
+        weight: 3,
+      });
+    });
+  });
+
+  input.assets.outlineNodes.forEach((node) => {
+    const chapterCharacters = node.characters
+      .split(/[、，,/|]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    for (let leftIndex = 0; leftIndex < chapterCharacters.length; leftIndex += 1) {
+      for (
+        let rightIndex = leftIndex + 1;
+        rightIndex < chapterCharacters.length;
+        rightIndex += 1
+      ) {
+        const left = chapterCharacters[leftIndex]!;
+        const right = chapterCharacters[rightIndex]!;
+        upsertEdge(left, right, {
+          label: `第 ${node.chapterNumber} 章同场`,
+          kind: "coappearance",
+          source: "coappearance",
+          weight: 1,
+        });
+      }
+    }
+  });
+
+  parseNovelCharacterTrackingLines(input.assets.characters).forEach((entry) => {
+    names.forEach((targetName) => {
+      if (targetName === entry.characterName || !entry.content.includes(targetName)) {
+        return;
+      }
+
+      const detected = detectNovelCharacterRelationKind(entry.content);
+      upsertEdge(entry.characterName, targetName, {
+        label: detected.label,
+        kind: detected.kind,
+        source: "matrix",
+        weight: 2,
+      });
+    });
+  });
+
+  const nodes: NovelCharacterRelationNode[] = names.map((name) => {
+    const asset = characterAssets.find((item) => item.title === name);
+    const nodeId = slugNovelCharacterId(name);
+    const degree = [...edgeMap.values()].filter(
+      (edge) => edge.sourceId === nodeId || edge.targetId === nodeId,
+    ).length;
+
+    return {
+      id: nodeId,
+      label: name,
+      assetId: asset?.id,
+      status: asset?.status,
+      degree,
+    };
+  });
+
+  const edges = [...edgeMap.values()].sort(
+    (left, right) => right.weight - left.weight || left.label.localeCompare(right.label),
+  );
+  const summary =
+    nodes.length === 0
+      ? "暂无可视化角色。请先添加角色资产或在大纲中标注出场角色。"
+      : edges.length === 0
+        ? `已识别 ${nodes.length} 名角色，尚未推断出关系边。可在角色卡中写明与其他角色的关系。`
+        : `已识别 ${nodes.length} 名角色、${edges.length} 条关系（含大纲同场与角色卡显式描述）。`;
+
+  return {
+    nodes,
+    edges,
+    summary,
+  };
+}
+
 export function filterNovelKnowledgeAssets(
   assets: Pick<NovelProjectAssets, "knowledgeAssets">,
   category?: NovelKnowledgeAssetCategory | "all",
@@ -3121,7 +4809,8 @@ export function applyNovelChapterAssetDelta(
   const now = new Date().toISOString();
   const chapterTag = `第${delta.chapterNumber}章`;
   const chapterLine = `第 ${delta.chapterNumber} 章《${delta.chapterTitle}》`;
-  let nextKnowledgeAssets = assets.knowledgeAssets ?? [];
+  const beforeKnowledgeAssets = assets.knowledgeAssets ?? [];
+  let nextKnowledgeAssets = beforeKnowledgeAssets;
 
   delta.characterStates.forEach((state) => {
     nextKnowledgeAssets = upsertNovelKnowledgeAsset(nextKnowledgeAssets, {
@@ -3146,6 +4835,36 @@ export function applyNovelChapterAssetDelta(
   });
 
   delta.resolvedForeshadowing.forEach((item, index) => {
+    const matchIndex = matchNovelKnowledgeAssetIndex(nextKnowledgeAssets, {
+      category: "foreshadowing",
+      title: extractNovelForeshadowingCoreLabel(item),
+      content: item,
+      status: "resolved",
+      tags: ["回收伏笔", chapterTag],
+      updatedAt: now,
+    });
+
+    if (matchIndex >= 0) {
+      nextKnowledgeAssets = nextKnowledgeAssets.map((asset, assetIndex) =>
+        assetIndex === matchIndex
+          ? {
+              ...asset,
+              status: "resolved",
+              content: asset.content.includes(item)
+                ? asset.content
+                : [asset.content, `${chapterLine}回收：${item}`]
+                    .filter(Boolean)
+                    .join("\n\n"),
+              tags: Array.from(
+                new Set([...asset.tags, "回收伏笔", chapterTag]),
+              ),
+              updatedAt: now,
+            }
+          : asset,
+      );
+      return;
+    }
+
     nextKnowledgeAssets = upsertNovelKnowledgeAsset(nextKnowledgeAssets, {
       category: "foreshadowing",
       title: createNovelAssetTitle("回收伏笔", delta.chapterNumber, item, index),
@@ -3177,12 +4896,21 @@ export function applyNovelChapterAssetDelta(
     delta.characterStates.map((state) => `${state.title}：${state.content}`),
     "角色状态追踪",
   );
+  const changeEvents = buildNovelAssetChangeEventsForDelta(
+    beforeKnowledgeAssets,
+    nextKnowledgeAssets,
+    delta,
+  );
 
   return {
     ...assets,
     worldNotes,
     characters,
     knowledgeAssets: nextKnowledgeAssets,
+    assetChangeEvents: [...changeEvents, ...(assets.assetChangeEvents ?? [])].slice(
+      0,
+      100,
+    ),
   };
 }
 
@@ -3291,6 +5019,7 @@ export function normalizeNovelProjectAssets(
     marketRadars: assets?.marketRadars ?? [],
     diagnostics: assets?.diagnostics ?? [],
     publicationEvents: assets?.publicationEvents ?? [],
+    assetChangeEvents: assets?.assetChangeEvents ?? [],
     projectStrategy: assets?.projectStrategy,
   };
 }
@@ -4995,6 +6724,8 @@ export async function startStoredNovelTask(
     const task = await getFromStore<StoredNovelTask>(db, TASKS_STORE, taskId);
     if (!task) return null;
     const now = new Date().toISOString();
+    const resumingFromCheckpoint =
+      task.status === "paused" && Boolean(task.checkpoint);
     const nextTask: StoredNovelTask = {
       ...task,
       status: "running",
@@ -5008,7 +6739,9 @@ export async function startStoredNovelTask(
         ...task.logs,
         {
           id: `log-${Date.now()}-${task.logs.length + 1}`,
-          message: "任务开始执行。",
+          message: resumingFromCheckpoint
+            ? "从断点继续执行。"
+            : "任务开始执行。",
           createdAt: now,
         },
       ],
@@ -5124,6 +6857,52 @@ export async function pauseStoredNovelTaskWithCheckpoint(
           createdAt: now,
         },
       ],
+    };
+    await putInStore(db, TASKS_STORE, nextTask);
+    return nextTask;
+  } finally {
+    db.close();
+  }
+}
+
+export function buildNovelTaskResumePreview(task: StoredNovelTask): {
+  canResume: boolean;
+  progressCount: number;
+  savedAt?: string;
+  summary: string;
+} {
+  if (task.status !== "paused" || !task.checkpoint) {
+    return {
+      canResume: false,
+      progressCount: 0,
+      summary: "当前任务不支持断点续跑。",
+    };
+  }
+
+  const progressCount = task.checkpoint.progressMessages.length;
+
+  return {
+    canResume: true,
+    progressCount,
+    savedAt: task.checkpoint.savedAt,
+    summary: `已保存 ${progressCount} 条进度，可继续执行。`,
+  };
+}
+
+export async function clearStoredNovelTaskCheckpoint(
+  taskId: string,
+): Promise<StoredNovelTask | null> {
+  const db = await openNovelDb();
+
+  try {
+    const task = await getFromStore<StoredNovelTask>(db, TASKS_STORE, taskId);
+    if (!task || !task.checkpoint) {
+      return task;
+    }
+
+    const nextTask: StoredNovelTask = {
+      ...task,
+      checkpoint: undefined,
     };
     await putInStore(db, TASKS_STORE, nextTask);
     return nextTask;
@@ -5461,6 +7240,105 @@ function extractNovelAssetKeywords(value: string): string[] {
   ];
 }
 
+function extractNovelForeshadowingCoreLabel(value: string): string {
+  return value
+    .replace(/^(新增伏笔|回收伏笔|伏笔)[·•\s-]*/u, "")
+    .replace(/^第\d+章[·•\s-]*/u, "")
+    .trim();
+}
+
+export function buildNovelKnowledgeAssetMatchPreview(
+  assets: NovelKnowledgeAsset[],
+  nextAsset: Omit<NovelKnowledgeAsset, "id">,
+): NovelKnowledgeAssetMatchPreview {
+  const index = matchNovelKnowledgeAssetIndex(assets, nextAsset);
+  const matchedAsset = index >= 0 ? assets[index] : undefined;
+  const score =
+    matchedAsset !== undefined
+      ? scoreNovelKnowledgeAssetMatch(matchedAsset, nextAsset)
+      : 0;
+
+  if (nextAsset.status === "resolved") {
+    if (matchedAsset) {
+      return {
+        action: "resolve",
+        score,
+        label: `回收并合并至「${matchedAsset.title}」`,
+        matchedAsset,
+      };
+    }
+
+    return {
+      action: "create",
+      score: 0,
+      label: "新建已回收伏笔条目",
+    };
+  }
+
+  if (matchedAsset) {
+    return {
+      action: "merge",
+      score,
+      label: `合并至「${matchedAsset.title}」`,
+      matchedAsset,
+    };
+  }
+
+  return {
+    action: "create",
+    score: 0,
+    label: "新建伏笔条目",
+  };
+}
+
+export function buildNovelPendingAssetDeltaMatchReport(
+  assets: Pick<NovelProjectAssets, "knowledgeAssets">,
+  delta: NovelChapterAssetDelta,
+): NovelPendingAssetDeltaMatchReport {
+  const knowledgeAssets = assets.knowledgeAssets ?? [];
+  const newForeshadowing = delta.newForeshadowing.map((text) => ({
+    text,
+    preview: buildNovelKnowledgeAssetMatchPreview(knowledgeAssets, {
+      category: "foreshadowing",
+      title: extractNovelForeshadowingCoreLabel(text),
+      content: text,
+      status: "draft",
+      tags: ["新增伏笔"],
+      updatedAt: new Date().toISOString(),
+    }),
+  }));
+  const resolvedForeshadowing = delta.resolvedForeshadowing.map((text) => ({
+    text,
+    preview: buildNovelKnowledgeAssetMatchPreview(knowledgeAssets, {
+      category: "foreshadowing",
+      title: extractNovelForeshadowingCoreLabel(text),
+      content: text,
+      status: "resolved",
+      tags: ["回收伏笔"],
+      updatedAt: new Date().toISOString(),
+    }),
+  }));
+  const mergeCount =
+    newForeshadowing.filter((item) => item.preview.action === "merge").length +
+    resolvedForeshadowing.filter((item) => item.preview.action === "resolve")
+      .length;
+  const createCount =
+    newForeshadowing.filter((item) => item.preview.action === "create").length +
+    resolvedForeshadowing.filter((item) => item.preview.action === "create")
+      .length;
+
+  return {
+    newForeshadowing,
+    resolvedForeshadowing,
+    summary:
+      mergeCount > 0
+        ? `伏笔匹配：${mergeCount} 项可合并，${createCount} 项将新建。`
+        : createCount > 0
+          ? `伏笔匹配：${createCount} 项将新建。`
+          : "暂无可匹配的伏笔增量。",
+  };
+}
+
 function scoreNovelKnowledgeAssetMatch(
   existing: NovelKnowledgeAsset,
   nextAsset: Omit<NovelKnowledgeAsset, "id">,
@@ -5471,9 +7349,25 @@ function scoreNovelKnowledgeAssetMatch(
 
   const existingTitle = normalizeNovelAssetText(existing.title);
   const nextTitle = normalizeNovelAssetText(nextAsset.title);
+  const nextCoreTitle = normalizeNovelAssetText(
+    extractNovelForeshadowingCoreLabel(nextAsset.title),
+  );
+  const existingCoreTitle = normalizeNovelAssetText(
+    extractNovelForeshadowingCoreLabel(existing.title),
+  );
 
   if (existingTitle && nextTitle && existingTitle === nextTitle) {
     return 1;
+  }
+
+  if (
+    existingCoreTitle &&
+    nextCoreTitle &&
+    (existingCoreTitle === nextCoreTitle ||
+      existingCoreTitle.includes(nextCoreTitle) ||
+      nextCoreTitle.includes(existingCoreTitle))
+  ) {
+    return 0.95;
   }
 
   if (

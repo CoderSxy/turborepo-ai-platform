@@ -630,6 +630,81 @@
   gap: 10px;
 }
 
+.cloudSyncPanel {
+  border: 1px solid #d8e4e5;
+  border-radius: 8px;
+  background: #f4f8f8;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.cloudSyncHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cloudSyncHeader strong {
+  font-size: 13px;
+}
+
+.cloudSyncHeader span {
+  font-size: 11px;
+  color: #5d7270;
+}
+
+.cloudSyncField {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.cloudSyncField input {
+  border: 1px solid #c8d8d9;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.cloudSyncMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: #5d7270;
+}
+
+.cloudSyncActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cloudSyncDivider {
+  border-top: 1px solid #d8e4e5;
+  margin: 4px 0;
+}
+
+.cloudSyncConflictItem {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e6d9b8;
+  border-radius: 8px;
+  background: #fffaf0;
+  padding: 8px 10px;
+}
+
+.cloudSyncConflictItem span {
+  font-size: 11px;
+  color: #6b6458;
+}
+
+.cloudSyncConflictItem button {
+  justify-self: start;
+}
+
 .batchQueueBar span {
   display: inline-block;
   border-radius: 999px;
@@ -2747,6 +2822,79 @@
   font-weight: 850;
 }
 
+.reviewIssueDiffLinked {
+  border: 1px solid #d4b56a;
+  border-radius: 8px;
+  background: #fffaf0;
+  padding: 8px;
+}
+
+.pendingAssetMatchPreview {
+  border: 1px dashed #c8d8d9;
+  border-radius: 8px;
+  background: #f8fbfb;
+  padding: 8px 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.pendingAssetMatchPreview ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 11px;
+  color: #4f6462;
+}
+
+.assetChangeTimeline {
+  border: 1px solid #d8e4e5;
+  border-radius: 8px;
+  background: #f8fbfb;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.assetChangeTimeline strong {
+  font-size: 12px;
+}
+
+.assetConflictHint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8a6a2b;
+  font-style: normal;
+}
+
+.assetChangeTimeline {
+  border: 1px solid #d8e4e5;
+  border-radius: 8px;
+  background: #f8fbfb;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.assetChangeTimeline strong {
+  font-size: 12px;
+}
+
+.assetConflictHint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8a6b2c;
+}
+
+.outlineEditorHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .activeCompareDiffLine {
   outline: 2px solid #5f8ea1;
   outline-offset: 1px;
@@ -2991,6 +3139,199 @@
   color: #66777a;
   font-size: 12px;
   font-weight: 800;
+}
+
+.characterTimelinePanel {
+  display: grid;
+  gap: 12px;
+  max-height: min(62vh, 640px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.characterTimelineGroup {
+  border: 1px solid #dbe4e7;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.characterTimelineGroup header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.characterTimelineGroup header span {
+  font-size: 12px;
+  color: #66777a;
+}
+
+.characterTimelineLatest {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f4f8f8;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.characterTimelineEntries {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.characterTimelineEntries li {
+  display: grid;
+  gap: 4px;
+}
+
+.characterTimelineEntries li div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.characterTimelineEntries time {
+  font-size: 11px;
+  color: #66777a;
+}
+
+.characterTimelineEntries p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334947;
+}
+
+.characterRelationPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.characterRelationGraph {
+  width: 100%;
+  height: auto;
+  border: 1px solid #dbe4e7;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fbfeff 0%, #f4f8f8 100%);
+}
+
+.characterRelationEdge {
+  stroke: #8aa7a3;
+  stroke-width: 1.5;
+}
+
+.characterRelationEdge[data-kind="enemy"] {
+  stroke: #c45c5c;
+}
+
+.characterRelationEdge[data-kind="ally"] {
+  stroke: #3f8f78;
+}
+
+.characterRelationEdge[data-kind="family"] {
+  stroke: #7a6db0;
+}
+
+.characterRelationEdge[data-kind="romance"] {
+  stroke: #c76a9d;
+}
+
+.characterRelationEdge[data-kind="mentor"] {
+  stroke: #4f86b8;
+}
+
+.characterRelationEdge[data-kind="coappearance"] {
+  stroke: #a8b4b6;
+  stroke-dasharray: 4 3;
+}
+
+.characterRelationEdgeLabel {
+  fill: #5d7270;
+  font-size: 10px;
+  text-anchor: middle;
+}
+
+.characterRelationNode circle {
+  fill: #e7f2f1;
+  stroke: #2f6d64;
+  stroke-width: 1.5;
+}
+
+.characterRelationNode text {
+  fill: #14342f;
+  font-size: 11px;
+}
+
+.characterRelationLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: #5d7270;
+}
+
+.characterRelationLegend span::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  background: #8aa7a3;
+}
+
+.characterRelationLegend span[data-kind="enemy"]::before {
+  background: #c45c5c;
+}
+
+.characterRelationLegend span[data-kind="ally"]::before {
+  background: #3f8f78;
+}
+
+.characterRelationLegend span[data-kind="family"]::before {
+  background: #7a6db0;
+}
+
+.characterRelationLegend span[data-kind="romance"]::before {
+  background: #c76a9d;
+}
+
+.characterRelationLegend span[data-kind="mentor"]::before {
+  background: #4f86b8;
+}
+
+.characterRelationLegend span[data-kind="coappearance"]::before {
+  background: #a8b4b6;
+}
+
+.characterRelationList {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.characterRelationItem {
+  border: 1px solid #dbe4e7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+}
+
+.characterRelationItem span {
+  font-size: 12px;
+  color: #66777a;
 }
 
 .contextSectionHeader {
