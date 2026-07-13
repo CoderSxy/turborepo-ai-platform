@@ -8,11 +8,40 @@ import type {
 import type { ReadyModelBinding } from "../state/studio-types";
 import type { StudioStore } from "../store/types";
 
+export type StudioActionSource =
+  | "composer"
+  | "quick-action"
+  | "chapter-panel"
+  | "advanced"
+  | "retry"
+  | "batch";
+
+export type WriteChapterConfirmInput = {
+  target: NovelChapterWriteTarget;
+  initialSelection: NovelContextSelection;
+  derivedStyleConstraints: string;
+};
+
+export type WriteChapterRequest = {
+  target: NovelChapterWriteTarget;
+  contextSelection: NovelContextSelection;
+  source: StudioActionSource;
+};
+
 export type StudioAction =
-  | { type: "send-message"; text: string }
-  | { type: "write-chapter" }
-  | { type: "review" }
-  | { type: "revise-chapter"; selectedIssueIds?: string[] }
+  | { type: "send-message"; text: string; source?: StudioActionSource }
+  | {
+      type: "write-chapter";
+      source: StudioActionSource;
+      target?: NovelChapterWriteTarget;
+      contextSelection?: NovelContextSelection;
+    }
+  | { type: "review"; source?: StudioActionSource }
+  | {
+      type: "revise-chapter";
+      selectedIssueIds?: string[];
+      source?: StudioActionSource;
+    }
   | { type: "abort-task" };
 
 export type StudioActionContext = {
@@ -29,8 +58,8 @@ export type StudioActionContext = {
     options?: { latencyMs?: number; errorMessage?: string },
   ) => void;
   refreshWorkspace: () => Promise<void>;
-  confirmWriteChapter?: (
-    opts: unknown,
+  requestWriteChapterConfirm?: (
+    input: WriteChapterConfirmInput,
   ) => Promise<NovelContextSelection | null>;
 };
 
