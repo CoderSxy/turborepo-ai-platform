@@ -1,0 +1,20 @@
+apps/web/features/studio/components/writing/WriteChapterOptionsSheet.tsx
+  s_e802f6f9ca27c0::t_6d7059d6234b28 90-94,99-106,109
+  s_e802f6f9ca27c0::t_86dd5868c831c8 10-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fd075d9bfc81a8c9e8cb8f71cb504a5e8b5c2db6",
+  "prompts": {},
+  "sessions": {
+    "s_e802f6f9ca27c0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b0ed73b4-e3df-47c8-896b-7ae5aecb5e10",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
