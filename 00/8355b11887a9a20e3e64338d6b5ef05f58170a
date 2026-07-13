@@ -1,0 +1,24 @@
+apps/web/tsconfig.json
+  s_e63d67a2d09ccc::t_45c8bcb0a86b15 12
+apps/web/package.json
+  s_e63d67a2d09ccc::t_14233dcaced13f 8
+apps/web/features/studio/actions/write-chapter.ts
+  s_e63d67a2d09ccc::t_a817c2bb71ef7d 1,6
+  s_e63d67a2d09ccc::t_1fbdfc68b8d2e5 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "008355b11887a9a20e3e64338d6b5ef05f58170a",
+  "prompts": {},
+  "sessions": {
+    "s_e63d67a2d09ccc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "205e2810-bf3a-46ec-96fd-2a7f76bcb471",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
