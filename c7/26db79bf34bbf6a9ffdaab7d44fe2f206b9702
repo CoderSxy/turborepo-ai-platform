@@ -1,0 +1,28 @@
+apps/web/features/studio/actions/types.ts
+  s_5986c76ad13dee::t_c48caa5cf0102b 29
+apps/web/features/studio/components/NovelStudio.tsx
+  s_5986c76ad13dee::t_095e4040c947f0 706,712-714
+  s_5986c76ad13dee::t_fd42b759605d7f 2256-2260
+  s_5986c76ad13dee::t_f4c6d6b3ba2040 490-500,502-509,513-521,530-547
+  s_5986c76ad13dee::t_94015036482e58 548
+apps/web/features/studio/actions/dispatch.ts
+  s_5986c76ad13dee::t_4b2c52d936a45b 16
+apps/web/features/studio/components/chat/QuickActions.tsx
+  s_5986c76ad13dee::t_1d500988ce0975 26-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c726db79bf34bbf6a9ffdaab7d44fe2f206b9702",
+  "prompts": {},
+  "sessions": {
+    "s_5986c76ad13dee": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a31b7801-0b51-41c3-aeda-2ee1695cb258",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
