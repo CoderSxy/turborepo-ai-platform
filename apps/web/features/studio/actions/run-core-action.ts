@@ -53,14 +53,18 @@ import {
   setActiveCoreTaskId,
 } from "./core-task-state";
 import {
-  appendProgressStep,
   buildErrorPart,
+  buildFinalAssistantParts,
   buildPausedAssistantMessage,
-  buildProgressPart,
-  buildResultPart,
+  buildProgressPartFromMessages,
   buildTextPart,
+  completeProgressPart,
 } from "../store/slices/message/parts-builder";
-import type { StudioMessage, StudioMessagePart } from "../store/types";
+import type { StudioMessage } from "../store/types";
+import {
+  resolveDefaultWriteChapterSelection,
+  summarizeContextSelection,
+} from "./write-chapter";
 
 export {
   clearCoreTaskTrackingState,
@@ -122,29 +126,6 @@ async function persistPausedCoreTaskCheckpoint(
   }
 }
 
-function buildProgressParts(
-  label: string,
-  progressMessages: string[],
-  options?: { paused?: boolean },
-): StudioMessagePart[] {
-  let progressPart = buildProgressPart(label, { paused: options?.paused });
-  for (const message of progressMessages) {
-    progressPart = appendProgressStep(progressPart, message, Date.now());
-  }
-  return [progressPart];
-}
-
-function buildFinalAssistantParts(
-  label: string,
-  progressMessages: string[],
-  resultContent: string,
-): StudioMessagePart[] {
-  return [
-    ...buildProgressParts(label, [...progressMessages, "任务完成。"]),
-    buildResultPart(label, resultContent),
-  ];
-}
-
 export async function runCoreAction(
   ctx: StudioActionContext,
   action: InkosCoreAction,
@@ -203,12 +184,18 @@ export async function runCoreAction(
     isResume && checkpoint?.assistantMessageId
       ? checkpoint.assistantMessageId
       : `assistant-core-${Date.now()}`;
+  const startedAt = new Date().toISOString();
   const pendingAssistantMessage: StudioMessage = {
     id: assistantMessageId,
     role: "assistant",
-    parts: buildProgressParts(label, progressMessages),
+    parts: [
+      buildProgressPartFromMessages(label, progressMessages, {
+        status: "running",
+        startedAt,
+      }),
+    ],
     streaming: true,
-    createdAt: new Date().toISOString(),
+    createdAt: startedAt,
   };
   const userMessage: StudioMessage = {
     id: `user-${Date.now()}`,
@@ -228,7 +215,6 @@ export async function runCoreAction(
   store.setMessagesForSession(requestSessionId, visibleMessages);
   const abortController = new AbortController();
   let taskId = "";
-  const startedAt = new Date().toISOString();
   let latestChapters = [...activeBook.chapters];
 
   store.startTask({
@@ -294,6 +280,33 @@ export async function runCoreAction(
       throw new Error("请先选择一个已生成章节，再根据审稿意见修订。");
     }
 
+    if (action === "write-chapter" && writeTarget && !isResume) {
+      progressMessages.push(
+        `正在准备第 ${writeTarget.number} 章《${writeTarget.title}》`,
+      );
+      const selection =
+        options?.contextSelectionOverride ??
+        resolveDefaultWriteChapterSelection(activeBook, project);
+      const contextSummary = summarizeContextSelection(selection);
+      const contextCount = contextSummary === "无额外上下文" ? 0 : contextSummary.split("、").length;
+      progressMessages.push(
+        contextCount > 0
+          ? `已带入 ${contextCount} 项上下文：${contextSummary}`
+          : "未带入额外上下文",
+      );
+      setActiveCoreProgress([...progressMessages]);
+      store.updateMessage(requestSessionId, assistantMessageId, (item) => ({
+        ...item,
+        parts: [
+          buildProgressPartFromMessages(label, progressMessages, {
+            status: "running",
+            startedAt,
+          }),
+        ],
+        streaming: true,
+      }));
+    }
+
     const coreInstruction =
       action === "review" && reviewTarget
         ? [
@@ -333,7 +346,12 @@ export async function runCoreAction(
       }
       store.updateMessage(requestSessionId, assistantMessageId, (item) => ({
         ...item,
-        parts: buildProgressParts(label, progressMessages),
+        parts: [
+          buildProgressPartFromMessages(label, progressMessages, {
+            status: "running",
+            startedAt,
+          }),
+        ],
         streaming: true,
       }));
     };
@@ -438,6 +456,9 @@ export async function runCoreAction(
               chapter.id === storedChapter.id ? storedChapter : chapter,
             )
           : [...latestChapters, storedChapter];
+        updateCoreProgress(
+          `第 ${storedChapter.number} 章《${storedChapter.title}》已保存`,
+        );
       }
     }
 
@@ -595,6 +616,12 @@ export async function runCoreAction(
       assets: nextAssets,
     });
 
+    const completionSummary =
+      action === "write-chapter" && writeTarget
+        ? progressMessages.find((message) => message.includes("已保存")) ??
+          `第 ${writeTarget.number} 章已保存`
+        : progressMessages.at(-1) ?? "任务完成。";
+
     const assistantMessage: StudioMessage = {
       id: assistantMessageId,
       role: "assistant",
@@ -602,6 +629,7 @@ export async function runCoreAction(
         label,
         progressMessages,
         result.content || result.message || "",
+        { startedAt, summary: completionSummary },
       ),
       createdAt: new Date().toISOString(),
     };
@@ -634,6 +662,7 @@ export async function runCoreAction(
         assistantMessageId,
         label,
         pausedProgress,
+        { startedAt },
       );
 
       const resolvedTaskId = taskId || getActiveCoreTaskId();
@@ -675,6 +704,17 @@ export async function runCoreAction(
       role: "assistant",
       status: isAbortError ? "sent" : "error",
       parts: [
+        completeProgressPart(
+          buildProgressPartFromMessages(label, progressMessages, {
+            status: isAbortError ? "paused" : "error",
+            startedAt,
+            paused: isAbortError,
+          }),
+          {
+            status: isAbortError ? "paused" : "error",
+            summary: errorNotice.title,
+          },
+        ),
         buildErrorPart(
           `${label}${isAbortError ? "已取消" : "失败"}`,
           errorNotice.detail,

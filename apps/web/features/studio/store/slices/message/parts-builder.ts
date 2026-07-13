@@ -1,14 +1,35 @@
-import type { StudioMessage, StudioMessagePart } from "../../types";
+import type {
+  ProgressPartStatus,
+  StudioMessage,
+  StudioMessagePart,
+} from "../../types";
 
 export function buildTextPart(content: string): StudioMessagePart {
   return { type: "text", content };
 }
 
+export type BuildProgressPartOptions = {
+  paused?: boolean;
+  status?: ProgressPartStatus;
+  startedAt?: string;
+  completedAt?: string;
+  summary?: string;
+};
+
 export function buildProgressPart(
   label: string,
-  options?: { paused?: boolean },
+  options?: BuildProgressPartOptions,
 ): Extract<StudioMessagePart, { type: "progress" }> {
-  return { type: "progress", label, steps: [], paused: options?.paused };
+  return {
+    type: "progress",
+    label,
+    steps: [],
+    paused: options?.paused,
+    status: options?.status,
+    startedAt: options?.startedAt,
+    completedAt: options?.completedAt,
+    summary: options?.summary,
+  };
 }
 
 export function appendProgressStep(
@@ -17,6 +38,92 @@ export function appendProgressStep(
   at: number,
 ): Extract<StudioMessagePart, { type: "progress" }> {
   return { ...part, steps: [...part.steps, { message, at }] };
+}
+
+export function buildProgressPartFromMessages(
+  label: string,
+  progressMessages: string[],
+  options?: BuildProgressPartOptions,
+): Extract<StudioMessagePart, { type: "progress" }> {
+  let progressPart = buildProgressPart(label, options);
+  for (const message of progressMessages) {
+    progressPart = appendProgressStep(progressPart, message, Date.now());
+  }
+  return progressPart;
+}
+
+export function completeProgressPart(
+  part: Extract<StudioMessagePart, { type: "progress" }>,
+  options?: {
+    summary?: string;
+    completedAt?: string;
+    status?: Extract<ProgressPartStatus, "completed" | "error" | "paused">;
+  },
+): Extract<StudioMessagePart, { type: "progress" }> {
+  const lastStep = part.steps.at(-1)?.message;
+  return {
+    ...part,
+    paused: options?.status === "paused" ? true : part.paused,
+    status: options?.status ?? "completed",
+    completedAt: options?.completedAt ?? new Date().toISOString(),
+    summary: options?.summary ?? lastStep ?? part.summary,
+  };
+}
+
+export function inferProgressStatus(
+  part: Extract<StudioMessagePart, { type: "progress" }>,
+  siblingParts: StudioMessagePart[],
+): ProgressPartStatus {
+  if (part.status) {
+    return part.status;
+  }
+  if (part.paused) {
+    return "paused";
+  }
+  if (siblingParts.some((item) => item.type === "error")) {
+    return "error";
+  }
+  if (siblingParts.some((item) => item.type === "result")) {
+    return "completed";
+  }
+  return "running";
+}
+
+export function shouldExpandTaskCard(status: ProgressPartStatus): boolean {
+  return status === "running" || status === "error" || status === "paused";
+}
+
+export function formatTaskElapsedMs(
+  startedAt: string | undefined,
+  completedAt: string | undefined,
+  nowMs: number,
+): string | null {
+  if (!startedAt) {
+    return null;
+  }
+  const endMs = completedAt ? Date.parse(completedAt) : nowMs;
+  const elapsedMs = Math.max(0, endMs - Date.parse(startedAt));
+  if (elapsedMs < 1000) {
+    return "<1s";
+  }
+  const seconds = Math.round(elapsedMs / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes}m ${remainder}s`;
+}
+
+export function isMeaningfulToolPart(
+  part: Extract<StudioMessagePart, { type: "tool" }>,
+): boolean {
+  if (part.detail?.trim()) {
+    return true;
+  }
+  return ["保存章节", "生成审稿报告", "章节已保存"].some((label) =>
+    part.label.includes(label),
+  );
 }
 
 export function updateTextPartContent(
@@ -60,10 +167,13 @@ export function flattenPartsToContent(parts: StudioMessagePart[]): string {
         case "progress":
           return [
             `## ${part.label}${part.paused ? "（已暂停）" : ""}`,
+            part.summary ? part.summary : "",
             part.steps.length > 0
               ? part.steps.map((step) => `- ${step.message}`).join("\n")
               : "- 等待任务开始",
-          ].join("\n\n");
+          ]
+            .filter(Boolean)
+            .join("\n\n");
         case "tool":
           return `[${part.label}] ${part.status}${part.detail ? `: ${part.detail}` : ""}`;
         default:
@@ -78,28 +188,46 @@ export function isLegacyCoreMarkdown(content: string): boolean {
   return /^##\s+.+/m.test(content) && content.includes("- ");
 }
 
-function buildProgressParts(
-  label: string,
-  progressMessages: string[],
-  options?: { paused?: boolean },
-): StudioMessagePart[] {
-  let progressPart = buildProgressPart(label, { paused: options?.paused });
-  for (const message of progressMessages) {
-    progressPart = appendProgressStep(progressPart, message, Date.now());
-  }
-  return [progressPart];
-}
-
 export function buildPausedAssistantMessage(
   assistantMessageId: string,
   label: string,
   pausedProgress: string[],
+  options?: { startedAt?: string },
 ): StudioMessage {
   return {
     id: assistantMessageId,
     role: "assistant",
     status: "sent",
-    parts: buildProgressParts(label, pausedProgress, { paused: true }),
+    parts: [
+      completeProgressPart(
+        buildProgressPartFromMessages(label, pausedProgress, {
+          paused: true,
+          status: "paused",
+          startedAt: options?.startedAt,
+        }),
+        { status: "paused", summary: "任务已暂停，可从任务日志继续。" },
+      ),
+    ],
     createdAt: new Date().toISOString(),
   };
+}
+
+export function buildFinalAssistantParts(
+  label: string,
+  progressMessages: string[],
+  resultContent: string,
+  options?: { startedAt?: string; summary?: string },
+): StudioMessagePart[] {
+  const completedProgress = completeProgressPart(
+    buildProgressPartFromMessages(label, progressMessages, {
+      status: "running",
+      startedAt: options?.startedAt,
+    }),
+    {
+      status: "completed",
+      summary: options?.summary ?? progressMessages.at(-1) ?? "任务完成。",
+    },
+  );
+
+  return [completedProgress, buildResultPart(label, resultContent)];
 }

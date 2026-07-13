@@ -17,7 +17,11 @@ export function ChatMessage({ message }: { message: StudioMessage }) {
     >
       <strong>{message.role === "user" ? "你" : "InkOS"}</strong>
       {message.parts.map((part, index) => (
-        <MessagePartRenderer key={index} part={part} />
+        <MessagePartRenderer
+          key={index}
+          part={part}
+          siblingParts={message.parts}
+        />
       ))}
       {message.streaming ? (
         <span className={styles.typingIndicator}>

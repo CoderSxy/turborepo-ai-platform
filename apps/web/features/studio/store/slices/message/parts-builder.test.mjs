@@ -4,8 +4,13 @@ import test from "node:test";
 import {
   appendProgressStep,
   buildProgressPart,
+  buildProgressPartFromMessages,
   buildResultPart,
   buildTextPart,
+  completeProgressPart,
+  formatTaskElapsedMs,
+  inferProgressStatus,
+  shouldExpandTaskCard,
   updateTextPartContent,
 } from "./parts-builder.ts";
 
@@ -39,4 +44,42 @@ test("buildResultPart includes title and content", () => {
     title: "完成",
     content: "chapter text",
   });
+});
+
+test("completeProgressPart marks progress completed with summary", () => {
+  const part = buildProgressPartFromMessages("写下一章", ["正在创作…"], {
+    status: "running",
+    startedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const completed = completeProgressPart(part, {
+    summary: "第 3 章已保存",
+    completedAt: "2026-01-01T00:00:10.000Z",
+  });
+  assert.equal(completed.status, "completed");
+  assert.equal(completed.summary, "第 3 章已保存");
+  assert.equal(completed.completedAt, "2026-01-01T00:00:10.000Z");
+});
+
+test("inferProgressStatus falls back for legacy progress parts", () => {
+  const progress = buildProgressPart("审稿");
+  assert.equal(inferProgressStatus(progress, [{ type: "result", title: "审稿", content: "ok" }]), "completed");
+  assert.equal(inferProgressStatus({ ...progress, paused: true }, []), "paused");
+  assert.equal(inferProgressStatus(progress, [{ type: "error", title: "失败", detail: "x" }]), "error");
+  assert.equal(inferProgressStatus(progress, []), "running");
+});
+
+test("shouldExpandTaskCard expands running/error/paused only", () => {
+  assert.equal(shouldExpandTaskCard("running"), true);
+  assert.equal(shouldExpandTaskCard("error"), true);
+  assert.equal(shouldExpandTaskCard("paused"), true);
+  assert.equal(shouldExpandTaskCard("completed"), false);
+});
+
+test("formatTaskElapsedMs renders seconds", () => {
+  const elapsed = formatTaskElapsedMs(
+    "2026-01-01T00:00:00.000Z",
+    "2026-01-01T00:00:05.000Z",
+    Date.parse("2026-01-01T00:00:05.000Z"),
+  );
+  assert.equal(elapsed, "5s");
 });

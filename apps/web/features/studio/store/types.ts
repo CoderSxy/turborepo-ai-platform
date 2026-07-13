@@ -1,6 +1,8 @@
 import type { InkosCoreAction } from "@repo/inkos-adapter";
 import type { NovelBookEntry } from "../state/studio-types";
 
+export type ProgressPartStatus = "running" | "completed" | "error" | "paused";
+
 export type StudioMessagePart =
   | { type: "text"; content: string }
   | {
@@ -8,6 +10,10 @@ export type StudioMessagePart =
       label: string;
       steps: Array<{ message: string; at: number }>;
       paused?: boolean;
+      status?: ProgressPartStatus;
+      startedAt?: string;
+      completedAt?: string;
+      summary?: string;
     }
   | {
       type: "tool";

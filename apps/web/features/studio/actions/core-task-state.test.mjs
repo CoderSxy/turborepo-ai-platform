@@ -42,6 +42,7 @@ test("buildPausedAssistantMessage marks progress part as paused", () => {
   assert.equal(message.status, "sent");
   assert.equal(message.parts[0]?.type, "progress");
   assert.equal(message.parts[0]?.paused, true);
+  assert.equal(message.parts[0]?.status, "paused");
   assert.match(message.parts[0]?.steps[0]?.message ?? "", /正在生成/);
 });
 
