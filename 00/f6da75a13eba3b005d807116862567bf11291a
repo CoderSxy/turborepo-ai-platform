@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-07-13-inkos-studio-low-friction-agent-design.md
+  s_e802f6f9ca27c0::t_2b2df1b5690e0a 1-455
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "00f6da75a13eba3b005d807116862567bf11291a",
+  "prompts": {},
+  "sessions": {
+    "s_e802f6f9ca27c0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b0ed73b4-e3df-47c8-896b-7ae5aecb5e10",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
