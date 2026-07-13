@@ -1,0 +1,40 @@
+apps/web/features/studio/components/chat/WriteChapterSplitButton.tsx
+  s_e802f6f9ca27c0::t_a0b188b61ae725 1-110
+apps/web/features/studio/components/NovelStudio.tsx
+  s_e802f6f9ca27c0::t_f525cdc28a2a29 83-84
+  s_e802f6f9ca27c0::t_cd901a3c8024e4 261
+  s_e802f6f9ca27c0::t_aba3cb8a3e5638 2169-2171
+  s_e802f6f9ca27c0::t_73d8953d06b74a 2435-2448
+  s_e802f6f9ca27c0::t_2d51f69930e2b7 136
+  s_e802f6f9ca27c0::t_563f5d159b3823 39,41
+  s_e802f6f9ca27c0::t_4260b534caaf46 154-159
+  s_e802f6f9ca27c0::t_92b071b9da4f78 513-595
+apps/web/features/studio/components/chat/ChatComposer.tsx
+  s_e802f6f9ca27c0::t_ec2157429caa00 23-25
+  s_e802f6f9ca27c0::t_080d73680a01be 44-46
+  s_e802f6f9ca27c0::t_51c57177497bfa 56-62
+apps/web/features/studio/components/writing/WriteChapterOptionsSheet.tsx
+  s_e802f6f9ca27c0::t_a127cca9bf897a 3-4,6,8-18,20-27,29-39,42-50,53-62,66-76,79-87,89-94,96-100,103-108,110-113,115,117,119
+apps/web/features/studio/components/chat/QuickActions.tsx
+  s_e802f6f9ca27c0::t_4de3863d9a97b5 5,7,15-17,21-23,27-33
+apps/web/features/studio/studio.module.css
+  s_e802f6f9ca27c0::t_abb055fdf92287 436-637
+apps/web/features/studio/components/writing/WriteChapterOptionsForm.tsx
+  s_e802f6f9ca27c0::t_fddf967b0a1d47 1-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "76bf5b38a06cf216bae5388bdd9e886323f7022e",
+  "prompts": {},
+  "sessions": {
+    "s_e802f6f9ca27c0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b0ed73b4-e3df-47c8-896b-7ae5aecb5e10",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
