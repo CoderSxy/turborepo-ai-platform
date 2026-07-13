@@ -1,5 +1,6 @@
 import { sendMessage } from "./send-message";
 import { runCoreAction } from "./run-core-action";
+import { executeWriteChapter } from "./write-chapter";
 import type { StudioAction, StudioActionContext } from "./types";
 
 export function dispatchStudioAction(
@@ -11,7 +12,11 @@ export function dispatchStudioAction(
       void sendMessage(ctx, action.text);
       break;
     case "write-chapter":
-      void runCoreAction(ctx, "write-chapter");
+      void executeWriteChapter(ctx, {
+        source: action.source,
+        target: action.target,
+        contextSelection: action.contextSelection,
+      });
       break;
     case "review":
       void runCoreAction(ctx, "review");

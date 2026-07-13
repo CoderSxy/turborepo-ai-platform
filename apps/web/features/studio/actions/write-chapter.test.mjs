@@ -1,11 +1,14 @@
 // apps/web/features/studio/actions/write-chapter.test.mjs
 import assert from "node:assert/strict";
+import { register } from "node:module";
 import test from "node:test";
 
-import {
+await register("./node-test-resolve.mjs", import.meta.url);
+
+const {
   resolveDefaultWriteChapterSelection,
   summarizeContextSelection,
-} from "./write-chapter.ts";
+} = await import("./write-chapter.ts");
 
 const savedSelection = {
   includeOutline: false,

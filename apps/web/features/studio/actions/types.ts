@@ -22,12 +22,6 @@ export type WriteChapterConfirmInput = {
   derivedStyleConstraints: string;
 };
 
-export type WriteChapterRequest = {
-  target: NovelChapterWriteTarget;
-  contextSelection: NovelContextSelection;
-  source: StudioActionSource;
-};
-
 export type StudioAction =
   | { type: "send-message"; text: string; source?: StudioActionSource }
   | {

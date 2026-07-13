@@ -1,9 +1,20 @@
 import type { InkosNovelProject } from "@repo/inkos-adapter";
 import {
   buildDefaultNovelContextSelection,
+  buildNovelStyleConstraintsFromAssets,
+  selectNextNovelChapterTarget,
+  type NovelChapterWriteTarget,
   type NovelContextSelection,
 } from "#lib/novel-store";
 import type { NovelBookEntry } from "../state/studio-types";
+import { runCoreAction } from "./run-core-action";
+import type { StudioActionContext, StudioActionSource } from "./types";
+
+export type WriteChapterRequest = {
+  target: NovelChapterWriteTarget;
+  contextSelection: NovelContextSelection;
+  source: StudioActionSource;
+};
 
 const CONTEXT_LABELS: Array<[keyof NovelContextSelection, string]> = [
   ["includeOutline", "章节计划 / 大纲"],
@@ -31,4 +42,53 @@ export function summarizeContextSelection(
     Boolean(selection[key]),
   ).map(([, label]) => label);
   return enabled.length > 0 ? enabled.join("、") : "无额外上下文";
+}
+
+export async function executeWriteChapter(
+  ctx: StudioActionContext,
+  options: {
+    source: StudioActionSource;
+    target?: NovelChapterWriteTarget;
+    contextSelection?: NovelContextSelection;
+  },
+): Promise<boolean> {
+  const store = ctx.getState();
+  const activeBook = store.books.find((book) => book.id === store.activeBookId) ?? null;
+  const project = activeBook?.project ?? null;
+
+  if (!activeBook || !project) {
+    ctx.notify("请先创建一本书籍。", "warning");
+    return false;
+  }
+
+  const target =
+    options.target ??
+    selectNextNovelChapterTarget(project, activeBook.chapters);
+
+  let selection = options.contextSelection;
+
+  if (!selection) {
+    const initialSelection = resolveDefaultWriteChapterSelection(activeBook, project);
+
+    if (ctx.requestWriteChapterConfirm) {
+      const derivedStyleConstraints = buildNovelStyleConstraintsFromAssets(
+        activeBook.assets,
+        project,
+      );
+      const confirmed = await ctx.requestWriteChapterConfirm({
+        target,
+        initialSelection,
+        derivedStyleConstraints,
+      });
+      if (!confirmed) return false;
+      selection = confirmed;
+    } else {
+      selection = initialSelection;
+    }
+  }
+
+  return runCoreAction(ctx, "write-chapter", {
+    targetChapter: target,
+    contextSelectionOverride: selection,
+  });
 }
