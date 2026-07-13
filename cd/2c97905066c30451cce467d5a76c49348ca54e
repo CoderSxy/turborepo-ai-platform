@@ -1,0 +1,22 @@
+apps/web/features/studio/actions/write-chapter.ts
+  s_bfbd6066d736a6::t_7db76c02f622fe 1-4,7-34
+  s_bfbd6066d736a6::t_f62fc1d92590f3 5-6
+apps/web/features/studio/actions/write-chapter.test.mjs
+  s_bfbd6066d736a6::t_0eec10f23e49d9 1-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cd2c97905066c30451cce467d5a76c49348ca54e",
+  "prompts": {},
+  "sessions": {
+    "s_bfbd6066d736a6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "849f1962-0321-4052-ad1e-74db060ae1df",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
