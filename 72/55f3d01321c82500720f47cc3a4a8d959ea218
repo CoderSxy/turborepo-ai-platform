@@ -1,0 +1,19 @@
+apps/web/features/studio/store/selectors.ts
+  s_c3d6e3d0015f16::t_baa205fad92d55 1,3,6-8,17-18,28-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7255f3d01321c82500720f47cc3a4a8d959ea218",
+  "prompts": {},
+  "sessions": {
+    "s_c3d6e3d0015f16": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "576935b4-1b30-400d-90b5-b8464e8aa413",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
