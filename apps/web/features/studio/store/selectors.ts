@@ -1,5 +1,10 @@
+import { useMemo } from "react";
 import { getStudioTaskGuard } from "../actions/runtime/task-guard";
+import type { StudioMessage } from "./types";
 import { useStudioStore } from "./store";
+
+const EMPTY_MESSAGES: StudioMessage[] = [];
+const IDLE_TASK_GUARD = { canStart: true, message: "" } as const;
 
 export function useActiveBook() {
   return useStudioStore((state) =>
@@ -9,7 +14,8 @@ export function useActiveBook() {
 
 export function useActiveMessages() {
   return useStudioStore(
-    (state) => state.messagesBySessionId[state.activeSessionId] ?? [],
+    (state) =>
+      state.messagesBySessionId[state.activeSessionId] ?? EMPTY_MESSAGES,
   );
 }
 
@@ -19,7 +25,10 @@ export function useIsTaskRunning() {
 
 export function useCanStartTask() {
   const runningTask = useStudioStore((state) => state.runningTask);
-  return getStudioTaskGuard(runningTask);
+  return useMemo(
+    () => (runningTask ? getStudioTaskGuard(runningTask) : IDLE_TASK_GUARD),
+    [runningTask],
+  );
 }
 
 export function useRunningTaskLabel() {
