@@ -131,6 +131,7 @@ import {
   useIsTaskRunning,
   useRunningTaskLabel,
 } from "../store/selectors";
+import { useMessageListScroll } from "../hooks/useMessageListScroll";
 import { fromStoredMessagesBySession, toStoredMessage } from "../persistence/message-bridge";
 import { dispatchStudioAction } from "../actions/dispatch";
 import { resolveDefaultWriteChapterSelection } from "../actions/write-chapter";
@@ -193,6 +194,12 @@ export function NovelStudio({
   const isTaskRunning = useIsTaskRunning();
   const activeTaskLabel = useRunningTaskLabel();
   const messages = useActiveMessages();
+  const isMessageStreaming = messages.at(-1)?.streaming ?? false;
+  const {
+    containerRef: messageListRef,
+    showJumpToLatest,
+    scrollToLatest,
+  } = useMessageListScroll(messages.length, isMessageStreaming);
   const [activeTool, setActiveTool] = useState<NovelTool>("AI创作");
   const [toolOverflowOpen, setToolOverflowOpen] = useState(false);
   const [cloudSyncDialogOpen, setCloudSyncDialogOpen] = useState(false);
@@ -2143,15 +2150,26 @@ export function NovelStudio({
               </div>
             </header>
 
-            <div className={styles.messageList}>
-              {messages.length === 0 ? (
-                <div className={styles.emptyMessageState}>
-                  <span>输入一个题材、角色或章节目标，从这里开始。</span>
-                </div>
+            <div className={styles.messageListViewport}>
+              <div className={styles.messageList} ref={messageListRef}>
+                {messages.length === 0 ? (
+                  <div className={styles.emptyMessageState}>
+                    <span>输入一个题材、角色或章节目标，从这里开始。</span>
+                  </div>
+                ) : null}
+                {messages.map((message) => (
+                  <ChatMessage key={message.id} message={message} />
+                ))}
+              </div>
+              {showJumpToLatest ? (
+                <button
+                  type="button"
+                  className={styles.jumpToLatestButton}
+                  onClick={scrollToLatest}
+                >
+                  回到最新消息
+                </button>
               ) : null}
-              {messages.map((message) => (
-                <ChatMessage key={message.id} message={message} />
-              ))}
             </div>
 
             <ChatComposer

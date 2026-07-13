@@ -160,6 +160,13 @@
   white-space: nowrap;
 }
 
+.messageListViewport {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .messageList {
   min-height: 0;
   overflow-y: auto;
@@ -167,6 +174,23 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.jumpToLatestButton {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 4;
+  border: 1px solid #cbd6d9;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #14342f;
+  box-shadow: 0 8px 24px rgba(20, 52, 47, 0.12);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .emptyMessageState {
@@ -901,6 +925,7 @@
 
 .chatComposer textarea {
   width: 100%;
+  max-height: 200px;
   border: 1px solid #cbd6d9;
   border-radius: 8px;
   background: #ffffff;
@@ -909,7 +934,8 @@
   font-size: 14px;
   line-height: 1.6;
   padding: 11px 12px;
-  resize: vertical;
+  resize: none;
+  overflow-y: auto;
   outline: none;
 }
 

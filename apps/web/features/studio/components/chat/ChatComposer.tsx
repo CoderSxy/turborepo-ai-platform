@@ -1,12 +1,14 @@
 "use client";
 
-import { type ReactNode, type RefObject } from "react";
+import { useEffect, type ReactNode, type RefObject } from "react";
 import styles from "../../studio.module.css";
 import type { ModelPickerGroup } from "../../state/studio-types";
 import type { StudioAction } from "../../actions/types";
 import { QuickActions } from "./QuickActions";
 import { ModelPicker } from "./ModelPicker";
 import { ComposerMoreMenu, type MenuGroup } from "./ComposerMoreMenu";
+
+const TEXTAREA_MAX_HEIGHT_PX = 200;
 
 export function ChatComposer({
   input,
@@ -51,6 +53,23 @@ export function ChatComposer({
   activeTaskBar: ReactNode | null;
   routeError: string | undefined;
 }) {
+  useEffect(() => {
+    const textarea = composerInputRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, TEXTAREA_MAX_HEIGHT_PX)}px`;
+  }, [composerInputRef, input]);
+
+  function handleSendAttempt() {
+    if (!input.trim() || disabled || !canSend) {
+      return;
+    }
+    onSend();
+  }
+
   return (
     <footer className={styles.chatComposer}>
       <QuickActions
@@ -60,8 +79,6 @@ export function ChatComposer({
         onOpenAdvancedOptions={onOpenAdvancedOptions}
         onEditDefaultPreferences={onEditDefaultPreferences}
       />
-      {batchQueueBar}
-      {activeTaskBar}
       <textarea
         ref={composerInputRef}
         rows={3}
@@ -69,8 +86,18 @@ export function ChatComposer({
         placeholder="告诉我你想写什么，或输入：写下一章"
         onChange={(event) => onInputChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-            onSend();
+          if (event.nativeEvent.isComposing) {
+            return;
+          }
+
+          const isEnter = event.key === "Enter";
+          const isModifierEnter =
+            isEnter && (event.metaKey || event.ctrlKey);
+          const isPlainEnter = isEnter && !event.shiftKey && !event.metaKey && !event.ctrlKey;
+
+          if (isPlainEnter || isModifierEnter) {
+            event.preventDefault();
+            handleSendAttempt();
           }
         }}
       />
@@ -90,17 +117,19 @@ export function ChatComposer({
             groups={moreMenuGroups}
             onOpenCloudSync={onOpenCloudSync}
           />
-          <span>⌘ / Ctrl + Enter 发送</span>
+          <span>Enter 发送 · Shift+Enter 换行</span>
           <button
             type="button"
             className={styles.primaryButton}
             disabled={!input.trim() || disabled || !canSend}
-            onClick={onSend}
+            onClick={handleSendAttempt}
           >
             {disabled ? "处理中" : "发送"}
           </button>
         </div>
       </div>
+      {batchQueueBar}
+      {activeTaskBar}
       {routeError ? (
         <div className={styles.composerRouteError}>{routeError}</div>
       ) : null}

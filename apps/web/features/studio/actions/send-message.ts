@@ -39,6 +39,11 @@ export async function sendMessage(
   }
 
   const requestSessionId = store.activeSessionId;
+  if (!requestSessionId) {
+    ctx.notify("请先创建或选择一个会话。", "warning");
+    return;
+  }
+
   const userMessage: StudioMessage = {
     id: `user-${Date.now()}`,
     role: "user",
@@ -56,16 +61,6 @@ export async function sendMessage(
   const sessionMessages = store.messagesBySessionId[requestSessionId] ?? [];
   const nextMessages = [...sessionMessages, userMessage];
   const visibleMessages = [...nextMessages, pendingAssistantMessage];
-
-  if (!requestSessionId) {
-    store.appendMessage("pending", {
-      id: `assistant-error-${Date.now()}`,
-      role: "assistant",
-      parts: [buildTextPart("请先创建或选择一个会话。")],
-      createdAt: new Date().toISOString(),
-    });
-    return;
-  }
 
   store.setMessagesForSession(requestSessionId, visibleMessages);
   store.setInput("");
