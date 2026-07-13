@@ -6,6 +6,7 @@ import test from "node:test";
 await register("./node-test-resolve.mjs", import.meta.url);
 
 const {
+  executeWriteChapter,
   resolveDefaultWriteChapterSelection,
   summarizeContextSelection,
 } = await import("./write-chapter.ts");
@@ -73,4 +74,34 @@ test("summarizeContextSelection returns fallback when nothing enabled", () => {
     includeReviewIssues: false,
   });
   assert.equal(summary, "无额外上下文");
+});
+
+test("executeWriteChapter skips confirm and reaches runCoreAction guard without session", async () => {
+  let notifyMessage = "";
+  const ctx = {
+    getState: () => ({
+      books: [
+        {
+          id: "b1",
+          project: { chapterWordCount: 3000, chapters: [] },
+          assets: { contextSelection: savedSelection },
+          chapters: [],
+        },
+      ],
+      activeBookId: "b1",
+      activeSessionId: "",
+      runningTask: null,
+    }),
+    notify: (msg) => {
+      notifyMessage = msg;
+    },
+    settings: {},
+    onSettingsChange: () => {},
+    trackModelCall: () => {},
+    refreshWorkspace: async () => {},
+  };
+
+  const result = await executeWriteChapter(ctx, { source: "quick-action" });
+  assert.equal(result, false);
+  assert.equal(notifyMessage, "请先创建或选择一个会话。");
 });

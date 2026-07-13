@@ -36,11 +36,9 @@ import {
   buildNovelPlatformExportText,
   buildNovelPublishManifest,
   buildNovelPublishValidationReport,
-  buildNovelStyleConstraintsFromAssets,
   buildNovelTaskResumePreview,
   buildNovelVolumeExportBundle,
   buildNovelWorkspaceBackupPayload,
-  buildDefaultNovelContextSelection,
   clearStoredNovelSessionMessages,
   computeNovelWorkspaceFingerprint,
   createStoredNovelBook,
@@ -77,11 +75,9 @@ import {
   loadNovelCloudSyncWebDavSettings,
   saveNovelCloudSyncWebDavSettings,
   type NovelBatchQueueItem,
-  type NovelChapterWriteTarget,
   type NovelCloudSyncPackage,
   type NovelCloudSyncState,
   type NovelCloudSyncWebDavSettings,
-  type NovelContextSelection,
   type NovelImportedChapter,
   type NovelPlatformId,
   type NovelProjectAssets,
@@ -143,7 +139,6 @@ import {
 } from "../actions/runtime/message-parts";
 import { AppDialog } from "./dialogs/AppDialog";
 import { AppToast } from "./dialogs/AppToast";
-import { WriteChapterConfirmDialog } from "./dialogs/WriteChapterConfirmDialog";
 import { CloudSyncPanel } from "./dialogs/CloudSyncPanel";
 import { CloudSyncMergeDialog } from "./dialogs/CloudSyncMergeDialog";
 import { PublishValidationDialog } from "./dialogs/PublishValidationDialog";
@@ -224,14 +219,6 @@ export function NovelStudio({
   const dialogResolverRef = useRef<
     ((value: string | boolean | null) => void) | null
   >(null);
-  const writeChapterConfirmResolverRef = useRef<
-    ((value: NovelContextSelection | null) => void) | null
-  >(null);
-  const [writeChapterConfirm, setWriteChapterConfirm] = useState<{
-    target: NovelChapterWriteTarget;
-    initialSelection: NovelContextSelection;
-    derivedStyleConstraints: string;
-  } | null>(null);
   const groupedModels = useMemo<ModelPickerGroup[]>(
     () =>
       settings.providers
@@ -487,25 +474,12 @@ export function NovelStudio({
       notify: showToast,
       trackModelCall,
       refreshWorkspace: refreshNovelWorkspace,
-      requestWriteChapterConfirm: async (input) => {
-        return requestWriteChapterConfirm(
-          input.target,
-          {
-            ...activeBook!.assets,
-            contextSelection: input.initialSelection,
-          },
-          project!,
-          input.derivedStyleConstraints,
-        );
-      },
     }),
     [
       settings,
       onSettingsChange,
       refreshNovelWorkspace,
       trackModelCall,
-      activeBook,
-      project,
     ],
   );
 
@@ -690,37 +664,6 @@ export function NovelStudio({
 
     return new Promise((resolve) => {
       dialogResolverRef.current = () => resolve();
-    });
-  }
-
-  function closeWriteChapterConfirm(selection: NovelContextSelection | null) {
-    writeChapterConfirmResolverRef.current?.(selection);
-    writeChapterConfirmResolverRef.current = null;
-    setWriteChapterConfirm(null);
-  }
-
-  function requestWriteChapterConfirm(
-    target: NovelChapterWriteTarget,
-    assets: NovelProjectAssets,
-    bookProject: InkosNovelProject,
-    derivedStyleConstraintsOverride?: string,
-  ): Promise<NovelContextSelection | null> {
-    const initialSelection = {
-      ...(assets.contextSelection ??
-        buildDefaultNovelContextSelection(bookProject)),
-    };
-    const derivedStyleConstraints =
-      derivedStyleConstraintsOverride ??
-      buildNovelStyleConstraintsFromAssets(assets, bookProject);
-
-    setWriteChapterConfirm({
-      target,
-      initialSelection,
-      derivedStyleConstraints,
-    });
-
-    return new Promise((resolve) => {
-      writeChapterConfirmResolverRef.current = resolve;
     });
   }
 
@@ -2335,11 +2278,6 @@ export function NovelStudio({
           closeDialog(dialog?.kind === "prompt" ? dialogInput : true)
         }
         onInputChange={setDialogInput}
-      />
-      <WriteChapterConfirmDialog
-        state={writeChapterConfirm}
-        onCancel={() => closeWriteChapterConfirm(null)}
-        onConfirm={(selection) => closeWriteChapterConfirm(selection)}
       />
       <AppToast toast={toast} />
       {publishValidation ? (

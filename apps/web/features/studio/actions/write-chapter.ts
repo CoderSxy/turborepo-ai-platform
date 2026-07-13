@@ -1,7 +1,6 @@
 import type { InkosNovelProject } from "@repo/inkos-adapter";
 import {
   buildDefaultNovelContextSelection,
-  buildNovelStyleConstraintsFromAssets,
   selectNextNovelChapterTarget,
   type NovelChapterWriteTarget,
   type NovelContextSelection,
@@ -65,27 +64,9 @@ export async function executeWriteChapter(
     options.target ??
     selectNextNovelChapterTarget(project, activeBook.chapters);
 
-  let selection = options.contextSelection;
-
-  if (!selection) {
-    const initialSelection = resolveDefaultWriteChapterSelection(activeBook, project);
-
-    if (ctx.requestWriteChapterConfirm) {
-      const derivedStyleConstraints = buildNovelStyleConstraintsFromAssets(
-        activeBook.assets,
-        project,
-      );
-      const confirmed = await ctx.requestWriteChapterConfirm({
-        target,
-        initialSelection,
-        derivedStyleConstraints,
-      });
-      if (!confirmed) return false;
-      selection = confirmed;
-    } else {
-      selection = initialSelection;
-    }
-  }
+  const selection =
+    options.contextSelection ??
+    resolveDefaultWriteChapterSelection(activeBook, project);
 
   return runCoreAction(ctx, "write-chapter", {
     targetChapter: target,

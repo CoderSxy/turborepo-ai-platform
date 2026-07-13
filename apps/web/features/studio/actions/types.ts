@@ -16,12 +16,6 @@ export type StudioActionSource =
   | "retry"
   | "batch";
 
-export type WriteChapterConfirmInput = {
-  target: NovelChapterWriteTarget;
-  initialSelection: NovelContextSelection;
-  derivedStyleConstraints: string;
-};
-
 export type StudioAction =
   | { type: "send-message"; text: string; source?: StudioActionSource }
   | {
@@ -52,9 +46,6 @@ export type StudioActionContext = {
     options?: { latencyMs?: number; errorMessage?: string },
   ) => void;
   refreshWorkspace: () => Promise<void>;
-  requestWriteChapterConfirm?: (
-    input: WriteChapterConfirmInput,
-  ) => Promise<NovelContextSelection | null>;
 };
 
 export type RunCoreActionOptions = {
