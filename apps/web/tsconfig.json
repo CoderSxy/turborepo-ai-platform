@@ -6,7 +6,12 @@
         "name": "next"
       }
     ],
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "paths": {
+      "#lib/model-settings": ["./lib/model-settings.ts"],
+      "#models/model-page-types": ["./features/models/state/model-page-types.ts"],
+      "#studio/parts-builder": ["./features/studio/store/slices/message/parts-builder.ts"]
+    }
   },
   "include": [
     "**/*.ts",

@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
+  "imports": {
+    "#lib/model-settings": "./lib/model-settings.ts",
+    "#models/model-page-types": "./features/models/state/model-page-types.ts",
+    "#studio/parts-builder": "./features/studio/store/slices/message/parts-builder.ts"
+  },
   "scripts": {
     "dev": "next dev --port 3033",
     "build": "next build",
@@ -16,7 +21,8 @@
     "@repo/ui": "workspace:*",
     "next": "16.2.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

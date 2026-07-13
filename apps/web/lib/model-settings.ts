@@ -865,6 +865,10 @@ export function upsertRouteConfig(
   });
 }
 
+export function isProviderConnected(provider: LocalModelProvider) {
+  return provider.enabled && Boolean(provider.apiKey);
+}
+
 export function upsertProvider(
   settings: LocalModelSettings,
   nextProvider: LocalModelProvider,
