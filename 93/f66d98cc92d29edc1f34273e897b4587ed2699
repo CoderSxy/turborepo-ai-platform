@@ -1,0 +1,47 @@
+apps/web/features/studio/components/chat/ProgressSteps.tsx
+  s_e802f6f9ca27c0::t_54e92f58aeedd1 29-35
+  s_e802f6f9ca27c0::t_591a72b2967986 62
+  s_e802f6f9ca27c0::t_4e73eb7e3e6d36 3-8,10-17,21,24,26-28,36-59,61,63-103
+apps/web/features/studio/studio.module.css
+  s_e802f6f9ca27c0::t_04beb9ed4ce15c 342-343,351-413,419
+apps/web/features/studio/actions/run-core-action.ts
+  s_e802f6f9ca27c0::t_7e16af0b76d0e3 707-717
+  s_e802f6f9ca27c0::t_a2d3178d110d4e 191-196,198
+  s_e802f6f9ca27c0::t_1d5234ba98346d 283-309
+  s_e802f6f9ca27c0::t_b94244afae3b69 459-461
+  s_e802f6f9ca27c0::t_bf7cd5a8793cbe 63
+  s_e802f6f9ca27c0::t_b8c66bf6c62017 187
+  s_e802f6f9ca27c0::t_27c67522ed3371 57,59,61,64-67
+  s_e802f6f9ca27c0::t_95ae8110f039d9 349-354
+  s_e802f6f9ca27c0::t_0ac81e2d76cda2 665
+  s_e802f6f9ca27c0::t_988a963412d837 619-624,632
+apps/web/features/studio/components/chat/ChatMessage.tsx
+  s_e802f6f9ca27c0::t_21e0fc76a32fd4 20-24
+apps/web/features/studio/store/slices/message/parts-builder.ts
+  s_e802f6f9ca27c0::t_8f565ffc1769ff 1-5,11-18,21,23-32,43-128,170,174-176,195,201-210,214-233
+apps/web/features/studio/store/slices/message/parts-builder.test.mjs
+  s_e802f6f9ca27c0::t_8fa987266ec23d 7,10-13
+  s_e802f6f9ca27c0::t_f46997f6017c7f 48-85
+apps/web/features/studio/store/types.ts
+  s_e802f6f9ca27c0::t_141a744662a09c 4-5,13-16
+apps/web/features/studio/actions/core-task-state.test.mjs
+  s_e802f6f9ca27c0::t_33cde9d8637260 45
+apps/web/features/studio/components/chat/MessagePartRenderer.tsx
+  s_e802f6f9ca27c0::t_cada62883b836c 5,10-16,24,41-43,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "93f66d98cc92d29edc1f34273e897b4587ed2699",
+  "prompts": {},
+  "sessions": {
+    "s_e802f6f9ca27c0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b0ed73b4-e3df-47c8-896b-7ae5aecb5e10",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
