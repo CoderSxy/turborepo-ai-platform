@@ -22,6 +22,32 @@ P3 store（`features/studio/store/`）与 `WriteChapterOptionsSheet` 已就位�
 | 低频能力入口 | **WorkspaceMoreSheet（临时）** | R1 整块搬迁旧 section；R3 再分组为 WorkspaceMoreMenu |
 | 章节进详情 | **单击选章 + 行内「打开」进详情** | 单击保持 `activeChapterId`；避免双击误触 |
 | `NovelBookPanel` 兼容 | **re-export** | `NovelStudio` import 不变 |
+| 视觉 / 主题 | **保持现有主题，仅改 UI 结构** | 复用 `studio.module.css`；不引入 InkOS Tailwind 视觉 |
+
+## 样式约束（仅改结构，不改主题）
+
+本次对齐的是 **信息架构与交互结构**（卡片数量、折叠层级、主面板/详情切换），**不是** InkOS 的视觉换肤。
+
+### 必须遵守
+
+- 所有新组件继续使用 `studio.module.css` 中的现有 class，不新增平行 design system
+- 保留现有配色、字号、圆角、边框：`#ffffff` / `#fbfdfd` 面板、`#dbe4e7` / `#e0e7e9` 边框、`8px` 圆角、`#142023` 标题色等
+- `SidebarCard` 在结构层增强（收起摘要 slot），视觉上延续 `CollapsibleSection` / `.bookContextPanel section` 现有样式，不照搬 InkOS `SidebarCard` 的 Tailwind/`rounded-xl bg-card/60` 外观
+- `ChapterDetailView` / `CoreFileDetailView` 搬迁时保留原有编辑器、按钮、列表的 class 名（如 `chapterEditorPanel`、`compactChapterList`、`dangerTextButton`）
+- `WorkspaceMoreSheet` 使用项目已有的 sheet / dialog 样式模式（参考 `WriteChapterOptionsSheet`），不新建一套配色
+
+### 允许的调整（结构层面）
+
+- DOM 层级重组：section 从主面板移到 more sheet 或 detail view
+- 新增少量布局 class（如 `max-height` 限制章节列表 ~220px、`BookSummaryHeader` 单行 flex），数值对齐现有 spacing（`14px` padding、`8px` gap）
+- 主面板 section 数量减少后，利用既有 `.bookContextPanel` 网格间距，不刻意压缩到 InkOS 高密度
+
+### 明确不做（R1 + R2）
+
+- 不引入 Tailwind utility 替换 CSS Modules
+- 不修改全局主题变量或 `studio.module.css` 色板
+- 不对齐 InkOS 字体（SimSun）、Lucide 图标密度、深色 card 风格
+- R4 中的「InkOS card 密度」视觉收尾 **推迟**；R1/R2 验收以结构与功能为准
 
 ## 目标与验收标准
 
@@ -155,6 +181,7 @@ type SidebarCardProps = {
 - 读写 `localStorage` key `sxy-studio-sidebar-sections`，与 `CollapsibleSection` 格式兼容
 - `aria-expanded` 在 header button 上
 - 收起时 `summary` 必须非空（主卡片的「摘要线索」要求）
+- **样式**：复用 `.collapsibleSection` / `.collapsibleSectionHeader` / `.collapsibleSectionBody`（或等价组合），仅增加 summary 容器的布局节点，不换新视觉风格
 
 ### BookSummaryHeader
 
@@ -285,6 +312,7 @@ InkOS 中的状态卡、伏笔池、支线、感情线在本项目无独立 Mark
 | 角色/世界观卡上的待确认资产异常徽标 | R3 |
 | 桌面宽度拖拽 280–520px、窄屏抽屉 | R4 |
 | 完整 a11y（焦点圈定、Tab 陷阱测试） | R4 |
+| InkOS 式 card 密度 / 深色 card 视觉对齐 | R4 或不做（主题保持现状） |
 | `sidebarView` 迁入 studio store | 可选，R3+ |
 
 ## 风险与缓解
