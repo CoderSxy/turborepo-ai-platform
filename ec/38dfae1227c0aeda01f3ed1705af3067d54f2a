@@ -1,0 +1,36 @@
+apps/web/features/studio/components/NovelStudio.tsx
+  s_e802f6f9ca27c0::t_413af7596e0a8f 134
+  s_e802f6f9ca27c0::t_fba0e25b288aed 197-202
+  s_e802f6f9ca27c0::t_37297a9f17bdf5 2153-2171
+apps/web/features/studio/hooks/useMessageListScroll.test.mjs
+  s_e802f6f9ca27c0::t_7f3e3b5dad1573 1-17
+apps/web/features/studio/studio.module.css
+  s_e802f6f9ca27c0::t_6a545bbe081f71 928,937-938
+  s_e802f6f9ca27c0::t_112c288d72bf48 163-169,179-194
+  s_e802f6f9ca27c0::t_2184be52833b2a 195
+apps/web/features/studio/actions/send-message.test.mjs
+  s_e802f6f9ca27c0::t_9585d1240e6924 1,3-4,8-68
+  s_e802f6f9ca27c0::t_7279a63dc20f67 2,5-7
+apps/web/features/studio/actions/send-message.ts
+  s_e802f6f9ca27c0::t_011dc8c413b533 42-46
+apps/web/features/studio/hooks/useMessageListScroll.ts
+  s_e802f6f9ca27c0::t_0ca270819d4238 1-81
+apps/web/features/studio/components/chat/ChatComposer.tsx
+  s_e802f6f9ca27c0::t_d0457c78532b61 3,11-12,56-72,89-100,120,125,131-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ec38dfae1227c0aeda01f3ed1705af3067d54f2a",
+  "prompts": {},
+  "sessions": {
+    "s_e802f6f9ca27c0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b0ed73b4-e3df-47c8-896b-7ae5aecb5e10",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
