@@ -1,0 +1,21 @@
+docs/superpowers/specs/2026-07-13-inkos-right-panel-r1-r2-design.md
+  s_746c92d6ba02f2::t_c4ad96ab6328a8 184
+  s_746c92d6ba02f2::t_d421f17aea2465 315
+  s_746c92d6ba02f2::t_533bde1ab1e875 25-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "049f40e99429d11bcd981520fbbe3f13249f4b3a",
+  "prompts": {},
+  "sessions": {
+    "s_746c92d6ba02f2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee94951a-92e1-439f-80c5-e3f32c14c109",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
