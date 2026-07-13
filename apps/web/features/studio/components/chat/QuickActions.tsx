@@ -2,9 +2,9 @@
 
 import styles from "../../studio.module.css";
 import type { StudioAction } from "../../actions/types";
+import { WriteChapterSplitButton } from "./WriteChapterSplitButton";
 
-const ACTIONS = [
-  { label: "写下一章", type: "write-chapter" as const },
+const OTHER_ACTIONS = [
   { label: "审稿", type: "review" as const },
   { label: "修订本章", type: "revise-chapter" as const },
 ];
@@ -12,13 +12,25 @@ const ACTIONS = [
 export function QuickActions({
   disabled,
   onAction,
+  onWriteChapter,
+  onOpenAdvancedOptions,
+  onEditDefaultPreferences,
 }: {
   disabled: boolean;
   onAction: (action: StudioAction) => void;
+  onWriteChapter: () => void;
+  onOpenAdvancedOptions: () => void;
+  onEditDefaultPreferences: () => void;
 }) {
   return (
     <div className={styles.composerQuickActions}>
-      {ACTIONS.map((action) => (
+      <WriteChapterSplitButton
+        disabled={disabled}
+        onWriteChapter={onWriteChapter}
+        onOpenAdvancedOptions={onOpenAdvancedOptions}
+        onEditDefaultPreferences={onEditDefaultPreferences}
+      />
+      {OTHER_ACTIONS.map((action) => (
         <button
           key={action.type}
           type="button"

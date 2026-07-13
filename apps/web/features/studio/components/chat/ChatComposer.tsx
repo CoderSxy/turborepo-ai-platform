@@ -20,6 +20,9 @@ export function ChatComposer({
   disabled,
   canSend,
   onQuickAction,
+  onWriteChapter,
+  onOpenAdvancedOptions,
+  onEditDefaultPreferences,
   moreMenuGroups,
   onOpenCloudSync,
   composerInputRef,
@@ -38,6 +41,9 @@ export function ChatComposer({
   disabled: boolean;
   canSend: boolean;
   onQuickAction: (action: StudioAction) => void;
+  onWriteChapter: () => void;
+  onOpenAdvancedOptions: () => void;
+  onEditDefaultPreferences: () => void;
   moreMenuGroups: MenuGroup[];
   onOpenCloudSync: () => void;
   composerInputRef: RefObject<HTMLTextAreaElement | null>;
@@ -47,7 +53,13 @@ export function ChatComposer({
 }) {
   return (
     <footer className={styles.chatComposer}>
-      <QuickActions disabled={disabled} onAction={onQuickAction} />
+      <QuickActions
+        disabled={disabled}
+        onAction={onQuickAction}
+        onWriteChapter={onWriteChapter}
+        onOpenAdvancedOptions={onOpenAdvancedOptions}
+        onEditDefaultPreferences={onEditDefaultPreferences}
+      />
       {batchQueueBar}
       {activeTaskBar}
       <textarea

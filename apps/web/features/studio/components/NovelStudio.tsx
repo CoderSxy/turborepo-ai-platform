@@ -36,7 +36,9 @@ import {
   buildNovelPlatformExportText,
   buildNovelPublishManifest,
   buildNovelPublishValidationReport,
+  buildNovelStyleConstraintsFromAssets,
   buildNovelTaskResumePreview,
+  selectNextNovelChapterTarget,
   buildNovelVolumeExportBundle,
   buildNovelWorkspaceBackupPayload,
   clearStoredNovelSessionMessages,
@@ -78,6 +80,8 @@ import {
   type NovelCloudSyncPackage,
   type NovelCloudSyncState,
   type NovelCloudSyncWebDavSettings,
+  type NovelChapterWriteTarget,
+  type NovelContextSelection,
   type NovelImportedChapter,
   type NovelPlatformId,
   type NovelProjectAssets,
@@ -129,6 +133,7 @@ import {
 } from "../store/selectors";
 import { fromStoredMessagesBySession, toStoredMessage } from "../persistence/message-bridge";
 import { dispatchStudioAction } from "../actions/dispatch";
+import { resolveDefaultWriteChapterSelection } from "../actions/write-chapter";
 import { sendMessage } from "../actions/send-message";
 import { runCoreAction, pauseActiveCoreTask, resetCoreTaskState } from "../actions/run-core-action";
 import { runBatchCoreAction } from "../actions/run-batch-action";
@@ -146,6 +151,12 @@ import { CreateBookPanel } from "./CreateBookPanel";
 import { NovelBookList } from "./NovelBookList";
 import { NovelToolPanel } from "./NovelToolPanel";
 import { NovelBookPanel } from "./NovelBookPanel";
+import { WriteChapterOptionsSheet } from "./writing/WriteChapterOptionsSheet";
+
+type WritingSheetState =
+  | { mode: "once"; target: NovelChapterWriteTarget }
+  | { mode: "defaults" }
+  | null;
 
 export function NovelStudio({
   settings,
@@ -247,6 +258,7 @@ export function NovelStudio({
   const batchQueueItemsRef = useRef<NovelBatchQueueItem[]>([]);
   const batchQueuePausedRef = useRef(false);
   const batchQueueTaskIdsByItemRef = useRef<Record<string, string>>({});
+  const [writingSheet, setWritingSheet] = useState<WritingSheetState>(null);
   const visibleBooks = useMemo(() => {
     const query = bookSearchQuery.trim().toLowerCase();
 
@@ -497,6 +509,89 @@ export function NovelStudio({
     }
     dispatchStudioAction(actionCtx, action);
   }
+
+  function handleWriteChapterQuickAction() {
+    dispatchStudioAction(actionCtx, {
+      type: "write-chapter",
+      source: "quick-action",
+    });
+  }
+
+  function openAdvancedWriteChapterOptions() {
+    if (!activeBook || !project) {
+      showToast("请先创建一本书籍。", "warning");
+      return;
+    }
+
+    setWritingSheet({
+      mode: "once",
+      target: selectNextNovelChapterTarget(project, activeBook.chapters),
+    });
+  }
+
+  function openDefaultWriteChapterPreferences() {
+    if (!activeBook || !project) {
+      showToast("请先创建一本书籍。", "warning");
+      return;
+    }
+
+    setWritingSheet({ mode: "defaults" });
+  }
+
+  function closeWritingSheet() {
+    setWritingSheet(null);
+  }
+
+  async function saveDefaultWritingPreferences(
+    selection: NovelContextSelection,
+  ) {
+    if (!activeBook) {
+      return;
+    }
+
+    const nextSelection = structuredClone(selection);
+
+    await updateStoredNovelBook(activeBook.id, {
+      assets: {
+        ...activeBook.assets,
+        contextSelection: nextSelection,
+      },
+    });
+    patchBook(activeBook.id, (book) => ({
+      ...book,
+      assets: {
+        ...book.assets,
+        contextSelection: nextSelection,
+      },
+    }));
+    closeWritingSheet();
+    showToast("已保存为默认写作偏好");
+    await refreshNovelWorkspace().catch(() => undefined);
+  }
+
+  function startAdvancedWriteChapter(selection: NovelContextSelection) {
+    if (!writingSheet || writingSheet.mode !== "once") {
+      return;
+    }
+
+    const target = writingSheet.target;
+    closeWritingSheet();
+    dispatchStudioAction(actionCtx, {
+      type: "write-chapter",
+      source: "advanced",
+      target,
+      contextSelection: structuredClone(selection),
+    });
+  }
+
+  const writingSheetInitialValue =
+    activeBook && project
+      ? resolveDefaultWriteChapterSelection(activeBook, project)
+      : null;
+  const writingSheetDerivedStyleConstraints =
+    activeBook && project
+      ? buildNovelStyleConstraintsFromAssets(activeBook.assets, project)
+      : "";
 
   function runExtendedCommand(command: string) {
     const coreAction = QUICK_CORE_ACTIONS[command];
@@ -2071,6 +2166,9 @@ export function NovelStudio({
               disabled={isTaskRunning}
               canSend={canSendChat}
               onQuickAction={handleStudioAction}
+              onWriteChapter={handleWriteChapterQuickAction}
+              onOpenAdvancedOptions={openAdvancedWriteChapterOptions}
+              onEditDefaultPreferences={openDefaultWriteChapterPreferences}
               moreMenuGroups={buildComposerMoreMenuGroups()}
               onOpenCloudSync={() => setCloudSyncDialogOpen(true)}
               composerInputRef={composerInputRef}
@@ -2333,6 +2431,20 @@ export function NovelStudio({
             </footer>
           </section>
         </div>
+      ) : null}
+      {writingSheet && writingSheetInitialValue ? (
+        <WriteChapterOptionsSheet
+          open
+          mode={writingSheet.mode}
+          target={writingSheet.mode === "once" ? writingSheet.target : undefined}
+          initialValue={writingSheetInitialValue}
+          derivedStyleConstraints={writingSheetDerivedStyleConstraints}
+          onClose={closeWritingSheet}
+          onStartGenerate={startAdvancedWriteChapter}
+          onSaveDefaults={(selection) =>
+            void saveDefaultWritingPreferences(selection)
+          }
+        />
       ) : null}
     </div>
   );
