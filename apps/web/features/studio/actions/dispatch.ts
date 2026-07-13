@@ -13,7 +13,7 @@ export function dispatchStudioAction(
       break;
     case "write-chapter":
       void executeWriteChapter(ctx, {
-        source: action.source,
+        source: action.source ?? "quick-action",
         target: action.target,
         contextSelection: action.contextSelection,
       });

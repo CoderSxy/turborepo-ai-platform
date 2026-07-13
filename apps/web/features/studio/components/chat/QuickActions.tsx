@@ -23,7 +23,9 @@ export function QuickActions({
           key={action.type}
           type="button"
           disabled={disabled}
-          onClick={() => onAction({ type: action.type })}
+          onClick={() =>
+            onAction({ type: action.type, source: "quick-action" })
+          }
         >
           {action.label}
         </button>

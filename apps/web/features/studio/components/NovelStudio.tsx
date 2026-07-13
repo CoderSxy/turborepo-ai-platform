@@ -65,7 +65,6 @@ import {
   restoreNovelWorkspaceBackup,
   restoreStoredNovelChapterVersion,
   saveNovelCloudSyncState,
-  selectNextNovelChapterTarget,
   skipNovelBatchQueueItem,
   skipStoredNovelTask,
   syncNovelProjectChapterPlan,
@@ -488,27 +487,64 @@ export function NovelStudio({
       notify: showToast,
       trackModelCall,
       refreshWorkspace: refreshNovelWorkspace,
+      requestWriteChapterConfirm: async (input) => {
+        return requestWriteChapterConfirm(
+          input.target,
+          {
+            ...activeBook!.assets,
+            contextSelection: input.initialSelection,
+          },
+          project!,
+          input.derivedStyleConstraints,
+        );
+      },
     }),
-    [settings, onSettingsChange, refreshNovelWorkspace, trackModelCall],
+    [
+      settings,
+      onSettingsChange,
+      refreshNovelWorkspace,
+      trackModelCall,
+      activeBook,
+      project,
+    ],
   );
 
   function handleStudioAction(action: StudioAction) {
-    if (action.type === "write-chapter") {
-      if (project && activeBook) {
-        const target = selectNextNovelChapterTarget(
-          project,
-          activeBook.chapters,
-        );
-        void startWriteChapter(target);
-      }
+    if (action.type === "write-chapter" && !action.source) {
+      dispatchStudioAction(actionCtx, { ...action, source: "quick-action" });
       return;
     }
-
+    if (
+      (action.type === "review" || action.type === "revise-chapter") &&
+      !action.source
+    ) {
+      dispatchStudioAction(actionCtx, { ...action, source: "quick-action" });
+      return;
+    }
     dispatchStudioAction(actionCtx, action);
   }
 
   function runExtendedCommand(command: string) {
     const coreAction = QUICK_CORE_ACTIONS[command];
+
+    if (coreAction === "write-chapter") {
+      dispatchStudioAction(actionCtx, {
+        type: "write-chapter",
+        source: "composer",
+      });
+      return;
+    }
+    if (coreAction === "review") {
+      dispatchStudioAction(actionCtx, { type: "review", source: "composer" });
+      return;
+    }
+    if (coreAction === "revise-chapter") {
+      dispatchStudioAction(actionCtx, {
+        type: "revise-chapter",
+        source: "composer",
+      });
+      return;
+    }
 
     if (coreAction) {
       void runCoreAction(actionCtx, coreAction);
@@ -667,15 +703,15 @@ export function NovelStudio({
     target: NovelChapterWriteTarget,
     assets: NovelProjectAssets,
     bookProject: InkosNovelProject,
+    derivedStyleConstraintsOverride?: string,
   ): Promise<NovelContextSelection | null> {
     const initialSelection = {
       ...(assets.contextSelection ??
         buildDefaultNovelContextSelection(bookProject)),
     };
-    const derivedStyleConstraints = buildNovelStyleConstraintsFromAssets(
-      assets,
-      bookProject,
-    );
+    const derivedStyleConstraints =
+      derivedStyleConstraintsOverride ??
+      buildNovelStyleConstraintsFromAssets(assets, bookProject);
 
     setWriteChapterConfirm({
       target,
@@ -685,30 +721,6 @@ export function NovelStudio({
 
     return new Promise((resolve) => {
       writeChapterConfirmResolverRef.current = resolve;
-    });
-  }
-
-  async function startWriteChapter(
-    target: NovelChapterWriteTarget,
-    options?: { skipConfirm?: boolean },
-  ) {
-    if (!activeBook || !project) {
-      showToast("请先创建一本书籍。", "warning");
-      return;
-    }
-
-    const selection = options?.skipConfirm
-      ? (activeBook.assets.contextSelection ??
-        buildDefaultNovelContextSelection(project))
-      : await requestWriteChapterConfirm(target, activeBook.assets, project);
-
-    if (!selection) {
-      return;
-    }
-
-    await runCoreAction(actionCtx, "write-chapter", {
-      targetChapter: target,
-      contextSelectionOverride: selection,
     });
   }
 
@@ -2241,7 +2253,11 @@ export function NovelStudio({
             onChapterDelete={removeChapter}
             onChapterVersionRestore={restoreChapterVersion}
             onGenerateChapter={async (target) => {
-              await startWriteChapter(target);
+              dispatchStudioAction(actionCtx, {
+                type: "write-chapter",
+                source: "chapter-panel",
+                target,
+              });
             }}
             onReviseChapter={async (selectedIssueIds) => {
               await runCoreAction(actionCtx, "revise-chapter", { selectedIssueIds });

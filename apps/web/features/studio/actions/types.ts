@@ -26,7 +26,7 @@ export type StudioAction =
   | { type: "send-message"; text: string; source?: StudioActionSource }
   | {
       type: "write-chapter";
-      source: StudioActionSource;
+      source?: StudioActionSource;
       target?: NovelChapterWriteTarget;
       contextSelection?: NovelContextSelection;
     }
