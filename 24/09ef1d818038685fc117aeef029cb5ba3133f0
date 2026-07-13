@@ -1,0 +1,30 @@
+apps/web/features/studio/actions/dispatch.ts
+  s_b9d72ae333ac5b::t_7f779a5b396c00 3,15-19
+apps/web/features/studio/actions/dispatch.test.mjs
+  s_b9d72ae333ac5b::t_ed2e50ce964ec6 2,4-7
+  s_b9d72ae333ac5b::t_d51acbea5f3cc3 1,3,8-34
+apps/web/features/studio/actions/write-chapter.test.mjs
+  s_b9d72ae333ac5b::t_31b246f0e1b59a 3,6-8,11
+apps/web/features/studio/actions/node-test-resolve.mjs
+  s_b9d72ae333ac5b::t_7c2e45f7b406b7 1-28
+apps/web/features/studio/actions/write-chapter.ts
+  s_b9d72ae333ac5b::t_97a3e832ffa6d2 4-6,11-17,46-93
+  s_b9d72ae333ac5b::t_4a53bfa3aa33eb 10
+  s_b9d72ae333ac5b::t_b17485afe97125 94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2409ef1d818038685fc117aeef029cb5ba3133f0",
+  "prompts": {},
+  "sessions": {
+    "s_b9d72ae333ac5b": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "bcf2e954-ce3f-4b15-9281-fdd67a83ee31",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
