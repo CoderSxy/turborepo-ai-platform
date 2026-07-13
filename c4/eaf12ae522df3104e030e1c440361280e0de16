@@ -1,0 +1,19 @@
+apps/web/features/studio/actions/types.ts
+  s_7472c92caeaeb6::t_f703348ad9de1a 11-30,32-44,61-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c4eaf12ae522df3104e030e1c440361280e0de16",
+  "prompts": {},
+  "sessions": {
+    "s_7472c92caeaeb6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9007e673-5d7d-4b86-a320-36d57cdc705c",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
