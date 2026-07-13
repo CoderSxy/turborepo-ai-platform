@@ -1,9 +1,9 @@
+import type { InkosNovelProject } from "@repo/inkos-adapter";
 import {
   buildDefaultNovelContextSelection,
-  type InkosNovelProject,
   type NovelContextSelection,
-} from "../../../lib/novel-store.ts";
-import type { NovelBookEntry } from "../state/studio-types.ts";
+} from "#lib/novel-store";
+import type { NovelBookEntry } from "../state/studio-types";
 
 const CONTEXT_LABELS: Array<[keyof NovelContextSelection, string]> = [
   ["includeOutline", "章节计划 / 大纲"],

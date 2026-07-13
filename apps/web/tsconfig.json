@@ -9,6 +9,7 @@
     "strictNullChecks": true,
     "paths": {
       "#lib/model-settings": ["./lib/model-settings.ts"],
+      "#lib/novel-store": ["./lib/novel-store.ts"],
       "#models/model-page-types": ["./features/models/state/model-page-types.ts"],
       "#studio/parts-builder": ["./features/studio/store/slices/message/parts-builder.ts"]
     }
