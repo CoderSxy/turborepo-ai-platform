@@ -131,7 +131,7 @@ import {
   useIsTaskRunning,
   useRunningTaskLabel,
 } from "../store/selectors";
-import { useMessageListScroll } from "../hooks/useMessageListScroll";
+import { useMessageListScroll, getMessageListScrollToken } from "../hooks/useMessageListScroll";
 import { fromStoredMessagesBySession, toStoredMessage } from "../persistence/message-bridge";
 import { dispatchStudioAction } from "../actions/dispatch";
 import { resolveDefaultWriteChapterSelection } from "../actions/write-chapter";
@@ -194,12 +194,15 @@ export function NovelStudio({
   const isTaskRunning = useIsTaskRunning();
   const activeTaskLabel = useRunningTaskLabel();
   const messages = useActiveMessages();
-  const isMessageStreaming = messages.at(-1)?.streaming ?? false;
+  const messageScrollToken = useMemo(
+    () => getMessageListScrollToken(messages),
+    [messages],
+  );
   const {
     containerRef: messageListRef,
     showJumpToLatest,
     scrollToLatest,
-  } = useMessageListScroll(messages.length, isMessageStreaming);
+  } = useMessageListScroll(messageScrollToken);
   const [activeTool, setActiveTool] = useState<NovelTool>("AI创作");
   const [toolOverflowOpen, setToolOverflowOpen] = useState(false);
   const [cloudSyncDialogOpen, setCloudSyncDialogOpen] = useState(false);
@@ -628,6 +631,14 @@ export function NovelStudio({
     }
 
     void sendMessage(actionCtx, command);
+  }
+
+  function handleComposerSend(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return;
+    }
+    runExtendedCommand(trimmed);
   }
 
   function cancelActiveTask() {
@@ -2175,7 +2186,7 @@ export function NovelStudio({
             <ChatComposer
               input={input}
               onInputChange={setInput}
-              onSend={() => void sendMessage(actionCtx, input)}
+              onSend={() => handleComposerSend(input)}
               selectedModelValue={selectedModelValue}
               modelGroups={groupedModels}
               recentModels={settings.recentModels ?? []}

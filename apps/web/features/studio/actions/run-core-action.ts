@@ -280,6 +280,11 @@ export async function runCoreAction(
       throw new Error("请先选择一个已生成章节，再根据审稿意见修订。");
     }
 
+    const userInstruction = store.input.trim();
+    if (userInstruction) {
+      store.setInput("");
+    }
+
     if (action === "write-chapter" && writeTarget && !isResume) {
       progressMessages.push(
         `正在准备第 ${writeTarget.number} 章《${writeTarget.title}》`,
@@ -310,7 +315,7 @@ export async function runCoreAction(
     const coreInstruction =
       action === "review" && reviewTarget
         ? [
-            store.input.trim(),
+            userInstruction,
             `请审稿当前选中章节：第 ${reviewTarget.number} 章《${reviewTarget.title}》。`,
             `章节摘要：${reviewTarget.summary || "暂无摘要"}`,
             `章节正文：\n${reviewTarget.content}`,
@@ -323,10 +328,10 @@ export async function runCoreAction(
               assets: activeBook.assets,
               chapters: activeBook.chapters,
               target: writeTarget,
-              userInstruction: store.input.trim() || undefined,
+              userInstruction: userInstruction || undefined,
               contextSelectionOverride: options?.contextSelectionOverride,
             })
-          : store.input.trim() || undefined;
+          : userInstruction || undefined;
     const resolvedCoreInstruction =
       action === "revise-chapter" && reviseTarget
         ? buildNovelReviseChapterInstruction({
@@ -334,7 +339,7 @@ export async function runCoreAction(
             assets: activeBook.assets,
             chapter: reviseTarget,
             selectedIssueIds: options?.selectedIssueIds,
-            userInstruction: store.input.trim() || undefined,
+            userInstruction: userInstruction || undefined,
           })
         : coreInstruction;
 
@@ -641,7 +646,6 @@ export async function runCoreAction(
     }
     await ctx.refreshWorkspace();
     store.updateMessage(requestSessionId, assistantMessageId, () => assistantMessage);
-    store.setInput("");
     ctx.trackModelCall(
       bindingResult,
       label,
