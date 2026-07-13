@@ -1,0 +1,32 @@
+apps/web/features/studio/actions/run-core-action.ts
+  s_e802f6f9ca27c0::t_32f7dd7a449d8c 283-287
+  s_e802f6f9ca27c0::t_046b827fc0ba01 318,331,334,342
+apps/web/features/studio/components/NovelStudio.tsx
+  s_e802f6f9ca27c0::t_9493d93757b7c9 636-643
+  s_e802f6f9ca27c0::t_09f5cc9f46f6fd 134
+  s_e802f6f9ca27c0::t_9af069955671bc 2189
+  s_e802f6f9ca27c0::t_4b72f1aad1ff4b 197-200,205
+apps/web/features/studio/hooks/useMessageListScroll.ts
+  s_e802f6f9ca27c0::t_ed170367435f6d 88
+  s_e802f6f9ca27c0::t_e4499ca085e7e2 4
+  s_e802f6f9ca27c0::t_724db5dfd364ef 17-44
+apps/web/features/studio/hooks/useMessageListScroll.test.mjs
+  s_e802f6f9ca27c0::t_3198452eb84dbb 18-40
+  s_e802f6f9ca27c0::t_c5b93ee7760d8a 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a5851c770891fcc8565fdeba885b853467b1f959",
+  "prompts": {},
+  "sessions": {
+    "s_e802f6f9ca27c0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b0ed73b4-e3df-47c8-896b-7ae5aecb5e10",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
