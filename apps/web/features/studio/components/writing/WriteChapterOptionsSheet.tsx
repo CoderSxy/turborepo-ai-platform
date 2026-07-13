@@ -7,6 +7,46 @@ import { WriteChapterOptionsForm } from "./WriteChapterOptionsForm";
 
 export type WriteChapterOptionsSheetMode = "once" | "defaults";
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+}
+
+function handleFocusTrapKeyDown(
+  container: HTMLElement,
+  event: KeyboardEvent,
+): void {
+  if (event.key !== "Tab") {
+    return;
+  }
+
+  const focusable = getFocusableElements(container);
+  if (focusable.length === 0) {
+    event.preventDefault();
+    container.focus();
+    return;
+  }
+
+  const first = focusable[0]!;
+  const last = focusable[focusable.length - 1]!;
+  const active = document.activeElement;
+
+  if (event.shiftKey) {
+    if (!active || !container.contains(active) || active === first) {
+      event.preventDefault();
+      last.focus();
+    }
+    return;
+  }
+
+  if (!active || !container.contains(active) || active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 export function WriteChapterOptionsSheet({
   open,
   mode,
@@ -47,13 +87,26 @@ export function WriteChapterOptionsSheet({
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
+        return;
+      }
+
+      if (panelRef.current) {
+        handleFocusTrapKeyDown(panelRef.current, event);
       }
     }
 
     document.addEventListener("keydown", handleKeyDown);
-    panelRef.current?.focus();
+
+    const frame = window.requestAnimationFrame(() => {
+      if (!panelRef.current) {
+        return;
+      }
+      const focusable = getFocusableElements(panelRef.current);
+      (focusable[0] ?? panelRef.current).focus();
+    });
 
     return () => {
+      window.cancelAnimationFrame(frame);
       document.removeEventListener("keydown", handleKeyDown);
       triggerRef.current?.focus();
     };
