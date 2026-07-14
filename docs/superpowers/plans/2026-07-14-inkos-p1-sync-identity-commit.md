@@ -259,7 +259,7 @@ git commit -m "feat(studio): atomically commit completed chapter writes"
 
 ## Task 5: Route `write-chapter` through that single commit point
 
-**Status:** DONE (`pending-commit`)
+**Status:** DONE (`85e37de`)
 
 **Files:**
 
