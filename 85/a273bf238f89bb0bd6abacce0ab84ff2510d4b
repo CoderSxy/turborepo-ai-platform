@@ -1,0 +1,28 @@
+apps/web/features/studio/studio.module.css
+  s_eb004f67859e62::t_f667af83cecd1b 1683,1688
+  s_eb004f67859e62::t_037335020520a1 1824-1825
+  s_eb004f67859e62::t_6f9698524e3807 1550,1553,1559,1566-1568,1572-1573
+  s_eb004f67859e62::t_990b4221308a4d 1892
+  s_eb004f67859e62::t_fb74371b2448e1 1727
+  s_eb004f67859e62::t_d0707e23a48806 1810-1813,1821,1829,1836-1838,1841,1843,1850,1864-1865,1875,1891,1897-1900,1915,1925
+  s_eb004f67859e62::t_2c770f6b70dbe7 1814
+  s_eb004f67859e62::t_2cf1b799a5b35c 1866
+  s_eb004f67859e62::t_7768e649d687a9 1822,2002-2004,2009,2014,2016-2021
+  s_eb004f67859e62::t_bf8decdae382ec 1823
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "85a273bf238f89bb0bd6abacce0ab84ff2510d4b",
+  "prompts": {},
+  "sessions": {
+    "s_eb004f67859e62": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "666e4eb5-56e5-4c6f-9ef5-c3d296f444ae",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
