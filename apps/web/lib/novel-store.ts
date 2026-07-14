@@ -113,13 +113,98 @@ export type NovelProjectAssets = {
   projectStrategy?: NovelProjectStrategy;
   publicationEvents?: NovelPublicationEvent[];
   assetChangeEvents?: NovelAssetChangeEvent[];
-  pendingMigration?: {
-    schemaVersion: 1;
-    migratedAt?: string;
-    appliedChapters: number[];
-    skippedPendingIds?: string[];
-  };
+  pendingMigration: NovelPendingMigrationV2;
 };
+
+export type NovelPendingMigrationV2 = {
+  schemaVersion: 2;
+  appliedSyncIds: string[];
+  legacyAppliedChapters: number[];
+  skippedPendingIds: string[];
+  migratedAt?: string;
+  retrySchemaVersion?: number;
+  /** @deprecated Task 1 bridge; removed in Task 2 */
+  appliedChapters?: number[];
+};
+
+type RawPendingMigrationInput = {
+  schemaVersion?: number;
+  appliedChapters?: number[];
+  appliedSyncIds?: string[];
+  legacyAppliedChapters?: number[];
+  skippedPendingIds?: string[];
+  migratedAt?: string;
+  retrySchemaVersion?: number;
+  [key: string]: unknown;
+};
+
+const PENDING_MIGRATION_KNOWN_KEYS = new Set([
+  "schemaVersion",
+  "appliedSyncIds",
+  "legacyAppliedChapters",
+  "skippedPendingIds",
+  "migratedAt",
+  "retrySchemaVersion",
+  "appliedChapters",
+]);
+
+export function normalizePendingMigration(raw: unknown): NovelPendingMigrationV2 {
+  const defaults: NovelPendingMigrationV2 = {
+    schemaVersion: 2,
+    appliedSyncIds: [],
+    legacyAppliedChapters: [],
+    skippedPendingIds: [],
+  };
+
+  if (!raw || typeof raw !== "object") {
+    return defaults;
+  }
+
+  const input = raw as RawPendingMigrationInput;
+  const residual: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (!PENDING_MIGRATION_KNOWN_KEYS.has(key)) {
+      residual[key] = value;
+    }
+  }
+
+  const schemaVersion =
+    typeof input.schemaVersion === "number" ? input.schemaVersion : 1;
+
+  const appliedChapters = Array.isArray(input.appliedChapters)
+    ? input.appliedChapters.filter((n): n is number => typeof n === "number")
+    : undefined;
+
+  const legacyFromInput = Array.isArray(input.legacyAppliedChapters)
+    ? input.legacyAppliedChapters.filter((n): n is number => typeof n === "number")
+    : [];
+
+  const appliedSyncIds = Array.isArray(input.appliedSyncIds)
+    ? input.appliedSyncIds.filter((s): s is string => typeof s === "string")
+    : [];
+
+  const skippedPendingIds = Array.isArray(input.skippedPendingIds)
+    ? input.skippedPendingIds.filter((s): s is string => typeof s === "string")
+    : [];
+
+  const legacyAppliedChapters =
+    schemaVersion < 2 && appliedChapters && appliedChapters.length > 0
+      ? appliedChapters
+      : legacyFromInput;
+
+  return {
+    ...residual,
+    schemaVersion: 2,
+    appliedSyncIds,
+    legacyAppliedChapters,
+    skippedPendingIds,
+    ...(typeof input.migratedAt === "string" ? { migratedAt: input.migratedAt } : {}),
+    ...(typeof input.retrySchemaVersion === "number"
+      ? { retrySchemaVersion: input.retrySchemaVersion }
+      : {}),
+    ...(appliedChapters !== undefined ? { appliedChapters } : {}),
+  };
+}
 
 export type NovelAssetConflictSeverity = "error" | "warning" | "info";
 
@@ -5027,7 +5112,9 @@ export function normalizeNovelProjectAssets(
     publicationEvents: assets?.publicationEvents ?? [],
     assetChangeEvents: assets?.assetChangeEvents ?? [],
     projectStrategy: assets?.projectStrategy,
-    pendingMigration: assets?.pendingMigration ?? defaultAssets.pendingMigration,
+    pendingMigration: normalizePendingMigration(
+      assets?.pendingMigration ?? defaultAssets.pendingMigration,
+    ),
   };
 }
 
@@ -5904,7 +5991,12 @@ export function createDefaultNovelAssets(
     importedMaterials: [],
     marketRadars: [],
     diagnostics: [],
-    pendingMigration: { schemaVersion: 1, appliedChapters: [] },
+    pendingMigration: normalizePendingMigration({
+      schemaVersion: 2,
+      appliedSyncIds: [],
+      legacyAppliedChapters: [],
+      skippedPendingIds: [],
+    }),
   };
 }
 
@@ -5955,6 +6047,10 @@ export async function loadNovelWorkspace(): Promise<NovelWorkspaceSnapshot> {
           book.assets.pendingAssetDeltas.length ||
         nextAssets.pendingMigration?.migratedAt !==
           book.assets.pendingMigration?.migratedAt ||
+        JSON.stringify(nextAssets.pendingMigration?.appliedSyncIds) !==
+          JSON.stringify(book.assets.pendingMigration?.appliedSyncIds) ||
+        JSON.stringify(nextAssets.pendingMigration?.legacyAppliedChapters) !==
+          JSON.stringify(book.assets.pendingMigration?.legacyAppliedChapters) ||
         JSON.stringify(nextAssets.pendingMigration?.appliedChapters) !==
           JSON.stringify(book.assets.pendingMigration?.appliedChapters) ||
         JSON.stringify(nextAssets.pendingMigration?.skippedPendingIds) !==

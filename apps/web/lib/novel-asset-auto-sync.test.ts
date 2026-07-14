@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { NovelChapterAssetDelta, NovelProjectAssets } from "./novel-store.ts";
+import { normalizePendingMigration } from "./novel-store.ts";
 import {
   countSyncAttentionDiagnostics,
   mergeNovelChapterAssetDeltaSafely,
@@ -51,6 +52,52 @@ function sampleDelta(
     ...overrides,
   };
 }
+
+describe("normalizePendingMigration", () => {
+  it("upgrades v1 to v2 preserving chapter numbers in legacyAppliedChapters", () => {
+    const result = normalizePendingMigration({
+      schemaVersion: 1,
+      appliedChapters: [1, 2, 3],
+      skippedPendingIds: ["p1"],
+      migratedAt: "2026-01-01T00:00:00.000Z",
+    });
+    assert.equal(result.schemaVersion, 2);
+    assert.deepEqual(result.legacyAppliedChapters, [1, 2, 3]);
+    assert.deepEqual(result.appliedSyncIds, []);
+    assert.deepEqual(result.skippedPendingIds, ["p1"]);
+    assert.equal(result.migratedAt, "2026-01-01T00:00:00.000Z");
+    assert.deepEqual(result.appliedChapters, [1, 2, 3]);
+  });
+
+  it("does not put chapter numbers into appliedSyncIds", () => {
+    const result = normalizePendingMigration({
+      schemaVersion: 1,
+      appliedChapters: [5, 10],
+    });
+    assert.deepEqual(result.appliedSyncIds, []);
+    for (const chapter of [5, 10]) {
+      assert.ok(!result.appliedSyncIds.includes(String(chapter)));
+    }
+  });
+
+  it("default assets contain empty v2 arrays", () => {
+    const result = normalizePendingMigration(undefined);
+    assert.equal(result.schemaVersion, 2);
+    assert.deepEqual(result.appliedSyncIds, []);
+    assert.deepEqual(result.legacyAppliedChapters, []);
+    assert.deepEqual(result.skippedPendingIds, []);
+  });
+
+  it("normalization is idempotent", () => {
+    const once = normalizePendingMigration({
+      schemaVersion: 1,
+      appliedChapters: [1],
+      skippedPendingIds: ["x"],
+    });
+    const twice = normalizePendingMigration(once);
+    assert.deepEqual(twice, once);
+  });
+});
 
 describe("mergeNovelChapterAssetDeltaSafely", () => {
   it("applies delta without growing pendingAssetDeltas", () => {

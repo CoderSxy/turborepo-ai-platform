@@ -1,6 +1,8 @@
 import {
   applyNovelChapterAssetDelta,
+  normalizePendingMigration,
   type NovelChapterAssetDelta,
+  type NovelPendingMigrationV2,
   type NovelProjectAssets,
 } from "#lib/novel-store";
 
@@ -23,17 +25,17 @@ function hasDeltaContent(delta: NovelChapterAssetDelta): boolean {
 
 function withMigration(
   assets: NovelProjectAssets,
-  patch: Partial<NonNullable<NovelProjectAssets["pendingMigration"]>>,
+  patch: Partial<NovelPendingMigrationV2>,
 ): NovelProjectAssets["pendingMigration"] {
-  return {
-    schemaVersion: 1,
+  return normalizePendingMigration({
     ...assets.pendingMigration,
     ...patch,
+    schemaVersion: 2,
+    appliedSyncIds:
+      patch.appliedSyncIds ?? assets.pendingMigration.appliedSyncIds ?? [],
     appliedChapters:
-      patch.appliedChapters ??
-      assets.pendingMigration?.appliedChapters ??
-      [],
-  };
+      patch.appliedChapters ?? assets.pendingMigration.appliedChapters ?? [],
+  });
 }
 
 export function countSyncAttentionDiagnostics(
