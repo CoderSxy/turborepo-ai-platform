@@ -18,7 +18,6 @@ export function NovelBookList({
   onManageModeChange,
   selectedBookIds,
   showArchived,
-  totalBooks: _totalBooks,
   searchInputRef,
   onBulkArchive,
   onBulkDelete,
@@ -49,7 +48,6 @@ export function NovelBookList({
   onManageModeChange: (next: boolean) => void;
   selectedBookIds: string[];
   showArchived: boolean;
-  totalBooks: number;
   searchInputRef: RefObject<HTMLInputElement | null>;
   onBulkArchive: () => void;
   onBulkDelete: () => void;
@@ -145,27 +143,31 @@ export function NovelBookList({
           </button>
         </div>
       ) : null}
-      {manageMode && selectedCount > 0 ? (
+      {manageMode ? (
         <div className={styles.bulkActionBar}>
           <strong>已选 {selectedCount}</strong>
           <button type="button" onClick={onSelectAllVisible}>
             {visibleAllSelected ? "取消全选" : "全选"}
           </button>
-          {showArchived ? (
-            <button type="button" onClick={onBulkRestore}>
-              还原
-            </button>
-          ) : (
-            <button type="button" onClick={onBulkArchive}>
-              归档
-            </button>
-          )}
-          <button type="button" onClick={onBulkDelete}>
-            删除
-          </button>
-          <button type="button" onClick={onClearSelection}>
-            取消
-          </button>
+          {selectedCount > 0 ? (
+            <>
+              {showArchived ? (
+                <button type="button" onClick={onBulkRestore}>
+                  还原
+                </button>
+              ) : (
+                <button type="button" onClick={onBulkArchive}>
+                  归档
+                </button>
+              )}
+              <button type="button" onClick={onBulkDelete}>
+                删除
+              </button>
+              <button type="button" onClick={onClearSelection}>
+                取消
+              </button>
+            </>
+          ) : null}
           <button type="button" onClick={exitManageMode}>
             完成管理
           </button>

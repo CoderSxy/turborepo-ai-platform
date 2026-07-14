@@ -2147,7 +2147,6 @@ export function NovelStudio({
             }}
             selectedBookIds={selectedBookIds}
             showArchived={showArchivedBooks}
-            totalBooks={books.length}
             searchInputRef={bookSearchInputRef}
             onBulkArchive={() => void bulkArchiveBooks(true)}
             onBulkDelete={() => void bulkDeleteBooks()}

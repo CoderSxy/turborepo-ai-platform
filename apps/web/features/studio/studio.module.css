@@ -1912,7 +1912,6 @@
   font-size: 14px;
   line-height: 1;
   opacity: 0;
-  pointer-events: none;
   padding: 0;
 }
 
@@ -1922,7 +1921,12 @@
 .sessionTreeRow:focus-within .bookTreeMoreButton,
 .bookTreeMoreButton[aria-expanded="true"] {
   opacity: 1;
-  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .bookTreeMoreButton {
+    opacity: 1;
+  }
 }
 
 .bookTreeMoreButton:hover,
