@@ -5942,8 +5942,41 @@ export async function loadNovelWorkspace(): Promise<NovelWorkspaceSnapshot> {
       recoveredTasks.map((task) => putInStore(db, TASKS_STORE, task)),
     );
 
+    const { migratePendingAssetDeltas } = await import(
+      "./novel-asset-auto-sync"
+    );
+    const normalizedBooks = books.map(normalizeStoredNovelBook);
+    const migratedBooks: StoredNovelBook[] = [];
+
+    for (const book of normalizedBooks) {
+      const nextAssets = migratePendingAssetDeltas(book.assets);
+      const pendingChanged =
+        nextAssets.pendingAssetDeltas.length !==
+          book.assets.pendingAssetDeltas.length ||
+        nextAssets.pendingMigration?.migratedAt !==
+          book.assets.pendingMigration?.migratedAt ||
+        JSON.stringify(nextAssets.pendingMigration?.appliedChapters) !==
+          JSON.stringify(book.assets.pendingMigration?.appliedChapters) ||
+        JSON.stringify(nextAssets.pendingMigration?.skippedPendingIds) !==
+          JSON.stringify(book.assets.pendingMigration?.skippedPendingIds) ||
+        (nextAssets.diagnostics?.length ?? 0) !==
+          (book.assets.diagnostics?.length ?? 0);
+
+      if (pendingChanged) {
+        const nextBook = {
+          ...book,
+          assets: nextAssets,
+          updatedAt: new Date().toISOString(),
+        };
+        await putInStore(db, BOOKS_STORE, nextBook);
+        migratedBooks.push(nextBook);
+      } else {
+        migratedBooks.push(book);
+      }
+    }
+
     return buildNovelWorkspaceSnapshot(
-      books,
+      migratedBooks,
       sessions,
       messages,
       chapters,
