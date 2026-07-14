@@ -1,0 +1,29 @@
+apps/web/lib/novel-asset-auto-sync.ts
+  s_cdedb089760858::t_8beedff413a09e 3,5
+  s_cdedb089760858::t_9a125661f0632b 28,30,33-35,37-38
+apps/web/lib/novel-store.ts
+  s_cdedb089760858::t_38df872b44be4e 116-127,130-207
+  s_cdedb089760858::t_fa4b38e1c55c82 5115-5117
+  s_cdedb089760858::t_eb3b14fe7cdca3 6050-6053
+  s_cdedb089760858::t_7a999e8212c1f4 5994-5999
+  s_cdedb089760858::t_c2dcada122f838 208
+apps/web/lib/novel-asset-auto-sync.test.ts
+  s_cdedb089760858::t_609d2c2132e0ee 4
+  s_cdedb089760858::t_2dd07b08d4f8cb 56-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ffca2e6432b34e4f37549a3c1858384eae54a931",
+  "prompts": {},
+  "sessions": {
+    "s_cdedb089760858": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "093fa529-8f8a-4b31-90c2-8750e93f692c",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
