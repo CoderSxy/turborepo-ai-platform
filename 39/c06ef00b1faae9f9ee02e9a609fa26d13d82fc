@@ -1,0 +1,32 @@
+apps/web/features/studio/components/BookActionsMenu.tsx
+  s_746c92d6ba02f2::t_83159627656a20 3-4,6,11,23,33-37,39,43-50,108-109
+apps/web/features/studio/components/BookTreeItem.tsx
+  s_746c92d6ba02f2::t_5eca7802f49756 50,106,123
+apps/web/features/studio/components/use-book-tree-anchored-menu.ts
+  s_746c92d6ba02f2::t_0b2ba845d50001 28-30,107-110,113,125,173,186
+  s_746c92d6ba02f2::t_6b522e6cfd5b19 1-27,31-106,111-112,114-124,126-172,174-185,187-189
+apps/web/features/studio/components/SessionTreeItem.tsx
+  s_746c92d6ba02f2::t_374a8cf944a2ed 3,22,44,61
+apps/web/features/studio/studio.module.css
+  s_746c92d6ba02f2::t_069fa026c73345 1952-1958
+apps/web/features/studio/components/NovelStudio.tsx
+  s_746c92d6ba02f2::t_d46a94809ef4f5 2160-2162,2164-2166
+apps/web/features/studio/components/SessionActionsMenu.tsx
+  s_746c92d6ba02f2::t_e97090535840ea 3-4,6,11,18,23-27,29,33,35-37,63-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "39c06ef00b1faae9f9ee02e9a609fa26d13d82fc",
+  "prompts": {},
+  "sessions": {
+    "s_746c92d6ba02f2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee94951a-92e1-439f-80c5-e3f32c14c109",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
