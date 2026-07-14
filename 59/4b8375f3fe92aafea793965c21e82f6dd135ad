@@ -1,0 +1,23 @@
+apps/web/features/studio/components/book-tree-expand.test.ts
+  s_11a17258a5a4b5::t_4ca9d1f7ecfbe7 1-22
+apps/web/features/studio/components/book-tree-expand.ts
+  s_11a17258a5a4b5::t_0ce8b59198050c 1-24
+apps/web/package.json
+  s_11a17258a5a4b5::t_6481c1ac920165 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "594b8375f3fe92aafea793965c21e82f6dd135ad",
+  "prompts": {},
+  "sessions": {
+    "s_11a17258a5a4b5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "5625f930-7fa8-4e69-a6e4-adab68a72710",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
