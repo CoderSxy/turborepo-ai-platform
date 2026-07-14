@@ -3,6 +3,14 @@ import type {
   InkosChapterStatus,
   InkosNovelProject,
 } from "@repo/inkos-adapter";
+import {
+  applyCharacterStateChangesToProfiles,
+  buildCharacterStateChangesFromLegacyStates,
+  deriveCharactersMarkdownFromProfiles,
+  isCredibleCharacterName,
+  normalizeCharacterProfiles,
+  parseStructuredCharacterStateChanges,
+} from "#lib/novel-character-profiles";
 
 const DB_NAME = "sxy-creative-studio";
 const DB_VERSION = 5;
@@ -88,6 +96,7 @@ export type NovelProjectAssets = {
   outlineNodes: NovelOutlineNode[];
   worldNotes: string;
   characters: string;
+  characterProfiles: NovelCharacterProfile[];
   settings: string;
   knowledgeAssets: NovelKnowledgeAsset[];
   pendingAssetDeltas: NovelPendingAssetDelta[];
@@ -413,6 +422,77 @@ export type NovelKnowledgeAsset = {
   updatedAt: string;
 };
 
+export type NovelCharacterProfileManualLock =
+  | "narrativeRole"
+  | "coreTraits"
+  | "relationships"
+  | "currentState";
+
+export type NovelCharacterProfileTier = "protagonist" | "major" | "minor";
+
+export type NovelCharacterProfileSource =
+  | "foundation"
+  | "chapter-pipeline"
+  | "manual"
+  | "migration";
+
+export type NovelCharacterRelationship = {
+  targetCharacterId?: string;
+  targetName: string;
+  label: string;
+  state: string;
+};
+
+export type NovelCharacterCurrentState = {
+  chapterId?: string;
+  chapterNumber?: number;
+  location?: string;
+  physical?: string;
+  emotional?: string;
+  knowledge?: string;
+  objective?: string;
+  summary: string;
+  updatedAt: string;
+};
+
+export type NovelCharacterStateHistoryEntry = {
+  chapterId?: string;
+  chapterNumber: number;
+  summary: string;
+  changes: string[];
+  source: "chapter-pipeline" | "manual" | "migration";
+  syncId?: string;
+  createdAt: string;
+};
+
+export type NovelCharacterProfile = {
+  id: string;
+  name: string;
+  aliases: string[];
+  tier: NovelCharacterProfileTier;
+  narrativeRole: string;
+  coreTraits: string[];
+  motivations: string[];
+  goals: string[];
+  relationships: NovelCharacterRelationship[];
+  currentState: NovelCharacterCurrentState;
+  stateHistory: NovelCharacterStateHistoryEntry[];
+  manualLocks: NovelCharacterProfileManualLock[];
+  source: NovelCharacterProfileSource;
+};
+
+export type NovelCharacterStateChange = {
+  characterId?: string;
+  characterName?: string;
+  summary: string;
+  location?: string;
+  physical?: string;
+  emotional?: string;
+  knowledge?: string;
+  objective?: string;
+  changes?: string[];
+};
+
 export type NovelChapterAssetDelta = {
   chapterNumber: number;
   chapterTitle: string;
@@ -421,6 +501,7 @@ export type NovelChapterAssetDelta = {
     title: string;
     content: string;
   }>;
+  characterStateChanges: NovelCharacterStateChange[];
   newForeshadowing: string[];
   resolvedForeshadowing: string[];
   worldIncrements: string[];
@@ -2496,6 +2577,7 @@ export function applyNovelAssetConflictFixes(input: {
         chapterTitle: node.title,
         summary: node.goal,
         characterStates: [],
+        characterStateChanges: [],
         newForeshadowing: [node.foreshadowing.trim()],
         resolvedForeshadowing: [],
         worldIncrements: [],
@@ -4864,6 +4946,7 @@ export function buildNovelChapterAssetDelta(input: {
   chapterTitle: string;
   content: string;
   existingSummary?: string;
+  characterProfiles?: NovelCharacterProfile[];
 }): NovelChapterAssetDelta {
   const normalizedContent = input.content.replace(/\r\n/g, "\n").trim();
   const summary =
@@ -4873,13 +4956,17 @@ export function buildNovelChapterAssetDelta(input: {
     input.existingSummary?.trim() ||
     buildFallbackNovelChapterSummary(normalizedContent);
   const assetSection = extractNovelSection(normalizedContent, "资产增量");
+  const characterSection = extractNovelSubsection(assetSection, "角色状态");
+  const characterStates = parseNovelCharacterStates(characterSection);
 
   return {
     chapterNumber: input.chapterNumber,
     chapterTitle: input.chapterTitle,
     summary,
-    characterStates: parseNovelCharacterStates(
-      extractNovelSubsection(assetSection, "角色状态"),
+    characterStates,
+    characterStateChanges: parseStructuredCharacterStateChanges(
+      characterSection,
+      input.characterProfiles ?? [],
     ),
     newForeshadowing: parseNovelBulletLines(
       extractNovelSubsection(assetSection, "新增伏笔"),
@@ -4896,12 +4983,18 @@ export function buildNovelChapterAssetDelta(input: {
 export function applyNovelChapterAssetDelta(
   assets: NovelProjectAssets,
   delta: NovelChapterAssetDelta,
+  options?: {
+    syncId?: string;
+    chapterId?: string;
+    source?: "chapter-pipeline" | "migration";
+  },
 ): NovelProjectAssets {
   const now = new Date().toISOString();
   const chapterTag = `第${delta.chapterNumber}章`;
   const chapterLine = `第 ${delta.chapterNumber} 章《${delta.chapterTitle}》`;
   const beforeKnowledgeAssets = assets.knowledgeAssets ?? [];
   let nextKnowledgeAssets = beforeKnowledgeAssets;
+  const baseProfiles = assets.characterProfiles ?? [];
 
   delta.characterStates.forEach((state) => {
     nextKnowledgeAssets = upsertNovelKnowledgeAsset(nextKnowledgeAssets, {
@@ -4982,11 +5075,32 @@ export function applyNovelChapterAssetDelta(
     delta.worldIncrements.map((item) => `${chapterLine}：${item}`),
     "章节世界观增量",
   );
-  const characters = mergeNovelLongText(
-    assets.characters,
-    delta.characterStates.map((state) => `${state.title}：${state.content}`),
-    "角色状态追踪",
-  );
+  const changes =
+    delta.characterStateChanges?.length > 0
+      ? delta.characterStateChanges
+      : buildCharacterStateChangesFromLegacyStates(
+          delta.characterStates,
+          baseProfiles,
+        );
+  let nextProfiles = baseProfiles;
+  let nextDiagnostics = assets.diagnostics ?? [];
+
+  if (options?.syncId && changes.length > 0) {
+    const profileMerge = applyCharacterStateChangesToProfiles({
+      profiles: baseProfiles,
+      changes,
+      delta,
+      syncId: options.syncId,
+      chapterId: options.chapterId,
+      source: options.source ?? "chapter-pipeline",
+      now,
+      diagnostics: nextDiagnostics,
+    });
+    nextProfiles = profileMerge.profiles;
+    nextDiagnostics = profileMerge.diagnostics;
+  }
+
+  const characters = deriveCharactersMarkdownFromProfiles(nextProfiles);
   const changeEvents = buildNovelAssetChangeEventsForDelta(
     beforeKnowledgeAssets,
     nextKnowledgeAssets,
@@ -4997,7 +5111,9 @@ export function applyNovelChapterAssetDelta(
     ...assets,
     worldNotes,
     characters,
+    characterProfiles: nextProfiles,
     knowledgeAssets: nextKnowledgeAssets,
+    diagnostics: nextDiagnostics,
     assetChangeEvents: [...changeEvents, ...(assets.assetChangeEvents ?? [])].slice(
       0,
       100,
@@ -5087,6 +5203,19 @@ export function normalizeNovelProjectAssets(
   assets?: Partial<NovelProjectAssets>,
 ): NovelProjectAssets {
   const defaultAssets = createDefaultNovelAssets(project);
+  const mergedKnowledgeAssets =
+    assets?.knowledgeAssets?.length
+      ? assets.knowledgeAssets
+      : defaultAssets.knowledgeAssets;
+  const characterProfiles = normalizeCharacterProfiles(
+    project,
+    assets?.characterProfiles,
+    {
+      characterProfiles: assets?.characterProfiles ?? [],
+      knowledgeAssets: mergedKnowledgeAssets,
+      characters: assets?.characters ?? defaultAssets.characters,
+    },
+  );
 
   return {
     ...defaultAssets,
@@ -5095,10 +5224,9 @@ export function normalizeNovelProjectAssets(
       assets?.outlineNodes?.length
         ? assets.outlineNodes
         : defaultAssets.outlineNodes,
-    knowledgeAssets:
-      assets?.knowledgeAssets?.length
-        ? assets.knowledgeAssets
-        : defaultAssets.knowledgeAssets,
+    knowledgeAssets: mergedKnowledgeAssets,
+    characterProfiles,
+    characters: deriveCharactersMarkdownFromProfiles(characterProfiles),
     pendingAssetDeltas: assets?.pendingAssetDeltas ?? [],
     contextSelection: {
       ...defaultAssets.contextSelection,
@@ -5929,6 +6057,38 @@ export function createDefaultNovelAssets(
 ): NovelProjectAssets {
   const now = new Date().toISOString();
   const outlineNodes = buildNovelOutlineNodesFromProject(project);
+  const characterProfiles = normalizeCharacterProfiles(project, [], {
+    characterProfiles: [],
+    knowledgeAssets: [
+      ...(project.world
+        ? [
+            {
+              id: `asset-world-${Date.now()}`,
+              category: "world" as const,
+              title: "世界观基础",
+              content: project.world,
+              status: "active" as const,
+              tags: ["世界观"],
+              updatedAt: now,
+            },
+          ]
+        : []),
+      ...(project.protagonist
+        ? [
+            {
+              id: `asset-character-${Date.now()}`,
+              category: "character" as const,
+              title: "主角",
+              content: project.protagonist,
+              status: "active" as const,
+              tags: ["主角"],
+              updatedAt: now,
+            },
+          ]
+        : []),
+    ],
+    characters: project.protagonist ?? "",
+  });
 
   return {
     outline: (project.chapters ?? [])
@@ -5936,7 +6096,8 @@ export function createDefaultNovelAssets(
       .join("\n"),
     outlineNodes,
     worldNotes: project.world,
-    characters: project.protagonist,
+    characters: deriveCharactersMarkdownFromProfiles(characterProfiles),
+    characterProfiles,
     settings: project.premise,
     knowledgeAssets: [
       ...(project.world
@@ -7478,21 +7639,24 @@ function parseNovelBulletLines(content: string): string[] {
 function parseNovelCharacterStates(
   content: string,
 ): Array<{ title: string; content: string }> {
-  return parseNovelBulletLines(content).map((line) => {
-    const [title = "", ...rest] = line.split(/[：:]/);
-    const normalizedTitle = title.trim() || "未命名角色";
-    const normalizedContent = rest.join("：").trim() || line.trim();
+  return parseNovelBulletLines(content)
+    .map((line) => {
+      const [title = "", ...rest] = line.split(/[：:]/);
+      const normalizedTitle = title.trim();
+      const normalizedContent = rest.join("：").trim() || line.trim();
 
-    return {
-      title: normalizedTitle,
-      content: normalizedContent,
-    };
-  });
+      return {
+        title: normalizedTitle,
+        content: normalizedContent,
+      };
+    })
+    .filter((state) => isCredibleCharacterName(state.title));
 }
 
 function hasNovelChapterAssetDeltaContent(delta: NovelChapterAssetDelta): boolean {
   return (
     delta.characterStates.length > 0 ||
+    (delta.characterStateChanges?.length ?? 0) > 0 ||
     delta.newForeshadowing.length > 0 ||
     delta.resolvedForeshadowing.length > 0 ||
     delta.worldIncrements.length > 0

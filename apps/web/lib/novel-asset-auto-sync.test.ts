@@ -39,6 +39,7 @@ function emptyAssets(overrides: Partial<NovelProjectAssets> = {}): NovelProjectA
     importedMaterials: [],
     marketRadars: [],
     diagnostics: [],
+    characterProfiles: [],
     pendingMigration: { schemaVersion: 1, appliedChapters: [] },
     ...overrides,
   };
@@ -47,11 +48,21 @@ function emptyAssets(overrides: Partial<NovelProjectAssets> = {}): NovelProjectA
 function sampleDelta(
   overrides: Partial<NovelChapterAssetDelta> = {},
 ): NovelChapterAssetDelta {
+  const characterStates = overrides.characterStates ?? [
+    { title: "林照", content: "决定追查档案" },
+  ];
   return {
     chapterNumber: 1,
     chapterTitle: "雨夜来信",
     summary: "开章",
-    characterStates: [{ title: "林照", content: "决定追查档案" }],
+    characterStates,
+    characterStateChanges:
+      overrides.characterStateChanges ??
+      characterStates.map((state) => ({
+        characterName: state.title,
+        summary: state.content,
+        changes: [state.content],
+      })),
     newForeshadowing: ["匿名信来源不明"],
     resolvedForeshadowing: [],
     worldIncrements: ["裂缝档案科存在"],

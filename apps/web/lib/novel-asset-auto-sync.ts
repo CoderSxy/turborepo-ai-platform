@@ -6,6 +6,7 @@ import {
   type NovelPendingMigrationV2,
   type NovelProjectAssets,
 } from "#lib/novel-store";
+export { createStableCharacterProfileId } from "#lib/novel-character-profiles";
 
 export type AssetSyncSource = "chapter-pipeline" | "migration";
 
@@ -19,6 +20,17 @@ export type CanonicalNovelChapterAssetDelta = {
   chapterTitle: string;
   summary: string;
   characterStates: Array<{ title: string; content: string }>;
+  characterStateChanges: Array<{
+    characterId?: string;
+    characterName?: string;
+    summary: string;
+    location?: string;
+    physical?: string;
+    emotional?: string;
+    knowledge?: string;
+    objective?: string;
+    changes?: string[];
+  }>;
   newForeshadowing: string[];
   resolvedForeshadowing: string[];
   worldIncrements: string[];
@@ -65,6 +77,43 @@ export function canonicalizeNovelChapterAssetDelta(
           left.title.localeCompare(right.title) ||
           left.content.localeCompare(right.content),
       ),
+    characterStateChanges: [...(delta.characterStateChanges ?? [])]
+      .map((change) => ({
+        ...(change.characterId
+          ? { characterId: normalizeWhitespace(change.characterId) }
+          : {}),
+        ...(change.characterName
+          ? { characterName: normalizeWhitespace(change.characterName) }
+          : {}),
+        summary: normalizeWhitespace(change.summary),
+        ...(change.location
+          ? { location: normalizeWhitespace(change.location) }
+          : {}),
+        ...(change.physical
+          ? { physical: normalizeWhitespace(change.physical) }
+          : {}),
+        ...(change.emotional
+          ? { emotional: normalizeWhitespace(change.emotional) }
+          : {}),
+        ...(change.knowledge
+          ? { knowledge: normalizeWhitespace(change.knowledge) }
+          : {}),
+        ...(change.objective
+          ? { objective: normalizeWhitespace(change.objective) }
+          : {}),
+        ...(change.changes
+          ? {
+              changes: [...change.changes]
+                .map(normalizeWhitespace)
+                .sort((left, right) => left.localeCompare(right)),
+            }
+          : {}),
+      }))
+      .sort((left, right) => {
+        const leftKey = `${left.characterId ?? ""}:${left.characterName ?? ""}:${left.summary}`;
+        const rightKey = `${right.characterId ?? ""}:${right.characterName ?? ""}:${right.summary}`;
+        return leftKey.localeCompare(rightKey);
+      }),
     newForeshadowing: [...delta.newForeshadowing]
       .map(normalizeWhitespace)
       .sort((left, right) => left.localeCompare(right)),
@@ -109,6 +158,7 @@ export function createLegacyPendingSyncId(
 function hasDeltaContent(delta: NovelChapterAssetDelta): boolean {
   return (
     delta.characterStates.length > 0 ||
+    (delta.characterStateChanges?.length ?? 0) > 0 ||
     delta.newForeshadowing.length > 0 ||
     delta.resolvedForeshadowing.length > 0 ||
     delta.worldIncrements.length > 0
@@ -202,7 +252,9 @@ export function novelAssetMigrationChanged(
       JSON.stringify(after.knowledgeAssets) ||
     JSON.stringify(before.assetChangeEvents) !==
       JSON.stringify(after.assetChangeEvents) ||
-    JSON.stringify(before.diagnostics) !== JSON.stringify(after.diagnostics)
+    JSON.stringify(before.diagnostics) !== JSON.stringify(after.diagnostics) ||
+    JSON.stringify(before.characterProfiles) !==
+      JSON.stringify(after.characterProfiles)
   );
 }
 
@@ -232,7 +284,13 @@ export function mergeNovelChapterAssetDeltaSafely(
   }
 
   try {
-    const applyDelta = testApplyDeltaOverride ?? applyNovelChapterAssetDelta;
+    const applyDelta =
+      testApplyDeltaOverride ??
+      ((nextAssets, nextDelta) =>
+        applyNovelChapterAssetDelta(nextAssets, nextDelta, {
+          syncId,
+          source: policy.source,
+        }));
     const merged = applyDelta(assets, delta);
     return {
       status: "applied",
