@@ -1767,6 +1767,78 @@
   font-style: normal;
 }
 
+.bookTreeMoreButton {
+  flex: 0 0 24px;
+  width: 24px;
+  min-height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #66777a;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  padding: 0;
+}
+
+.bookTreeRow:hover .bookTreeMoreButton,
+.bookTreeRow:focus-within .bookTreeMoreButton,
+.sessionTreeRow:hover .bookTreeMoreButton,
+.sessionTreeRow:focus-within .bookTreeMoreButton,
+.bookTreeMoreButton[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.bookTreeMoreButton:hover,
+.bookTreeMoreButton:focus-visible {
+  background: #eef5f5;
+  color: #14342f;
+}
+
+.bookTreeMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: grid;
+  min-width: 132px;
+  border: 1px solid #d8e4e5;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(20, 52, 47, 0.12);
+  overflow: hidden;
+}
+
+.bookTreeMenuItem {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  color: #263639;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bookTreeMenuItem:hover:not(:disabled) {
+  background: #f3f9f9;
+}
+
+.bookTreeMenuItem:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bookTreeMenu .dangerTextButton {
+  color: #b23b24;
+}
+
+.bookTreeMenu .dangerTextButton:hover:not(:disabled) {
+  background: #fff5f2;
+}
+
 .bookActions {
   display: flex;
   flex-wrap: wrap;
