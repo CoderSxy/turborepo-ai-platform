@@ -209,6 +209,8 @@ export function NovelStudio({
   const [cloudSyncDialogOpen, setCloudSyncDialogOpen] = useState(false);
   const [creatingBook, setCreatingBook] = useState(true);
   const [bookSearchQuery, setBookSearchQuery] = useState("");
+  const [bookSearchOpen, setBookSearchOpen] = useState(false);
+  const [bookManageMode, setBookManageMode] = useState(false);
   const [showArchivedBooks, setShowArchivedBooks] = useState(false);
   const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
   const [dialog, setDialog] = useState<AppDialogState | null>(null);
@@ -890,9 +892,23 @@ export function NovelStudio({
         return;
       }
 
-      if (event.key === "Escape" && selectedBookIds.length > 0) {
-        event.preventDefault();
-        setSelectedBookIds([]);
+      if (event.key === "Escape") {
+        if (bookSearchOpen) {
+          event.preventDefault();
+          setBookSearchOpen(false);
+          setBookSearchQuery("");
+          return;
+        }
+        if (bookManageMode) {
+          event.preventDefault();
+          setBookManageMode(false);
+          setSelectedBookIds([]);
+          return;
+        }
+        if (selectedBookIds.length > 0) {
+          event.preventDefault();
+          setSelectedBookIds([]);
+        }
         return;
       }
 
@@ -908,7 +924,9 @@ export function NovelStudio({
 
       if (event.key === "/") {
         event.preventDefault();
-        bookSearchInputRef.current?.focus();
+        setBookSearchOpen(true);
+        requestAnimationFrame(() => bookSearchInputRef.current?.focus());
+        return;
       }
 
       if (event.key.toLowerCase() === "n") {
@@ -923,7 +941,7 @@ export function NovelStudio({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [dialog, selectedBookIds.length]);
+  }, [dialog, selectedBookIds.length, bookSearchOpen, bookManageMode]);
 
   useEffect(() => {
     return () => {
@@ -2118,6 +2136,15 @@ export function NovelStudio({
             activeBookId={activeBookId}
             activeSessionId={activeSessionId}
             searchQuery={bookSearchQuery}
+            searchOpen={bookSearchOpen}
+            onSearchOpenChange={setBookSearchOpen}
+            manageMode={bookManageMode}
+            onManageModeChange={(next) => {
+              setBookManageMode(next);
+              if (!next) {
+                setSelectedBookIds([]);
+              }
+            }}
             selectedBookIds={selectedBookIds}
             showArchived={showArchivedBooks}
             totalBooks={books.length}

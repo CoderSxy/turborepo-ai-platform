@@ -12,6 +12,10 @@ export function NovelBookList({
   activeBookId,
   activeSessionId,
   searchQuery,
+  searchOpen,
+  onSearchOpenChange,
+  manageMode,
+  onManageModeChange,
   selectedBookIds,
   showArchived,
   totalBooks: _totalBooks,
@@ -29,7 +33,7 @@ export function NovelBookList({
   onMoveBook,
   onRenameBook,
   onRenameSession,
-  onSelectAllVisible: _onSelectAllVisible,
+  onSelectAllVisible,
   onSelectBook,
   onSearchQueryChange,
   onSessionSelect,
@@ -39,6 +43,10 @@ export function NovelBookList({
   activeBookId: string;
   activeSessionId: string;
   searchQuery: string;
+  searchOpen: boolean;
+  onSearchOpenChange: (open: boolean) => void;
+  manageMode: boolean;
+  onManageModeChange: (next: boolean) => void;
   selectedBookIds: string[];
   showArchived: boolean;
   totalBooks: number;
@@ -65,10 +73,11 @@ export function NovelBookList({
   const [expandedBookIds, setExpandedBookIds] = useState<Set<string>>(() =>
     activeBookId ? new Set([activeBookId]) : new Set(),
   );
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [manageMode, setManageMode] = useState(false);
 
   const selectedCount = selectedBookIds.length;
+  const visibleAllSelected =
+    books.length > 0 &&
+    books.every((book) => selectedBookIds.includes(book.id));
 
   useEffect(() => {
     if (!activeBookId) return;
@@ -76,7 +85,7 @@ export function NovelBookList({
   }, [activeBookId]);
 
   function openSearch() {
-    setSearchOpen(true);
+    onSearchOpenChange(true);
     requestAnimationFrame(() => searchInputRef.current?.focus());
   }
 
@@ -100,8 +109,7 @@ export function NovelBookList({
   }
 
   function exitManageMode() {
-    setManageMode(false);
-    onClearSelection();
+    onManageModeChange(false);
   }
 
   return (
@@ -112,7 +120,7 @@ export function NovelBookList({
         onCreateBook={onCreateBook}
         onToggleSearch={openSearch}
         onToggleArchived={() => onShowArchivedChange(!showArchived)}
-        onEnterManageMode={() => setManageMode(true)}
+        onEnterManageMode={() => onManageModeChange(true)}
         onExitManageMode={exitManageMode}
       />
       {searchOpen ? (
@@ -128,7 +136,10 @@ export function NovelBookList({
             className={styles.bookSidebarIconButton}
             aria-label="关闭搜索"
             title="关闭搜索"
-            onClick={() => setSearchOpen(false)}
+            onClick={() => {
+              onSearchOpenChange(false);
+              onSearchQueryChange("");
+            }}
           >
             ✕
           </button>
@@ -137,6 +148,9 @@ export function NovelBookList({
       {manageMode && selectedCount > 0 ? (
         <div className={styles.bulkActionBar}>
           <strong>已选 {selectedCount}</strong>
+          <button type="button" onClick={onSelectAllVisible}>
+            {visibleAllSelected ? "取消全选" : "全选"}
+          </button>
           {showArchived ? (
             <button type="button" onClick={onBulkRestore}>
               还原
