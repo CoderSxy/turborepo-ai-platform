@@ -16,11 +16,17 @@ export async function resolve(specifier, context, nextResolve) {
 
   if (
     specifier.endsWith("/lib/novel-store") ||
-    specifier.endsWith("/lib/model-settings")
+    specifier.endsWith("/lib/model-settings") ||
+    specifier.endsWith("/lib/novel-asset-auto-sync") ||
+    specifier.endsWith("/lib/novel-character-profiles")
   ) {
     const alias = specifier.endsWith("/lib/novel-store")
       ? "#lib/novel-store"
-      : "#lib/model-settings";
+      : specifier.endsWith("/lib/model-settings")
+        ? "#lib/model-settings"
+        : specifier.endsWith("/lib/novel-asset-auto-sync")
+          ? "#lib/novel-asset-auto-sync"
+          : "#lib/novel-character-profiles";
     return nextResolve(alias, context);
   }
 

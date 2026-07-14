@@ -103,8 +103,25 @@ export function buildCompletedWriteChapterTask(input: {
   storedChapter: StoredNovelChapter;
   progressMessages: string[];
   now: string;
+  status?: Extract<StoredNovelTask["status"], "success" | "completed_with_attention">;
+  pipelineSummary?: string;
+  syncId?: string;
+  chapterVersionId?: string;
+  auditId?: string;
+  pipelineStage?: StoredNovelTask["pipelineStage"];
 }): StoredNovelTask {
-  const { task, storedChapter, progressMessages, now } = input;
+  const {
+    task,
+    storedChapter,
+    progressMessages,
+    now,
+    status = "success",
+    pipelineSummary,
+    syncId,
+    chapterVersionId,
+    auditId,
+    pipelineStage,
+  } = input;
   const seenMessages = new Set(task.logs.map((log) => log.message));
   const progressLogs = progressMessages
     .filter((message) => !seenMessages.has(message))
@@ -113,20 +130,28 @@ export function buildCompletedWriteChapterTask(input: {
       message,
       createdAt: now,
     }));
+  const completionMessage =
+    status === "completed_with_attention"
+      ? pipelineSummary || "任务完成（需关注）。"
+      : "任务完成。";
 
   return {
     ...task,
-    status: "success",
+    status,
     endedAt: now,
     targetChapterId: storedChapter.id,
     targetChapterNumber: storedChapter.number,
     targetChapterTitle: storedChapter.title,
+    syncId,
+    chapterVersionId,
+    auditId,
+    pipelineStage: pipelineStage ?? "completed",
     logs: [
       ...task.logs,
       ...progressLogs,
       {
         id: `${task.id}-complete-${now.replace(/[^0-9]/g, "")}`,
-        message: "任务完成。",
+        message: completionMessage,
         createdAt: now,
       },
     ],
@@ -196,7 +221,14 @@ export type BuildWriteChapterCommitInputArgs = {
 };
 
 export function buildWriteChapterCommitInput(
-  args: BuildWriteChapterCommitInputArgs,
+  args: BuildWriteChapterCommitInputArgs & {
+    taskStatus?: Extract<StoredNovelTask["status"], "success" | "completed_with_attention">;
+    pipelineSummary?: string;
+    syncId?: string;
+    chapterVersionId?: string;
+    auditId?: string;
+    pipelineStage?: StoredNovelTask["pipelineStage"];
+  },
 ): CommitWriteChapterResultInput {
   const book: StoredNovelBook = {
     id: args.bookSnapshot.id,
@@ -221,6 +253,12 @@ export function buildWriteChapterCommitInput(
       storedChapter: args.storedChapter,
       progressMessages: args.progressMessages,
       now: args.now,
+      status: args.taskStatus,
+      pipelineSummary: args.pipelineSummary,
+      syncId: args.syncId,
+      chapterVersionId: args.chapterVersionId,
+      auditId: args.auditId,
+      pipelineStage: args.pipelineStage,
     }),
     finalAssistantMessage: buildFinalWriteChapterAssistantMessage({
       assistantMessageId: args.assistantMessageId,

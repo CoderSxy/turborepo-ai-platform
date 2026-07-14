@@ -13,7 +13,7 @@ import {
   type StoredNovelMessage,
   type StoredNovelSession,
   type StoredNovelTask,
-} from "../../../lib/novel-store";
+} from "#lib/novel-store";
 import type { NovelBookEntry, NovelChatMessage } from "../state/studio-types";
 import type { StudioMessage } from "../store/types";
 

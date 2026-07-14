@@ -406,6 +406,8 @@ git commit -m "feat(studio): add structured character profile assets"
 
 ## Task 8: Rebuild the role section around all character profiles
 
+**Status:** DONE (`01de35c`)
+
 **Files:**
 
 - Modify: `apps/web/features/studio/components/right-panel/right-panel-summaries.ts`
@@ -413,23 +415,23 @@ git commit -m "feat(studio): add structured character profile assets"
 - Modify: `apps/web/features/studio/components/right-panel/detail/CharacterDetailView.tsx`
 - Modify: right-panel tests and CSS only as needed
 
-- [ ] **Step 1: Write component/view-model tests**
+- [x] **Step 1: Write component/view-model tests**
 
 Assert that six profiles yield six visible list entries; current-chapter characters sort first but all others remain visible; no role row contains “待确认”; and the detail view exposes role, current state, relationships, source, and chronological history.
 
-- [ ] **Step 2: Replace temporary card builder**
+- [x] **Step 2: Replace temporary card builder**
 
 Implement `buildCharacterProfilesView`. Retire `ParsedCharacter` / `buildCharacterStateCards(..., limit = 4)` as the right-panel authority. Do not parse Markdown inside React components.
 
-- [ ] **Step 3: Implement compact list and complete detail**
+- [x] **Step 3: Implement compact list and complete detail**
 
 `CharactersSection` groups protagonist, major, and minor roles. Each compact row shows name, narrative role, state summary, and last synchronized chapter. `CharacterDetailView` exposes the full profile and an explicit manual edit action. Current chapter ordering is a sort preference only, not a filter.
 
-- [ ] **Step 4: Wire manual edits**
+- [x] **Step 4: Wire manual edits**
 
 Manual profile edit writes `source: manual` and exact locks. Show synchronization diagnostics in the detail/diagnostics entry, not as a default confirmation badge.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 git add apps/web/features/studio/components/right-panel apps/web/features/studio/studio.module.css
@@ -442,6 +444,8 @@ git commit -m "feat(studio): render complete synchronized character profiles"
 
 ## Task 9: Add task state machine, structured audit, and pipeline tests
 
+**Status:** DONE (uncommitted)
+
 **Precondition:** Character profiles and atomic commit are green. The pipeline must not bypass either.
 
 **Files:**
@@ -451,27 +455,27 @@ git commit -m "feat(studio): render complete synchronized character profiles"
 - Modify: task/checkpoint persistence in `apps/web/lib/novel-store.ts`
 - Create: pipeline unit tests
 
-- [ ] **Step 1: Write failing pipeline tests**
+- [x] **Step 1: Write failing pipeline tests**
 
 Cover the sequence Writer → Auditor → optional Reviser → Re-auditor → facts → validation → commit. Include: audit schema failure retries once then becomes `completed_with_attention`; a critical issue triggers at most configured revisions; only the final selected version reaches asset extraction; cancellation before commit persists no final data.
 
-- [ ] **Step 2: Add explicit task stages**
+- [x] **Step 2: Add explicit task stages**
 
 Persist the state enum from the spec: `queued`, `preparing_context`, `planning`, `drafting`, `auditing`, `revising`, `reauditing`, `extracting_facts`, `syncing_assets`, `validating_state`, `committing`, terminal states. Store stage timeline, attempt counts, audit reference, version ids, and failure detail in the task/checkpoint model.
 
-- [ ] **Step 3: Build structured audit parser and thresholds**
+- [x] **Step 3: Build structured audit parser and thresholds**
 
 Add a `ChapterAudit` parser/validator with total score, dimension scores, severity, evidence, and suggestions. Configure blocking rules (critical issue/minimum score) and max revision attempts (default 1, allowed 0–2). A parse failure must never become an implicit pass.
 
-- [ ] **Step 4: Implement pipeline stages without UI coupling**
+- [x] **Step 4: Implement pipeline stages without UI coupling**
 
 `preparing_context` loads profiles and canonical assets; `planning` creates internal intent; `drafting` produces a candidate version; `auditing` evaluates it; `revising` changes only blocking concerns; `reauditing` validates revision; `extracting_facts` acts only on the chosen final version; `syncing_assets` uses stable syncId; `validating_state` prepares the atomic commit input.
 
-- [ ] **Step 5: Reuse manual actions**
+- [x] **Step 5: Reuse manual actions**
 
 Route manual review/revise through shared Auditor/Reviser and version/audit types. They may skip the full write pipeline, but must not create a parallel review schema.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 git add apps/web/features/studio/actions/writing apps/web/features/studio/actions/types.ts apps/web/lib/novel-store.ts

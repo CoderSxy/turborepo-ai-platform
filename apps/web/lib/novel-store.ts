@@ -363,10 +363,49 @@ export type NovelDocxParagraph = {
   text: string;
 };
 
+export type WriteChapterPipelineStage =
+  | "queued"
+  | "preparing_context"
+  | "planning"
+  | "drafting"
+  | "auditing"
+  | "revising"
+  | "reauditing"
+  | "extracting_facts"
+  | "syncing_assets"
+  | "validating_state"
+  | "committing"
+  | "completed"
+  | "completed_with_attention"
+  | "failed"
+  | "cancelled";
+
+export type WriteChapterPipelineStageTimelineEntry = {
+  stage: WriteChapterPipelineStage;
+  enteredAt: string;
+  detail?: string;
+};
+
+export type WriteChapterPipelineCheckpointState = {
+  stage: WriteChapterPipelineStage;
+  stageTimeline: WriteChapterPipelineStageTimelineEntry[];
+  revisionAttempts: number;
+  auditParseAttempts: number;
+  selectedVersionId?: string;
+  draftVersionIds: string[];
+  auditId?: string;
+  chapterIntent?: string;
+  syncId?: string;
+  chapterVersionId?: string;
+  failureDetail?: string;
+  attentionReason?: string;
+};
+
 export type StoredNovelTaskCheckpoint = {
   progressMessages: string[];
   savedAt: string;
   assistantMessageId?: string;
+  pipeline?: WriteChapterPipelineCheckpointState;
 };
 
 export type NovelOutlineNode = {
@@ -804,6 +843,7 @@ export type StoredNovelTaskStatus =
   | "paused"
   | "running"
   | "success"
+  | "completed_with_attention"
   | "error"
   | "cancelled"
   | "skipped";
@@ -829,6 +869,10 @@ export type StoredNovelTask = {
   startedAt: string;
   endedAt?: string;
   checkpoint?: StoredNovelTaskCheckpoint;
+  pipelineStage?: WriteChapterPipelineStage;
+  syncId?: string;
+  chapterVersionId?: string;
+  auditId?: string;
 };
 
 export type NovelRecoverableErrorNotice = {
@@ -7168,9 +7212,12 @@ export function validateCommitWriteChapterResultInput(
     );
   }
 
-  if (completedTask.status !== "success") {
+  if (
+    completedTask.status !== "success" &&
+    completedTask.status !== "completed_with_attention"
+  ) {
     throw new CommitWriteChapterResultValidationError(
-      "completedTask.status must be success.",
+      "completedTask.status must be success or completed_with_attention.",
     );
   }
 
@@ -7278,6 +7325,37 @@ export async function pauseStoredNovelTask(
   taskId: string,
 ): Promise<StoredNovelTask | null> {
   return finishStoredNovelTask(taskId, "paused", "任务已暂停，可稍后继续。");
+}
+
+export async function updateStoredNovelTaskPipelineCheckpoint(
+  taskId: string,
+  checkpoint: StoredNovelTaskCheckpoint,
+): Promise<StoredNovelTask | null> {
+  const db = await openNovelDb();
+
+  try {
+    const task = await getFromStore<StoredNovelTask>(db, TASKS_STORE, taskId);
+    if (!task) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const nextTask: StoredNovelTask = {
+      ...task,
+      pipelineStage: checkpoint.pipeline?.stage ?? task.pipelineStage,
+      syncId: checkpoint.pipeline?.syncId ?? task.syncId,
+      chapterVersionId: checkpoint.pipeline?.chapterVersionId ?? task.chapterVersionId,
+      auditId: checkpoint.pipeline?.auditId ?? task.auditId,
+      checkpoint: {
+        ...checkpoint,
+        savedAt: checkpoint.savedAt || now,
+      },
+    };
+    await putInStore(db, TASKS_STORE, nextTask);
+    return nextTask;
+  } finally {
+    db.close();
+  }
 }
 
 export async function pauseStoredNovelTaskWithCheckpoint(
