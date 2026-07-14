@@ -1,0 +1,29 @@
+docs/superpowers/specs/2026-07-14-inkos-p1-sync-identity-commit-design.md
+  s_746c92d6ba02f2::t_18d8209427bb45 1-174
+docs/INKOS_STUDIO_P1_REMEDIATION.md
+  s_29b27874f3cc36::t_f415d438d0b013 1-327
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1ee5d0fd36ef1f7be9939fb3a789bcd9952cf04b",
+  "prompts": {},
+  "sessions": {
+    "s_29b27874f3cc36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5a43-7fd1-76b3-81bf-8a329a8d5bbd",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    },
+    "s_746c92d6ba02f2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee94951a-92e1-439f-80c5-e3f32c14c109",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
