@@ -1,0 +1,74 @@
+apps/web/lib/novel-store.ts
+  s_57e131fd83b227::t_07c0cf7a3889c5 597
+  s_57e131fd83b227::t_9a17af9e36bbd9 7343-7351
+apps/web/lib/novel-asset-auto-sync.ts
+  s_57e131fd83b227::t_347d3c2f5bbfe9 288-292,294-295
+  s_57e131fd83b227::t_9e1441319e458e 16
+apps/web/features/studio/actions/writing/run-write-chapter-pipeline.ts
+  s_57e131fd83b227::t_6b84a091190265 1107-1113
+  s_57e131fd83b227::t_f92d9d1fe85924 417-506
+  s_57e131fd83b227::t_625bac6bbc91b1 638-647
+  s_57e131fd83b227::t_739fc428a63797 603-614,627
+  s_57e131fd83b227::t_e50946a4e79f31 9,14-16
+  s_57e131fd83b227::t_3b820a054d612e 577-580
+  s_57e131fd83b227::t_1ee3845bbcd86a 686-688
+  s_57e131fd83b227::t_5121cf2e77fdc6 950
+  s_57e131fd83b227::t_d5533d454ec2d4 1037-1040
+  s_57e131fd83b227::t_488436524ef75a 48
+apps/web/features/studio/persistence/message-bridge.test.ts
+  s_57e131fd83b227::t_5e24a20341265d 1-75
+apps/web/features/studio/actions/writing/run-write-chapter-pipeline.test.ts
+  s_57e131fd83b227::t_1843c3f5747836 13
+  s_57e131fd83b227::t_6748eec76ce8e3 418-452
+  s_57e131fd83b227::t_f1fa08eaf722ec 487-523
+apps/web/lib/write-chapter-recovery.test.ts
+  s_57e131fd83b227::t_b4bff56618a9b9 549-550
+  s_57e131fd83b227::t_1782be9ad91d38 33
+  s_57e131fd83b227::t_720b964ff8e4fc 22
+  s_57e131fd83b227::t_bc9bda61c6bf7a 32
+  s_57e131fd83b227::t_4706b8140ea3d8 496-498,516-548,551-555
+  s_57e131fd83b227::t_e113682d0078d8 499-515
+apps/web/package.json
+  s_57e131fd83b227::t_8a1872f427842f 20
+apps/web/features/studio/actions/writing/commit-write-chapter-result.ts
+  s_57e131fd83b227::t_ae2943481d2da0 249-251
+  s_57e131fd83b227::t_66cf6ed43f9652 293-295
+  s_57e131fd83b227::t_51f76a9e769bf2 13-14
+  s_57e131fd83b227::t_3c13b258eaed59 150
+  s_57e131fd83b227::t_bc19b562918cf3 172-174,179-199,210
+apps/web/lib/novel-character-profiles.test.ts
+  s_57e131fd83b227::t_f34445e599176a 365
+  s_57e131fd83b227::t_ca0a3d9b9c2b56 374-430
+  s_57e131fd83b227::t_ca72064e7c968d 373
+apps/web/features/studio/actions/writing/run-write-chapter-core-action.ts
+  s_57e131fd83b227::t_259570e8fca9fa 377
+  s_57e131fd83b227::t_f25d1756c69dec 395-396
+  s_57e131fd83b227::t_36c572efc38d45 164-190
+apps/web/features/studio/actions/writing/run-write-chapter-integration.test.ts
+  s_57e131fd83b227::t_9416c4cfe36ded 9-10
+  s_57e131fd83b227::t_d3a3d58c00c0c5 429-444
+  s_57e131fd83b227::t_7532e2d6c4fc75 491-501
+apps/web/features/studio/actions/writing/commit-write-chapter-result.test.ts
+  s_57e131fd83b227::t_094dfde6437be1 11
+  s_57e131fd83b227::t_450e6faaec0e40 252-293
+apps/web/features/studio/persistence/message-bridge.ts
+  s_57e131fd83b227::t_041027b425d229 2,8-11,13-22,41-43
+apps/web/lib/novel-asset-auto-sync.test.ts
+  s_57e131fd83b227::t_7628540a4b6cde 613-636
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0e41ead21b9575c0a9776a88e9d0e8ce52931dee",
+  "prompts": {},
+  "sessions": {
+    "s_57e131fd83b227": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "cbb44f74-8f87-4349-94bc-2f32705feb19",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
