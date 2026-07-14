@@ -3,9 +3,13 @@ import { describe, it } from "node:test";
 import type { NovelChapterAssetDelta, NovelProjectAssets } from "./novel-store.ts";
 import { normalizePendingMigration } from "./novel-store.ts";
 import {
+  canonicalizeNovelChapterAssetDelta,
   countSyncAttentionDiagnostics,
+  createChapterPipelineSyncId,
+  createLegacyPendingSyncId,
   mergeNovelChapterAssetDeltaSafely,
   migratePendingAssetDeltas,
+  stableHashCanonicalDelta,
 } from "./novel-asset-auto-sync.ts";
 
 function emptyAssets(overrides: Partial<NovelProjectAssets> = {}): NovelProjectAssets {
@@ -99,53 +103,179 @@ describe("normalizePendingMigration", () => {
   });
 });
 
-describe("mergeNovelChapterAssetDeltaSafely", () => {
-  it("applies delta without growing pendingAssetDeltas", () => {
-    const before = emptyAssets();
-    const result = mergeNovelChapterAssetDeltaSafely(before, sampleDelta(), {
-      source: "chapter-pipeline",
-    });
-    assert.equal(result.pendingAssetDeltas.length, 0);
-    assert.ok(result.knowledgeAssets.some((a) => a.category === "character"));
-    assert.ok(result.pendingMigration?.appliedChapters.includes(1));
+describe("canonical identity helpers", () => {
+  it("reordered equivalent arrays produce the same canonical hash", () => {
+    const left = canonicalizeNovelChapterAssetDelta(
+      sampleDelta({
+        newForeshadowing: ["b", "a"],
+        worldIncrements: ["z", "y"],
+        characterStates: [
+          { title: "乙", content: "状态 B" },
+          { title: "甲", content: "状态 A" },
+        ],
+      }),
+    );
+    const right = canonicalizeNovelChapterAssetDelta(
+      sampleDelta({
+        newForeshadowing: ["a", "b"],
+        worldIncrements: ["y", "z"],
+        characterStates: [
+          { title: "甲", content: "状态 A" },
+          { title: "乙", content: "状态 B" },
+        ],
+      }),
+    );
+    assert.deepEqual(left, right);
+    assert.equal(
+      stableHashCanonicalDelta(left),
+      stableHashCanonicalDelta(right),
+    );
   });
 
-  it("is idempotent for the same chapterNumber", () => {
-    const first = mergeNovelChapterAssetDeltaSafely(emptyAssets(), sampleDelta(), {
-      source: "chapter-pipeline",
+  it("changed delta content produces a different hash", () => {
+    const base = canonicalizeNovelChapterAssetDelta(sampleDelta());
+    const changed = canonicalizeNovelChapterAssetDelta(
+      sampleDelta({ summary: "不同的摘要" }),
+    );
+    assert.notEqual(
+      stableHashCanonicalDelta(base),
+      stableHashCanonicalDelta(changed),
+    );
+  });
+
+  it("createChapterPipelineSyncId is deterministic for equivalent deltas", () => {
+    const delta = sampleDelta({ newForeshadowing: ["b", "a"] });
+    const first = createChapterPipelineSyncId({
+      chapterId: "book-1-chapter-0001",
+      chapterVersionId: "book-1-chapter-0001",
+      delta,
     });
-    const characterCount = first.knowledgeAssets.filter(
-      (a) => a.category === "character",
+    const second = createChapterPipelineSyncId({
+      chapterId: "book-1-chapter-0001",
+      chapterVersionId: "book-1-chapter-0001",
+      delta: sampleDelta({ newForeshadowing: ["a", "b"] }),
+    });
+    assert.equal(first, second);
+  });
+
+  it("createLegacyPendingSyncId uses pending id", () => {
+    assert.equal(createLegacyPendingSyncId({ id: "p1" }), "legacy:p1");
+  });
+});
+
+describe("mergeNovelChapterAssetDeltaSafely", () => {
+  it("applies delta once for the same syncId", () => {
+    const syncId = "chapter-1:version-1:abc12345";
+    const before = emptyAssets();
+    const first = mergeNovelChapterAssetDeltaSafely(before, sampleDelta(), {
+      source: "chapter-pipeline",
+      syncId,
+    });
+    const characterCount = first.assets.knowledgeAssets.filter(
+      (asset) => asset.category === "character",
     ).length;
-    const second = mergeNovelChapterAssetDeltaSafely(first, sampleDelta(), {
-      source: "chapter-pipeline",
-    });
+    const second = mergeNovelChapterAssetDeltaSafely(
+      first.assets,
+      sampleDelta(),
+      { source: "chapter-pipeline", syncId },
+    );
+
+    assert.equal(first.status, "applied");
+    assert.equal(second.status, "skipped");
+    assert.equal(second.assets, first.assets);
     assert.equal(
-      second.knowledgeAssets.filter((a) => a.category === "character").length,
+      second.assets.knowledgeAssets.filter(
+        (asset) => asset.category === "character",
+      ).length,
       characterCount,
     );
-    assert.deepEqual(second.pendingMigration?.appliedChapters, [1]);
+    assert.deepEqual(first.assets.pendingMigration?.appliedSyncIds, [syncId]);
   });
 
-  it("does not mutate assets for empty delta", () => {
-    const before = emptyAssets();
+  it("applies two different syncIds for the same chapter", () => {
+    const deltaA = sampleDelta({
+      characterStates: [{ title: "林照", content: "追查档案" }],
+      newForeshadowing: [],
+      worldIncrements: [],
+    });
+    const deltaB = sampleDelta({
+      characterStates: [{ title: "沈砚", content: "收到匿名信" }],
+      newForeshadowing: [],
+      worldIncrements: [],
+    });
+    const first = mergeNovelChapterAssetDeltaSafely(emptyAssets(), deltaA, {
+      source: "chapter-pipeline",
+      syncId: "sync-a",
+    });
+    const second = mergeNovelChapterAssetDeltaSafely(
+      first.assets,
+      deltaB,
+      { source: "chapter-pipeline", syncId: "sync-b" },
+    );
+
+    assert.equal(first.status, "applied");
+    assert.equal(second.status, "applied");
+    assert.deepEqual(second.assets.pendingMigration?.appliedSyncIds, [
+      "sync-a",
+      "sync-b",
+    ]);
+    assert.equal(
+      second.assets.knowledgeAssets.filter(
+        (asset) => asset.category === "character",
+      ).length,
+      2,
+    );
+  });
+
+  it("returns needs-attention for empty or summary-only delta", () => {
+    const syncId = "legacy:p-empty";
     const empty = sampleDelta({
-      summary: "",
+      summary: "summary only",
       characterStates: [],
       newForeshadowing: [],
       resolvedForeshadowing: [],
       worldIncrements: [],
     });
+    const before = emptyAssets();
     const result = mergeNovelChapterAssetDeltaSafely(before, empty, {
-      source: "chapter-pipeline",
+      source: "migration",
+      syncId,
     });
-    assert.equal(result, before);
-    assert.equal(result.pendingMigration, before.pendingMigration);
+
+    assert.equal(result.status, "needs-attention");
+    assert.deepEqual(result.assets.pendingMigration, before.pendingMigration);
+    assert.equal(result.assets.knowledgeAssets.length, before.knowledgeAssets.length);
+    assert.equal(countSyncAttentionDiagnostics(result.assets), 1);
+    assert.equal(result.assets.diagnostics?.[0]?.id, `sync-diag:${syncId}`);
+  });
+
+  it("upserts one stable diagnostic for repeated needs-attention", () => {
+    const syncId = "legacy:p-empty";
+    const empty = sampleDelta({
+      summary: "summary only",
+      characterStates: [],
+      newForeshadowing: [],
+      resolvedForeshadowing: [],
+      worldIncrements: [],
+    });
+    const first = mergeNovelChapterAssetDeltaSafely(emptyAssets(), empty, {
+      source: "migration",
+      syncId,
+    });
+    const second = mergeNovelChapterAssetDeltaSafely(first.assets, empty, {
+      source: "migration",
+      syncId,
+    });
+
+    assert.equal(first.status, "needs-attention");
+    assert.equal(second.status, "needs-attention");
+    assert.equal(countSyncAttentionDiagnostics(second.assets), 1);
+    assert.equal(second.assets.diagnostics?.[0]?.id, `sync-diag:${syncId}`);
   });
 });
 
 describe("migratePendingAssetDeltas", () => {
-  it("applies pending in chapter order and clears successes", () => {
+  it("applies pending in chapter order and records appliedSyncIds", () => {
     const assets = emptyAssets({
       pendingAssetDeltas: [
         {
@@ -161,13 +291,74 @@ describe("migratePendingAssetDeltas", () => {
       ],
     });
     const result = migratePendingAssetDeltas(assets);
+
     assert.equal(result.pendingAssetDeltas.length, 0);
     assert.ok(result.pendingMigration?.migratedAt);
-    assert.ok(result.pendingMigration?.appliedChapters.includes(1));
-    assert.ok(result.pendingMigration?.appliedChapters.includes(2));
+    assert.deepEqual(result.pendingMigration?.appliedSyncIds, [
+      "legacy:p1",
+      "legacy:p2",
+    ]);
   });
 
-  it("keeps pending item when chapter was not applied after merge attempt", () => {
+  it("applies two pending ids for the same chapter", () => {
+    const assets = emptyAssets({
+      pendingAssetDeltas: [
+        {
+          id: "p1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          ...sampleDelta({
+            characterStates: [{ title: "林照", content: "追查档案" }],
+            newForeshadowing: [],
+            worldIncrements: [],
+          }),
+        },
+        {
+          id: "p2",
+          createdAt: "2026-01-02T00:00:00.000Z",
+          ...sampleDelta({
+            characterStates: [{ title: "沈砚", content: "收到匿名信" }],
+            newForeshadowing: [],
+            worldIncrements: [],
+          }),
+        },
+      ],
+    });
+    const result = migratePendingAssetDeltas(assets);
+
+    assert.equal(result.pendingAssetDeltas.length, 0);
+    assert.deepEqual(result.pendingMigration?.appliedSyncIds, [
+      "legacy:p1",
+      "legacy:p2",
+    ]);
+    assert.equal(
+      result.knowledgeAssets.filter((asset) => asset.category === "character")
+        .length,
+      2,
+    );
+  });
+
+  it("does not skip pending when chapter is only in legacyAppliedChapters", () => {
+    const assets = emptyAssets({
+      pendingMigration: normalizePendingMigration({
+        schemaVersion: 1,
+        appliedChapters: [1],
+      }),
+      pendingAssetDeltas: [
+        {
+          id: "p1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          ...sampleDelta(),
+        },
+      ],
+    });
+    const result = migratePendingAssetDeltas(assets);
+
+    assert.equal(result.pendingAssetDeltas.length, 0);
+    assert.deepEqual(result.pendingMigration?.legacyAppliedChapters, [1]);
+    assert.deepEqual(result.pendingMigration?.appliedSyncIds, ["legacy:p1"]);
+  });
+
+  it("keeps summary-only pending with one stable diagnostic", () => {
     const emptyContentPending = {
       id: "p-empty",
       createdAt: "2026-01-01T00:00:00.000Z",
@@ -186,12 +377,16 @@ describe("migratePendingAssetDeltas", () => {
 
     assert.equal(result.pendingAssetDeltas.length, 1);
     assert.equal(result.pendingAssetDeltas[0]?.id, "p-empty");
-    assert.ok(!result.pendingMigration?.appliedChapters.includes(1));
+    assert.deepEqual(result.pendingMigration?.appliedSyncIds, []);
     assert.ok(result.pendingMigration?.skippedPendingIds?.includes("p-empty"));
-    assert.ok(result.pendingMigration?.migratedAt);
+    assert.equal(countSyncAttentionDiagnostics(result), 1);
+    assert.equal(
+      result.diagnostics?.[0]?.id,
+      "sync-diag:legacy:p-empty",
+    );
   });
 
-  it("does not re-apply already applied chapters on second migrate", () => {
+  it("does not re-apply already applied syncIds on second migrate", () => {
     const once = migratePendingAssetDeltas(
       emptyAssets({
         pendingAssetDeltas: [
@@ -204,13 +399,16 @@ describe("migratePendingAssetDeltas", () => {
       }),
     );
     const charCount = once.knowledgeAssets.filter(
-      (a) => a.category === "character",
+      (asset) => asset.category === "character",
     ).length;
     const twice = migratePendingAssetDeltas(once);
+
     assert.equal(
-      twice.knowledgeAssets.filter((a) => a.category === "character").length,
+      twice.knowledgeAssets.filter((asset) => asset.category === "character")
+        .length,
       charCount,
     );
+    assert.deepEqual(twice.pendingMigration?.appliedSyncIds, ["legacy:p1"]);
   });
 });
 

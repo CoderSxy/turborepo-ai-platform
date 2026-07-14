@@ -27,7 +27,7 @@ import {
   type NovelProjectAssets,
 } from "../../../lib/novel-store";
 import {
-  countSyncAttentionDiagnostics,
+  createChapterPipelineSyncId,
   mergeNovelChapterAssetDeltaSafely,
 } from "../../../lib/novel-asset-auto-sync";
 import {
@@ -444,22 +444,28 @@ export async function runCoreAction(
           versionNote: "InkOS WriterAgent 生成章节",
         });
         nextProject = syncNovelProjectChapterPlan(nextProject, storedChapter);
-        const attentionBefore = countSyncAttentionDiagnostics(nextAssets);
-        nextAssets = mergeNovelChapterAssetDeltaSafely(
+        const mergeDelta = {
+          ...assetDelta,
+          chapterNumber: storedChapter.number,
+          chapterTitle: storedChapter.title,
+          summary: storedChapter.summary,
+        };
+        // TODO(Task 5): preallocate chapterVersionId before upsert for stable syncId.
+        const chapterVersionId = storedChapter.id;
+        const syncId = createChapterPipelineSyncId({
+          chapterId: storedChapter.id,
+          chapterVersionId,
+          delta: mergeDelta,
+        });
+        const mergeResult = mergeNovelChapterAssetDeltaSafely(
           nextAssets,
-          {
-            ...assetDelta,
-            chapterNumber: storedChapter.number,
-            chapterTitle: storedChapter.title,
-            summary: storedChapter.summary,
-          },
-          { source: "chapter-pipeline" },
+          mergeDelta,
+          { source: "chapter-pipeline", syncId },
         );
-        const attentionDelta =
-          countSyncAttentionDiagnostics(nextAssets) - attentionBefore;
+        nextAssets = mergeResult.assets;
         updateCoreProgress(
-          attentionDelta > 0
-            ? `章节已完成；${attentionDelta} 项同步需关注，详见同步诊断`
+          mergeResult.status === "needs-attention"
+            ? "章节已完成；同步需关注，详见同步诊断"
             : "已同步：章节摘要、角色状态、世界观、伏笔与大纲",
         );
         store.setActiveChapter(storedChapter.id);
