@@ -121,17 +121,14 @@ export function migratePendingAssetDeltas(
       continue;
     }
 
-    const beforeDiagnostics = current.diagnostics?.length ?? 0;
     const next = mergeNovelChapterAssetDeltaSafely(current, item, {
       source: "migration",
     });
-    const addedDiag =
-      (next.diagnostics?.length ?? 0) > beforeDiagnostics &&
-      !(next.pendingMigration?.appliedChapters ?? []).includes(
-        item.chapterNumber,
-      );
+    const wasApplied = (next.pendingMigration?.appliedChapters ?? []).includes(
+      item.chapterNumber,
+    );
 
-    if (addedDiag) {
+    if (!wasApplied) {
       remaining.push(item);
       current = {
         ...next,
@@ -148,12 +145,13 @@ export function migratePendingAssetDeltas(
     current = next;
   }
 
+  const skippedPendingIds = current.pendingMigration?.skippedPendingIds;
   return {
     ...current,
     pendingAssetDeltas: remaining,
     pendingMigration: withMigration(current, {
       migratedAt: new Date().toISOString(),
-      skippedPendingIds: current.pendingMigration?.skippedPendingIds,
+      ...(skippedPendingIds !== undefined ? { skippedPendingIds } : {}),
     }),
   };
 }

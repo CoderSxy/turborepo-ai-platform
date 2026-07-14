@@ -120,6 +120,30 @@ describe("migratePendingAssetDeltas", () => {
     assert.ok(result.pendingMigration?.appliedChapters.includes(2));
   });
 
+  it("keeps pending item when chapter was not applied after merge attempt", () => {
+    const emptyContentPending = {
+      id: "p-empty",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      ...sampleDelta({
+        summary: "summary only",
+        characterStates: [],
+        newForeshadowing: [],
+        resolvedForeshadowing: [],
+        worldIncrements: [],
+      }),
+    };
+    const assets = emptyAssets({
+      pendingAssetDeltas: [emptyContentPending],
+    });
+    const result = migratePendingAssetDeltas(assets);
+
+    assert.equal(result.pendingAssetDeltas.length, 1);
+    assert.equal(result.pendingAssetDeltas[0]?.id, "p-empty");
+    assert.ok(!result.pendingMigration?.appliedChapters.includes(1));
+    assert.ok(result.pendingMigration?.skippedPendingIds?.includes("p-empty"));
+    assert.ok(result.pendingMigration?.migratedAt);
+  });
+
   it("does not re-apply already applied chapters on second migrate", () => {
     const once = migratePendingAssetDeltas(
       emptyAssets({
