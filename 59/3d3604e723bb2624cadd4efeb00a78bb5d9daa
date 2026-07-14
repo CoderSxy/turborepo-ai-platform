@@ -1,0 +1,19 @@
+apps/web/lib/novel-asset-auto-sync.ts
+  s_167a8f37c5be5f::t_1f7212edbdf564 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "593d3604e723bb2624cadd4efeb00a78bb5d9daa",
+  "prompts": {},
+  "sessions": {
+    "s_167a8f37c5be5f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "52d50245-cfa6-4f0c-8706-8054a656d208",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
