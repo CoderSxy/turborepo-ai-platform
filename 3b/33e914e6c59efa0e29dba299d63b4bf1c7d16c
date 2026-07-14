@@ -1,0 +1,35 @@
+apps/web/features/studio/components/BookTreeItem.tsx
+  s_dfa92246f0c283::t_b8c557089ed2c8 72-73,79,83
+apps/web/features/studio/components/BookSidebarHeader.tsx
+  s_dfa92246f0c283::t_b7172a9e6bbf4e 39-40,46,50
+apps/web/features/studio/components/NovelStudio.tsx
+  s_dfa92246f0c283::t_17b38d04ab9eac 212-213
+  s_dfa92246f0c283::t_2129616e98fb60 895-911
+  s_dfa92246f0c283::t_796bd62f34d1c8 927-929
+  s_dfa92246f0c283::t_64ef47bb09c987 944
+  s_dfa92246f0c283::t_24e5cff7d5cefd 2139-2147
+apps/web/features/studio/components/SessionActionsMenu.tsx
+  s_dfa92246f0c283::t_d722bc6065bea3 26-27,32,35
+apps/web/features/studio/components/SessionTreeItem.tsx
+  s_dfa92246f0c283::t_d355d0d030cacb 38-39,45,49
+apps/web/features/studio/components/BookActionsMenu.tsx
+  s_dfa92246f0c283::t_85d27f8da02f83 36-37,42,45
+apps/web/features/studio/components/NovelBookList.tsx
+  s_dfa92246f0c283::t_ec08c211456184 15-18,36,46-49,78-80,88,112,123,139-142,151-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3b33e914e6c59efa0e29dba299d63b4bf1c7d16c",
+  "prompts": {},
+  "sessions": {
+    "s_dfa92246f0c283": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e4f233bd-f7e4-46dd-b166-3d499711aee4",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
