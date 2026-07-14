@@ -113,6 +113,12 @@ export type NovelProjectAssets = {
   projectStrategy?: NovelProjectStrategy;
   publicationEvents?: NovelPublicationEvent[];
   assetChangeEvents?: NovelAssetChangeEvent[];
+  pendingMigration?: {
+    schemaVersion: 1;
+    migratedAt?: string;
+    appliedChapters: number[];
+    skippedPendingIds?: string[];
+  };
 };
 
 export type NovelAssetConflictSeverity = "error" | "warning" | "info";
@@ -5021,6 +5027,7 @@ export function normalizeNovelProjectAssets(
     publicationEvents: assets?.publicationEvents ?? [],
     assetChangeEvents: assets?.assetChangeEvents ?? [],
     projectStrategy: assets?.projectStrategy,
+    pendingMigration: assets?.pendingMigration ?? defaultAssets.pendingMigration,
   };
 }
 
@@ -5897,6 +5904,7 @@ export function createDefaultNovelAssets(
     importedMaterials: [],
     marketRadars: [],
     diagnostics: [],
+    pendingMigration: { schemaVersion: 1, appliedChapters: [] },
   };
 }
 
