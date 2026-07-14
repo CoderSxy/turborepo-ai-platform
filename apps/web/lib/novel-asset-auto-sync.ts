@@ -2,7 +2,7 @@ import {
   applyNovelChapterAssetDelta,
   type NovelChapterAssetDelta,
   type NovelProjectAssets,
-} from "./novel-store.ts";
+} from "#lib/novel-store";
 
 export type AssetSyncSource = "chapter-pipeline" | "migration";
 
@@ -27,7 +27,6 @@ function withMigration(
 ): NovelProjectAssets["pendingMigration"] {
   return {
     schemaVersion: 1,
-    appliedChapters: [],
     ...assets.pendingMigration,
     ...patch,
     appliedChapters:
