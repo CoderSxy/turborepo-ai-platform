@@ -1,0 +1,24 @@
+apps/web/features/studio/hooks/useNovelBookWorkspace.ts
+  s_fabb29d1b7c1e4::t_8ebac1427ee3a9 19
+apps/web/features/studio/components/sidebar/CharacterStateTimelinePanel.tsx
+  s_fabb29d1b7c1e4::t_b9df1a55bc87e3 48
+apps/web/features/studio/components/WorkspaceMoreSections.tsx
+  s_fabb29d1b7c1e4::t_e151b78aec5225 243-250,252-253
+  s_fabb29d1b7c1e4::t_d0dce2528da246 85-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c999d0ddb89dfcc04c3e5b8e55f890353acca96b",
+  "prompts": {},
+  "sessions": {
+    "s_fabb29d1b7c1e4": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e15ed5b1-4991-4ec5-94e5-ee722c5210a3",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
