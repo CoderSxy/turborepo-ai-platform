@@ -1547,30 +1547,30 @@
 }
 
 .novelBookList {
-  padding: 14px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   overflow: hidden;
 }
 
 .bookTreeSearchRow {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
 }
 
 .bookTreeSearchRow input {
   flex: 1;
   min-width: 0;
-  height: 34px;
-  border: 1px solid #cbd6d9;
-  border-radius: 8px;
+  height: 28px;
+  border: 1px solid #dbe4e7;
+  border-radius: 6px;
   background: #ffffff;
   color: #162326;
   font: inherit;
-  font-size: 12px;
-  padding: 0 10px;
+  font-size: 11px;
+  padding: 0 8px;
   outline: none;
 }
 
@@ -1680,12 +1680,12 @@
   overflow-y: auto;
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 2px;
 }
 
 .bookListGroup {
   display: grid;
-  gap: 7px;
+  gap: 0;
 }
 
 .emptyBookList {
@@ -1724,12 +1724,7 @@
 }
 
 .bookListItem {
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  padding: 8px;
-  display: grid;
-  gap: 8px;
+  display: contents;
 }
 
 .bookSelectBox {
@@ -1755,37 +1750,6 @@
   cursor: pointer;
   text-align: left;
   padding: 0;
-}
-
-.bookListItem:hover,
-.bookListGroup > .activeBookButton {
-  border-color: #d8e4e5;
-  background: #f8fbfb;
-}
-
-.bookListGroup strong,
-.bookListGroup span {
-  display: block;
-}
-
-.bookListGroup strong {
-  color: #152225;
-  font-size: 13px;
-}
-
-.bookListGroup span {
-  margin-top: 4px;
-  color: #66777a;
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.bookListGroup em {
-  display: block;
-  margin-top: 5px;
-  color: #7b898c;
-  font-size: 11px;
-  font-style: normal;
 }
 
 .bookSidebarHeader {
@@ -1843,41 +1807,47 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  border-radius: 7px;
-  padding: 0 4px;
+  gap: 4px;
+  min-height: 28px;
+  border-radius: 6px;
+  padding: 0 2px;
+  color: #152225;
 }
 
 .bookTreeRow:hover,
 .bookTreeRow:focus-within,
 .sessionTreeRow:hover,
 .sessionTreeRow:focus-within {
-  background: #eef7f2;
+  background: rgba(20, 52, 47, 0.04);
+}
+
+.sessionTreeRow {
+  color: #506164;
 }
 
 .bookTreeRowActive,
+.sessionTreeRowActive,
 .sessionTreeRow.activeSessionButton {
   background: #eef7f2;
   color: #14342f;
 }
 
 .bookTreeExpandButton {
-  flex: 0 0 18px;
-  width: 18px;
-  min-height: 24px;
+  flex: 0 0 16px;
+  width: 16px;
+  min-height: 22px;
   border: none;
   background: transparent;
-  color: #66777a;
+  color: #8a979a;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1;
   padding: 0;
 }
 
 .bookTreeFolderGlyph {
   flex: 0 0 auto;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -1891,9 +1861,9 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
-  font-size: 13px;
-  font-weight: 800;
-  color: #152225;
+  font-size: 12px;
+  font-weight: 700;
+  color: inherit;
   padding: 0;
 }
 
@@ -1902,7 +1872,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -1918,15 +1888,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
+  color: inherit;
 }
 
 .bookTreeAge {
   flex: 0 0 auto;
-  color: inherit;
-  font-size: 11px;
-  font-weight: 750;
-  opacity: 0.72;
+  color: #8a979a;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .bookTreeMoreButton {
@@ -1941,6 +1912,7 @@
   font-size: 14px;
   line-height: 1;
   opacity: 0;
+  pointer-events: none;
   padding: 0;
 }
 
@@ -1950,6 +1922,7 @@
 .sessionTreeRow:focus-within .bookTreeMoreButton,
 .bookTreeMoreButton[aria-expanded="true"] {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .bookTreeMoreButton:hover,
@@ -2026,81 +1999,26 @@
 
 .sessionList {
   display: grid;
-  gap: 4px;
-  padding-left: 10px;
-}
-
-.sessionList > div {
-  min-height: 32px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: #506164;
-  padding: 0 8px;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: center;
-}
-
-.sessionList > div:hover,
-.sessionList .activeSessionButton {
-  background: #eef7f2;
-  color: #14342f;
-}
-
-.sessionList > div > button {
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-
-.sessionList > div > div {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 4px;
-}
-
-.sessionList > div > div button {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 850;
-  padding: 0;
-}
-
-.sessionList span {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.sessionList em {
-  flex: 0 0 auto;
-  color: inherit;
-  font-size: 11px;
-  font-style: normal;
-  opacity: 0.72;
+  gap: 1px;
+  padding-left: 22px;
+  margin: 1px 0 2px;
 }
 
 .sessionList .newSessionButton {
   justify-content: flex-start;
+  min-height: 26px;
   color: #7b898c;
   border: 0;
   background: transparent;
   cursor: pointer;
-  padding: 7px 8px;
+  padding: 4px 2px;
   text-align: left;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.sessionList .newSessionButton:hover {
+  color: #14342f;
 }
 
 .bookContextPanel {
