@@ -461,17 +461,6 @@ function resolveProfile(
   return undefined;
 }
 
-function mergeTraitValues(existing: string[], incoming: string[]): string[] {
-  const merged = [...existing];
-  for (const trait of incoming) {
-    const normalized = trait.trim();
-    if (normalized && !merged.includes(normalized)) {
-      merged.push(normalized);
-    }
-  }
-  return merged;
-}
-
 function buildLockConflictDiagnosticId(profileId: string, syncId: string): string {
   return `char-lock-diag:${profileId}:${syncId}`;
 }
@@ -523,11 +512,6 @@ export function applyCharacterStateChangesToProfiles(input: {
     }
 
     const nextProfile: NovelCharacterProfile = { ...profile };
-    if (!locks.has("coreTraits") && change.emotional?.trim()) {
-      nextProfile.coreTraits = mergeTraitValues(profile.coreTraits, [change.emotional]);
-    } else if (locks.has("coreTraits") && change.emotional?.trim()) {
-      lockConflicts.push("coreTraits");
-    }
 
     if (!locks.has("currentState") && wouldUpdateCurrentState) {
       nextProfile.currentState = {

@@ -362,13 +362,71 @@ describe("character profile chapter sync", () => {
     assert.equal(profile.currentState.summary, "人工锁定状态");
     assert.equal(profile.currentState.location, "档案室");
     assert.equal(profile.relationships[0]?.state, "互不信任");
-    assert.deepEqual(profile.coreTraits, ["谨慎", "紧张"]);
+    assert.deepEqual(profile.coreTraits, ["谨慎"]);
 
     const lockDiagnostic = result.diagnostics?.find((item) =>
       item.id.startsWith(`char-lock-diag:${profileId}:`),
     );
     assert.ok(lockDiagnostic);
     assert.equal(lockDiagnostic.ok, false);
+  });
+
+  it("updates currentState.emotional without merging into coreTraits", () => {
+    const profileId = createStableCharacterProfileId("林照");
+    const assets = baseAssets({
+      characterProfiles: [
+        {
+          id: profileId,
+          name: "林照",
+          aliases: [],
+          tier: "protagonist",
+          narrativeRole: "档案修复师",
+          coreTraits: ["谨慎"],
+          motivations: [],
+          goals: [],
+          relationships: [],
+          currentState: {
+            summary: "初始状态",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+          stateHistory: [],
+          manualLocks: [],
+          source: "foundation",
+        },
+      ],
+    });
+
+    const delta: NovelChapterAssetDelta = {
+      chapterNumber: 3,
+      chapterTitle: "备份人",
+      summary: "林照见到证人。",
+      characterStates: [{ title: "林照", content: "情绪紧张，目标转向证人。" }],
+      characterStateChanges: [
+        {
+          characterId: profileId,
+          characterName: "林照",
+          summary: "情绪紧张，目标转向证人。",
+          emotional: "紧张",
+          objective: "找到证人",
+          changes: ["情绪紧张", "目标转向证人"],
+        },
+      ],
+      newForeshadowing: [],
+      resolvedForeshadowing: [],
+      worldIncrements: [],
+    };
+
+    const result = applyNovelChapterAssetDelta(assets, delta, {
+      syncId: "chapter-3:version-3:emotional-test",
+      chapterId: "book-1-chapter-0003",
+      source: "chapter-pipeline",
+    });
+
+    const profile = result.characterProfiles?.find((item) => item.id === profileId);
+    assert.ok(profile);
+    assert.deepEqual(profile.coreTraits, ["谨慎"]);
+    assert.equal(profile.currentState.emotional, "紧张");
+    assert.equal(profile.currentState.chapterId, "book-1-chapter-0003");
   });
 });
 

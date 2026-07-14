@@ -19,6 +19,7 @@ import {
   commitWriteChapterResultWithDb,
   createDefaultNovelAssets,
   selectNextNovelChapterTarget,
+  updateStoredNovelTaskPipelineCheckpoint,
 } from "./novel-store.ts";
 
 const TEST_DB_NAME = "sxy-creative-studio-recovery-test";
@@ -28,6 +29,8 @@ const CHAPTERS_STORE = "chapters";
 const CHAPTER_VERSIONS_STORE = "chapterVersions";
 const TASKS_STORE = "tasks";
 const MESSAGES_STORE = "messages";
+const NOW = "2026-07-14T12:00:00.000Z";
+const PRODUCTION_DB_NAME = "sxy-creative-studio";
 
 type StoreSnapshot = {
   books: StoredNovelBook[];
@@ -488,5 +491,65 @@ describe("write-chapter recovery", () => {
     assert.equal(afterFailure.number, 2);
     assert.equal(afterFailure.title, "第二章");
     assert.equal(afterFailure.reason, "planned");
+  });
+});
+
+describe("updateStoredNovelTaskPipelineCheckpoint terminal guard", () => {
+  it("ignores late checkpoint writes after task reaches success", async () => {
+    await new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(PRODUCTION_DB_NAME);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    });
+
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(PRODUCTION_DB_NAME, TEST_DB_VERSION);
+      request.onupgradeneeded = () => {
+        upgradeNovelDbSchema(request.result, request.transaction);
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(request.error ?? new Error("Failed to open production test DB."));
+    });
+
+    try {
+      const task: StoredNovelTask = {
+        id: "task-terminal-success",
+        bookId: "book-1",
+        sessionId: "session-1",
+        action: "write-chapter",
+        label: "写下一章",
+        status: "success",
+        logs: [],
+        startedAt: NOW,
+        endedAt: NOW,
+        pipelineStage: "completed",
+      };
+      await putInStore(db, TASKS_STORE, task);
+
+      const updated = await updateStoredNovelTaskPipelineCheckpoint(task.id, {
+        progressMessages: ["正在保存，请勿关闭…"],
+        savedAt: NOW,
+        assistantMessageId: "assistant-1",
+        pipeline: {
+          stage: "committing",
+          stageTimeline: [],
+          revisionAttempts: 0,
+          auditParseAttempts: 1,
+          draftVersionIds: [],
+        },
+      });
+
+      assert.equal(updated?.status, "success");
+      assert.equal(updated?.checkpoint, undefined);
+      assert.equal(updated?.pipelineStage, "completed");
+
+      const snapshot = await readStoreSnapshot(db);
+      const storedTask = snapshot.tasks.find((item) => item.id === task.id);
+      assert.equal(storedTask?.checkpoint, undefined);
+    } finally {
+      db.close();
+    }
   });
 });

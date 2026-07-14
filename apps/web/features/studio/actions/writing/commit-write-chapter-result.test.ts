@@ -8,6 +8,7 @@ import {
 } from "../../../../lib/novel-store.ts";
 import {
   assertCanCommitWriteChapter,
+  buildCompletedWriteChapterTask,
   buildInMemoryChapterVersion,
   buildInMemoryStoredChapter,
   buildWriteChapterCommitInput,
@@ -246,5 +247,47 @@ describe("buildWriteChapterCommitInput", () => {
 
     assert.doesNotMatch(input.finalAssistantMessage.content, /已保存/);
     assert.equal(input.completedTask.status, "success");
+  });
+});
+
+describe("buildCompletedWriteChapterTask", () => {
+  it("clears recoverable checkpoint on terminal success", () => {
+    const storedChapter = buildInMemoryStoredChapter({
+      generatedChapter: {
+        bookId: "book-1",
+        number: 2,
+        title: "第二章",
+        content: "正文。",
+        summary: "摘要",
+        status: "ready-for-review",
+        wordCount: 2,
+      },
+      chapterId: "book-1-chapter-0002",
+      now: NOW,
+    });
+
+    const completed = buildCompletedWriteChapterTask({
+      task: {
+        ...buildFixtureTask(),
+        checkpoint: {
+          progressMessages: ["正在保存，请勿关闭…"],
+          savedAt: NOW,
+          assistantMessageId: "assistant-1",
+          pipeline: {
+            stage: "committing",
+            stageTimeline: [],
+            revisionAttempts: 0,
+            auditParseAttempts: 1,
+            draftVersionIds: [],
+          },
+        },
+      },
+      storedChapter,
+      progressMessages: ["第 2 章《第二章》已保存"],
+      now: NOW,
+    });
+
+    assert.equal(completed.status, "success");
+    assert.equal(completed.checkpoint, undefined);
   });
 });

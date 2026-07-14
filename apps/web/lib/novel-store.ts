@@ -594,6 +594,7 @@ export type StoredNovelMessage = {
   sessionId: string;
   role: "user" | "assistant";
   content: string;
+  parts?: Array<Record<string, unknown>>;
   createdAt: string;
   status?: "sent" | "error";
 };
@@ -7337,6 +7338,15 @@ export async function updateStoredNovelTaskPipelineCheckpoint(
     const task = await getFromStore<StoredNovelTask>(db, TASKS_STORE, taskId);
     if (!task) {
       return null;
+    }
+
+    if (
+      task.status === "success" ||
+      task.status === "completed_with_attention" ||
+      task.status === "error" ||
+      task.status === "cancelled"
+    ) {
+      return task;
     }
 
     const now = new Date().toISOString();

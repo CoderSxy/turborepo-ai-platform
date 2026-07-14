@@ -10,6 +10,7 @@ const {
   evaluateAuditBlocking,
   parseChapterAudit,
   runWriteChapterPipeline,
+  buildDefaultWriteChapterPipelineAdapters,
 } = await import("./run-write-chapter-pipeline.ts");
 
 /** @typedef {import("../../../../lib/novel-store.ts").StoredNovelBook} StoredNovelBook */
@@ -414,6 +415,41 @@ describe("runWriteChapterPipeline", () => {
     }
   });
 
+  it("persists chapter audit on commit input when pipeline produces structured audit", async () => {
+    const { adapters } = createRecordingAdapters({});
+
+    const result = await runWriteChapterPipeline({
+      book: buildBook(),
+      chapters: [],
+      target: {
+        number: 2,
+        title: "试炼",
+        focus: "进入试炼",
+        targetWords: 3000,
+        reason: "planned",
+      },
+      task: buildTask(),
+      sessionId: "session-1",
+      assistantMessageId: "assistant-1",
+      label: "写下一章",
+      startedAt: NOW,
+      adapters,
+      now: () => NOW,
+    });
+
+    assert.equal(result.terminal, "completed");
+    if (result.terminal === "completed" || result.terminal === "completed_with_attention") {
+      assert.equal(result.commitInput.finalChapter.reviews.length, 1);
+      assert.equal(
+        result.commitInput.finalChapter.activeReviewId,
+        result.commitInput.completedTask.auditId,
+      );
+      assert.equal(result.commitInput.finalChapterVersion.reviews.length, 1);
+      assert.equal(result.commitInput.finalChapter.reviews[0]?.score, 88);
+      assert.equal(result.commitInput.finalChapter.reviews[0]?.verdict, "approved");
+    }
+  });
+
   it("returns cancelled without commit artifacts when aborted before commit", async () => {
     const controller = new AbortController();
     const { adapters } = createRecordingAdapters({
@@ -446,5 +482,42 @@ describe("runWriteChapterPipeline", () => {
     assert.equal(result.terminal, "cancelled");
     assert.equal("commitInput" in result, false);
     assert.match(result.errorMessage, /取消/);
+  });
+});
+
+describe("buildDefaultWriteChapterPipelineAdapters", () => {
+  it("appends structured-json constraint on audit retry attempts", async () => {
+    const instructions = [];
+    const adapters = buildDefaultWriteChapterPipelineAdapters({
+      writeInstruction: "写章节",
+      streamAction: async (_action, instruction) => {
+        instructions.push(instruction);
+        return JSON.stringify(buildPassAudit());
+      },
+    });
+
+    await adapters.auditChapter({
+      bookId: "book-1",
+      project: buildBook().project,
+      assets: buildBook().assets,
+      chapters: [],
+      target: {
+        number: 2,
+        title: "试炼",
+        focus: "进入试炼",
+        targetWords: 3000,
+        reason: "planned",
+      },
+      taskId: TASK_ID,
+      intent: "intent",
+      content: DRAFT_CONTENT,
+      attempt: 2,
+    });
+
+    assert.equal(instructions.length, 1);
+    assert.match(
+      instructions[0] ?? "",
+      /请仅以结构化 JSON 重新输出审核报告，勿输出解释性散文/,
+    );
   });
 });

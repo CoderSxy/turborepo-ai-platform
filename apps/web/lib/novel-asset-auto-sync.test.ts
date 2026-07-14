@@ -610,6 +610,30 @@ describe("novelAssetMigrationChanged", () => {
   });
 });
 
+describe("mergeNovelChapterAssetDeltaSafely chapterId forwarding", () => {
+  it("forwards chapterId to applyNovelChapterAssetDelta", () => {
+    let capturedChapterId: string | undefined;
+    setTestApplyDeltaOverride((assets, delta, options) => {
+      capturedChapterId = options?.chapterId;
+      return {
+        ...assets,
+        characterProfiles: assets.characterProfiles ?? [],
+      };
+    });
+
+    try {
+      mergeNovelChapterAssetDeltaSafely(emptyAssets(), sampleDelta(), {
+        source: "chapter-pipeline",
+        syncId: "sync-with-chapter-id",
+        chapterId: "book-1-chapter-0002",
+      });
+      assert.equal(capturedChapterId, "book-1-chapter-0002");
+    } finally {
+      setTestApplyDeltaOverride(null);
+    }
+  });
+});
+
 describe("countSyncAttentionDiagnostics", () => {
   it("counts failed sync diagnostics only", () => {
     const assets = emptyAssets({

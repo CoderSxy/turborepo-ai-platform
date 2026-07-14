@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 await register("../node-test-resolve.mjs", import.meta.url);
 
+const { fromStoredMessage } = await import("../../persistence/message-bridge.ts");
+
 const {
   commitWriteChapterResultWithDb,
   createDefaultNovelAssets,
@@ -424,6 +426,22 @@ describe("write-chapter integration", () => {
     assert.equal(snapshot.chapters.length, 0);
   });
 
+  it("reload after commit persists pipeline timeline parts on stored message", async () => {
+    const result = await runPipelineAndCommit(db);
+    assert.equal(result.terminal, "completed");
+
+    const snapshot = await readStoreSnapshot(db);
+    const message = snapshot.messages[0];
+    assert.ok(message?.parts?.length);
+    const progressPart = message.parts.find((part) => part.type === "progress");
+    assert.ok(progressPart?.pipelineTimeline);
+    assert.equal(progressPart.pipelineTimeline.revisionCount, 0);
+
+    const restored = fromStoredMessage(message);
+    const restoredProgress = restored.parts.find((part) => part.type === "progress");
+    assert.ok(restoredProgress?.pipelineTimeline);
+  });
+
   it("reload after commit leaves a completed task and non-streaming message", async () => {
     const result = await runPipelineAndCommit(db);
     assert.equal(result.terminal, "completed");
@@ -469,6 +487,17 @@ describe("write-chapter integration", () => {
     const nextTarget = selectNextNovelChapterTarget(book.project, snapshot.chapters);
     assert.equal(nextTarget.number, 2);
     assert.equal(snapshot.chapters.length, 0);
+  });
+
+  it("persists chapter audit scores on committed chapter after reload", async () => {
+    const result = await runPipelineAndCommit(db);
+    assert.equal(result.terminal, "completed");
+
+    const snapshot = await readStoreSnapshot(db);
+    const chapter = snapshot.chapters[0];
+    assert.equal(chapter?.reviews.length, 1);
+    assert.equal(chapter?.activeReviewId, snapshot.tasks[0]?.auditId);
+    assert.equal(chapter?.reviews[0]?.score, 88);
   });
 });
 

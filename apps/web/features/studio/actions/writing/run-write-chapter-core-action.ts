@@ -161,6 +161,33 @@ export async function runWriteChapterCoreAction(
   let latestAuditParseFailed = false;
   let latestSyncStatus: WriteChapterPipelineTimelineView["syncStatus"];
   let contextSummary = "";
+  let checkpointWriteChain = Promise.resolve();
+  let commitStarted = false;
+
+  const enqueuePipelineStageCheckpoint = (update: {
+    checkpoint: import("#lib/novel-store").WriteChapterPipelineCheckpointState;
+  }) => {
+    if (commitStarted) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    checkpointWriteChain = checkpointWriteChain.then(async () => {
+      if (commitStarted) {
+        return;
+      }
+
+      currentTask = await persistPipelineStageCheckpoint({
+        taskId,
+        runningTask: currentTask,
+        assistantMessageId,
+        progressMessages,
+        checkpoint: update.checkpoint,
+        now,
+      });
+    });
+    void checkpointWriteChain;
+  };
 
   if (!isResume) {
     progressMessages.push(
@@ -347,17 +374,7 @@ export async function runWriteChapterCoreAction(
         updateCoreProgress("正在保存，请勿关闭…");
       }
 
-      const now = new Date().toISOString();
-      void persistPipelineStageCheckpoint({
-        taskId,
-        runningTask: currentTask,
-        assistantMessageId,
-        progressMessages,
-        checkpoint: update.checkpoint,
-        now,
-      }).then((task) => {
-        currentTask = task;
-      });
+      enqueuePipelineStageCheckpoint(update);
     },
   });
 
@@ -375,6 +392,8 @@ export async function runWriteChapterCoreAction(
     );
 
     assertCanCommitWriteChapter(abortController.signal);
+    commitStarted = true;
+    await checkpointWriteChain;
     await commitWriteChapterResultForStudio(pipelineResult.commitInput);
 
     const savedProgressMessage = `第 ${pipelineResult.commitInput.finalChapter.number} 章《${pipelineResult.commitInput.finalChapter.title}》已保存`;

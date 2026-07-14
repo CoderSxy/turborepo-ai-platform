@@ -10,7 +10,8 @@ import {
   type StoredNovelMessage,
   type StoredNovelTask,
 } from "#lib/novel-store";
-import { buildFinalAssistantParts, flattenPartsToContent } from "#studio/parts-builder";
+import { buildFinalAssistantParts, buildWriteChapterFinalAssistantParts, flattenPartsToContent } from "#studio/parts-builder";
+import type { WriteChapterPipelineTimelineView } from "./write-chapter-pipeline-timeline";
 import type { StudioMessage } from "../../store/types";
 
 export function preallocateWriteChapterIds(
@@ -146,6 +147,7 @@ export function buildCompletedWriteChapterTask(input: {
     chapterVersionId,
     auditId,
     pipelineStage: pipelineStage ?? "completed",
+    checkpoint: undefined,
     logs: [
       ...task.logs,
       ...progressLogs,
@@ -167,19 +169,34 @@ export function buildFinalWriteChapterAssistantMessage(input: {
   completionSummary: string;
   startedAt: string;
   now: string;
+  pipelineTimeline?: WriteChapterPipelineTimelineView;
+  attentionReason?: string;
+  terminal?: "completed" | "completed_with_attention";
 }): { stored: StoredNovelMessage; studio: StudioMessage } {
   const studioMessage: StudioMessage = {
     id: input.assistantMessageId,
     role: "assistant",
-    parts: buildFinalAssistantParts(
-      input.label,
-      input.progressMessages,
-      input.resultContent,
-      {
-        startedAt: input.startedAt,
-        summary: input.completionSummary,
-      },
-    ),
+    parts:
+      input.pipelineTimeline && input.terminal
+        ? buildWriteChapterFinalAssistantParts({
+            label: input.label,
+            progressMessages: input.progressMessages,
+            resultContent: input.resultContent,
+            startedAt: input.startedAt,
+            completionSummary: input.completionSummary,
+            pipelineTimeline: input.pipelineTimeline,
+            attentionReason: input.attentionReason,
+            terminal: input.terminal,
+          })
+        : buildFinalAssistantParts(
+            input.label,
+            input.progressMessages,
+            input.resultContent,
+            {
+              startedAt: input.startedAt,
+              summary: input.completionSummary,
+            },
+          ),
     createdAt: input.now,
   };
 
@@ -190,6 +207,7 @@ export function buildFinalWriteChapterAssistantMessage(input: {
       sessionId: input.sessionId,
       role: "assistant",
       content: flattenPartsToContent(studioMessage.parts),
+      parts: studioMessage.parts as StoredNovelMessage["parts"],
       createdAt: input.now,
       status: "sent",
     },
@@ -228,6 +246,9 @@ export function buildWriteChapterCommitInput(
     chapterVersionId?: string;
     auditId?: string;
     pipelineStage?: StoredNovelTask["pipelineStage"];
+    pipelineTimeline?: WriteChapterPipelineTimelineView;
+    attentionReason?: string;
+    terminal?: "completed" | "completed_with_attention";
   },
 ): CommitWriteChapterResultInput {
   const book: StoredNovelBook = {
@@ -269,6 +290,9 @@ export function buildWriteChapterCommitInput(
       completionSummary: args.completionSummary,
       startedAt: args.startedAt,
       now: args.now,
+      pipelineTimeline: args.pipelineTimeline,
+      attentionReason: args.attentionReason,
+      terminal: args.terminal,
     }).stored,
   };
 }

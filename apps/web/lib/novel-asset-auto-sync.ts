@@ -13,6 +13,7 @@ export type AssetSyncSource = "chapter-pipeline" | "migration";
 export type MergeAssetDeltaPolicy = {
   source: AssetSyncSource;
   syncId: string;
+  chapterId?: string;
 };
 
 export type CanonicalNovelChapterAssetDelta = {
@@ -284,14 +285,14 @@ export function mergeNovelChapterAssetDeltaSafely(
   }
 
   try {
+    const applyOptions = {
+      syncId,
+      chapterId: policy.chapterId,
+      source: policy.source,
+    };
     const applyDelta =
-      testApplyDeltaOverride ??
-      ((nextAssets, nextDelta) =>
-        applyNovelChapterAssetDelta(nextAssets, nextDelta, {
-          syncId,
-          source: policy.source,
-        }));
-    const merged = applyDelta(assets, delta);
+      testApplyDeltaOverride ?? applyNovelChapterAssetDelta;
+    const merged = applyDelta(assets, delta, applyOptions);
     return {
       status: "applied",
       assets: {

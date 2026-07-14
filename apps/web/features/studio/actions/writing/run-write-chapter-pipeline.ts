@@ -6,10 +6,14 @@ import {
 import {
   buildNovelChapterAssetDelta,
   buildNovelWriteChapterInstruction,
+  reconcileNovelReviewHistory,
   syncNovelOutlineNodesFromChapters,
   syncNovelProjectChapterPlan,
   validateCommitWriteChapterResultInput,
   type CommitWriteChapterResultInput,
+  type NovelChapterReview,
+  type NovelChapterReviewIssue,
+  type NovelChapterReviewIssueSeverity,
   type NovelChapterWriteTarget,
   type NovelProjectAssets,
   type StoredNovelBook,
@@ -41,6 +45,7 @@ import {
   buildWriteChapterCommitInput,
   preallocateWriteChapterIds,
 } from "./commit-write-chapter-result";
+import { buildWriteChapterPipelineTimelineView } from "./write-chapter-pipeline-timeline";
 
 export const CHAPTER_AUDIT_DIMENSION_KEYS: readonly ChapterAuditDimensionKey[] =
   [
@@ -409,6 +414,96 @@ function createAuditId(taskId: string, attempt: number, now: string): string {
   return `${taskId}-audit-${attempt}-${now.replace(/[^0-9]/g, "")}`;
 }
 
+const AUDIT_DIMENSION_TO_ISSUE_TYPE: Record<
+  ChapterAuditDimensionKey,
+  NonNullable<NovelChapterReviewIssue["type"]>
+> = {
+  continuity: "continuity",
+  character: "character",
+  plot: "plot",
+  style: "style",
+  pacing: "pacing",
+  foreshadowing: "plot",
+  length: "other",
+};
+
+function mapAuditIssueSeverity(
+  severity: ChapterAuditIssueSeverity,
+): NovelChapterReviewIssueSeverity {
+  if (severity === "critical") {
+    return "error";
+  }
+
+  return severity;
+}
+
+export function convertChapterAuditToNovelReview(input: {
+  audit: ChapterAudit;
+  auditId: string;
+  terminal: "completed" | "completed_with_attention";
+  attentionReason?: string;
+  now: string;
+}): NovelChapterReview {
+  const hasCritical = input.audit.dimensions.some((dimension) =>
+    dimension.issues.some((issue) => issue.severity === "critical"),
+  );
+  const verdict =
+    input.terminal === "completed_with_attention" || hasCritical
+      ? "needs-revision"
+      : "approved";
+  const issues = input.audit.dimensions.flatMap((dimension, dimensionIndex) =>
+    dimension.issues.map((issue, issueIndex) => ({
+      id: `${input.auditId}-${dimension.key}-${dimensionIndex + 1}-${issueIndex + 1}`,
+      severity: mapAuditIssueSeverity(issue.severity),
+      type: AUDIT_DIMENSION_TO_ISSUE_TYPE[dimension.key],
+      title: issue.evidence.slice(0, 80) || `${dimension.key} 问题`,
+      detail: issue.evidence,
+      suggestion: issue.suggestion || undefined,
+      resolved: false,
+    })),
+  );
+  const summary =
+    input.attentionReason?.trim() ||
+    `总分 ${input.audit.totalScore}，${issues.length} 项审核问题。`;
+
+  return {
+    id: input.auditId,
+    verdict,
+    score: input.audit.totalScore,
+    summary,
+    issues,
+    createdAt: input.now,
+  };
+}
+
+function attachChapterAuditReview(input: {
+  chapter: StoredNovelChapter;
+  audit: ChapterAudit | null;
+  auditId: string;
+  terminal: "completed" | "completed_with_attention";
+  attentionReason?: string;
+  now: string;
+}): StoredNovelChapter {
+  if (!input.audit) {
+    return input.chapter;
+  }
+
+  const nextReview = convertChapterAuditToNovelReview({
+    audit: input.audit,
+    auditId: input.auditId,
+    terminal: input.terminal,
+    attentionReason: input.attentionReason,
+    now: input.now,
+  });
+  const reviews = reconcileNovelReviewHistory(input.chapter.reviews ?? [], nextReview);
+
+  return {
+    ...input.chapter,
+    reviews,
+    activeReviewId: nextReview.id,
+  };
+}
+
 export type ValidateWriteChapterStateResult =
   | { ok: true }
   | { ok: false; reason: string };
@@ -479,6 +574,10 @@ function buildCommitArtifacts(input: {
   terminal: "completed" | "completed_with_attention";
   attentionReason?: string;
   audit: ChapterAudit | null;
+  auditParseFailed?: boolean;
+  checkpoint: WriteChapterPipelineCheckpointState;
+  contextSummary?: string;
+  syncStatus?: "applied" | "needs-attention";
   now: string;
 }): CommitWriteChapterResultInput {
   const generatedChapter = extractGeneratedChapter({
@@ -501,11 +600,18 @@ function buildCommitArtifacts(input: {
   });
   const existingChapter =
     input.chapters.find((chapter) => chapter.id === input.chapterId) ?? null;
-  const storedChapter = buildInMemoryStoredChapter({
-    generatedChapter,
-    chapterId: input.chapterId,
-    existingChapter,
-    summaryOverride: assetDelta.summary || generatedChapter.summary,
+  const storedChapter = attachChapterAuditReview({
+    chapter: buildInMemoryStoredChapter({
+      generatedChapter,
+      chapterId: input.chapterId,
+      existingChapter,
+      summaryOverride: assetDelta.summary || generatedChapter.summary,
+      now: input.now,
+    }),
+    audit: input.audit,
+    auditId: input.auditId,
+    terminal: input.terminal,
+    attentionReason: input.attentionReason,
     now: input.now,
   });
   const nextProject = syncNovelProjectChapterPlan(input.project, storedChapter);
@@ -518,6 +624,7 @@ function buildCommitArtifacts(input: {
         ? "InkOS ReviserAgent 修订章节"
         : "InkOS WriterAgent 生成章节",
   });
+  chapterVersion.reviewId = storedChapter.activeReviewId;
   const savedProgressMessage = `第 ${storedChapter.number} 章《${storedChapter.title}》已保存`;
   const progressForCommit = [...input.progressMessages, savedProgressMessage];
   const taskStatus =
@@ -528,6 +635,16 @@ function buildCommitArtifacts(input: {
     input.terminal === "completed_with_attention"
       ? input.attentionReason || "已生成，建议查看审核问题。"
       : undefined;
+  const pipelineTimeline = buildWriteChapterPipelineTimelineView({
+    checkpoint: input.checkpoint,
+    audit: input.audit,
+    auditParseFailed: input.auditParseFailed,
+    draftContent: input.selectedVersion.content,
+    contextSummary: input.contextSummary,
+    syncStatus: input.syncStatus,
+    terminal: input.terminal,
+    attentionReason: input.attentionReason,
+  });
 
   return buildWriteChapterCommitInput({
     bookSnapshot: {
@@ -566,6 +683,9 @@ function buildCommitArtifacts(input: {
     chapterVersionId: input.chapterVersionId,
     auditId: input.auditId,
     pipelineStage: input.terminal,
+    pipelineTimeline,
+    attentionReason: input.attentionReason,
+    terminal: input.terminal,
   });
 }
 
@@ -827,7 +947,7 @@ export async function runWriteChapterPipeline(
     const mergeResult = mergeNovelChapterAssetDeltaSafely(
       input.book.assets,
       mergeDelta,
-      { source: "chapter-pipeline", syncId },
+      { source: "chapter-pipeline", syncId, chapterId },
     );
     let nextAssets = mergeResult.assets;
     const generatedChapter = extractGeneratedChapter({
@@ -914,6 +1034,10 @@ export async function runWriteChapterPipeline(
       terminal,
       attentionReason,
       audit: parsedAudit,
+      auditParseFailed,
+      checkpoint,
+      syncStatus:
+        mergeResult.status === "needs-attention" ? "needs-attention" : "applied",
       now: now(),
     });
 
@@ -980,8 +1104,13 @@ export function buildDefaultWriteChapterPipelineAdapters(input: {
     },
     draftChapter: async () =>
       input.streamAction("write-chapter", input.writeInstruction),
-    auditChapter: async (context) =>
-      input.streamAction("review", context.content, context.content),
+    auditChapter: async (context) => {
+      const instruction =
+        context.attempt >= 2
+          ? `${context.content}\n\n请仅以结构化 JSON 重新输出审核报告，勿输出解释性散文`
+          : context.content;
+      return input.streamAction("review", instruction, context.content);
+    },
     reviseChapter: async (context) =>
       input.streamAction(
         "revise-chapter",
