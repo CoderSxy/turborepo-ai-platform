@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-07-14-inkos-auto-asset-sync-design.md
+  s_746c92d6ba02f2::t_c69ff42f8703d7 1-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4964aadb3efbd3d0053ee118d639c17147f3f7c7",
+  "prompts": {},
+  "sessions": {
+    "s_746c92d6ba02f2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee94951a-92e1-439f-80c5-e3f32c14c109",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
