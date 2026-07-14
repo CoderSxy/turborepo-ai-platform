@@ -6943,6 +6943,176 @@ export async function finishStoredNovelTask(
   }
 }
 
+export type CommitWriteChapterResultInput = {
+  bookId: string;
+  book: StoredNovelBook;
+  finalChapter: StoredNovelChapter;
+  finalChapterVersion: StoredNovelChapterVersion;
+  completedTask: StoredNovelTask;
+  finalAssistantMessage: StoredNovelMessage;
+};
+
+export class CommitWriteChapterResultValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CommitWriteChapterResultValidationError";
+  }
+}
+
+export function validateCommitWriteChapterResultInput(
+  input: CommitWriteChapterResultInput,
+): void {
+  const {
+    bookId,
+    book,
+    finalChapter,
+    finalChapterVersion,
+    completedTask,
+    finalAssistantMessage,
+  } = input;
+
+  if (book.id !== bookId) {
+    throw new CommitWriteChapterResultValidationError(
+      "book.id must match bookId.",
+    );
+  }
+
+  if (finalChapter.bookId !== bookId) {
+    throw new CommitWriteChapterResultValidationError(
+      "finalChapter.bookId must match bookId.",
+    );
+  }
+
+  if (finalChapterVersion.chapterId !== finalChapter.id) {
+    throw new CommitWriteChapterResultValidationError(
+      "finalChapterVersion.chapterId must match finalChapter.id.",
+    );
+  }
+
+  if (finalChapterVersion.bookId !== bookId) {
+    throw new CommitWriteChapterResultValidationError(
+      "finalChapterVersion.bookId must match bookId.",
+    );
+  }
+
+  if (completedTask.bookId !== bookId) {
+    throw new CommitWriteChapterResultValidationError(
+      "completedTask.bookId must match bookId.",
+    );
+  }
+
+  if (completedTask.sessionId !== finalAssistantMessage.sessionId) {
+    throw new CommitWriteChapterResultValidationError(
+      "completedTask.sessionId must match finalAssistantMessage.sessionId.",
+    );
+  }
+
+  if (completedTask.status !== "success") {
+    throw new CommitWriteChapterResultValidationError(
+      "completedTask.status must be success.",
+    );
+  }
+
+  if (!finalChapter.content.trim()) {
+    throw new CommitWriteChapterResultValidationError(
+      "finalChapter.content must not be empty.",
+    );
+  }
+
+  if (!finalAssistantMessage.content.trim()) {
+    throw new CommitWriteChapterResultValidationError(
+      "finalAssistantMessage.content must not be empty.",
+    );
+  }
+
+  if (finalAssistantMessage.role !== "assistant") {
+    throw new CommitWriteChapterResultValidationError(
+      "finalAssistantMessage.role must be assistant.",
+    );
+  }
+
+  if (
+    completedTask.targetChapterId &&
+    completedTask.targetChapterId !== finalChapter.id
+  ) {
+    throw new CommitWriteChapterResultValidationError(
+      "completedTask.targetChapterId must match finalChapter.id when set.",
+    );
+  }
+}
+
+export async function commitWriteChapterResult(
+  input: CommitWriteChapterResultInput,
+): Promise<void> {
+  const db = await openNovelDb();
+
+  try {
+    await commitWriteChapterResultWithDb(db, input);
+  } finally {
+    db.close();
+  }
+}
+
+export async function commitWriteChapterResultWithDb(
+  db: IDBDatabase,
+  input: CommitWriteChapterResultInput,
+): Promise<void> {
+  validateCommitWriteChapterResultInput(input);
+
+  const {
+    book,
+    finalChapter,
+    finalChapterVersion,
+    completedTask,
+    finalAssistantMessage,
+  } = input;
+
+  const transaction = db.transaction(
+    [
+      CHAPTERS_STORE,
+      CHAPTER_VERSIONS_STORE,
+      BOOKS_STORE,
+      TASKS_STORE,
+      MESSAGES_STORE,
+    ],
+    "readwrite",
+  );
+
+  try {
+    await Promise.all([
+      putInTransaction(transaction.objectStore(CHAPTERS_STORE), finalChapter),
+      putInTransaction(
+        transaction.objectStore(CHAPTER_VERSIONS_STORE),
+        finalChapterVersion,
+      ),
+      putInTransaction(transaction.objectStore(BOOKS_STORE), book),
+      putInTransaction(transaction.objectStore(TASKS_STORE), completedTask),
+      putInTransaction(
+        transaction.objectStore(MESSAGES_STORE),
+        finalAssistantMessage,
+      ),
+    ]);
+    await transactionDone(transaction);
+  } catch (error) {
+    if (transaction.error == null && transaction.mode === "readwrite") {
+      transaction.abort();
+    }
+    throw error;
+  }
+}
+
+function putInTransaction<T>(store: IDBObjectStore, value: T): Promise<void> {
+  return idbRequestDone(store.put(value)).then(() => undefined);
+}
+
+function idbRequestDone<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () =>
+      reject(request.error ?? new Error("IndexedDB request failed."));
+  });
+}
+
 export async function pauseStoredNovelTask(
   taskId: string,
 ): Promise<StoredNovelTask | null> {

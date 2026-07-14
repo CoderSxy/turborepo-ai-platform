@@ -16,7 +16,7 @@
     "start": "next start",
     "lint": "eslint --max-warnings 0",
     "check-types": "next typegen && tsc --noEmit",
-    "test": "node --test --experimental-strip-types lib/novel-asset-auto-sync.test.ts features/studio/components/book-tree-expand.test.ts features/studio/components/right-panel/chapter-status-symbol.test.ts features/studio/components/right-panel/right-panel-width.test.ts features/studio/components/right-panel/detail/detail-title.test.ts features/studio/components/right-panel/right-panel-summaries.test.ts"
+    "test": "node --test --experimental-strip-types lib/novel-asset-auto-sync.test.ts lib/commit-write-chapter-result.test.ts features/studio/components/book-tree-expand.test.ts features/studio/components/right-panel/chapter-status-symbol.test.ts features/studio/components/right-panel/right-panel-width.test.ts features/studio/components/right-panel/detail/detail-title.test.ts features/studio/components/right-panel/right-panel-summaries.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.1",
@@ -35,6 +35,7 @@
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "eslint": "^9.39.1",
+    "fake-indexeddb": "^6.0.0",
     "tailwindcss": "^4.3.1",
     "typescript": "5.9.2"
   }
