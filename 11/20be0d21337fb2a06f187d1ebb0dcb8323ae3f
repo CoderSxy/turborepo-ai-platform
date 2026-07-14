@@ -1,0 +1,25 @@
+apps/web/lib/novel-asset-auto-sync.ts
+  s_399165c645dc66::t_3fead05685988b 5,14-30,34-96,120-146,159-164,167-177,183-190,196-203,211-213,215,232,239-241,245,247,250-266
+apps/web/features/studio/actions/run-core-action.ts
+  s_399165c645dc66::t_a084e3ea4af2d8 447-460,462-463,465,467-468
+  s_399165c645dc66::t_32ddd9ed014dba 30
+apps/web/lib/novel-asset-auto-sync.test.ts
+  s_399165c645dc66::t_f409229d8ac563 246-247
+  s_399165c645dc66::t_b37e279e431794 6,8-9,12,106-165,167-168,170,172,174-192,195-199,201-206,208,210-221,223-226,230-231,233,239,241-242,244-245,248-273,278,294,297-300,303-361,380,382-386,389,402,405,407-408,411
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1120be0d21337fb2a06f187d1ebb0dcb8323ae3f",
+  "prompts": {},
+  "sessions": {
+    "s_399165c645dc66": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "03312dd7-e78c-489f-b1cd-c2afc9b8eec5",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
