@@ -1,0 +1,29 @@
+apps/web/features/studio/components/right-panel/right-panel-summaries.ts
+  s_df5324e928f214::t_d4df402cab5a2d 121,132
+  s_df5324e928f214::t_9e8ebed0ef5a07 2
+  s_df5324e928f214::t_ec1ff1f21415a7 287
+  s_df5324e928f214::t_a4a48fd8df5e32 366-368
+apps/web/features/studio/components/right-panel/right-panel-summaries.test.ts
+  s_df5324e928f214::t_14d9d57ae378bf 68,95-97
+  s_df5324e928f214::t_05ed7388957424 146,148,150,152-164,172
+apps/web/features/studio/components/right-panel/SidebarCardAlert.tsx
+  s_df5324e928f214::t_11604b68f10578 13,15-19,24-25,31
+apps/web/package.json
+  s_df5324e928f214::t_a180b84424ba29 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9182c4ffdc151579c8a362ee8912e64f1058c48f",
+  "prompts": {},
+  "sessions": {
+    "s_df5324e928f214": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c47b6b76-f540-4a5a-86f7-1fc7a6e043c0",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
