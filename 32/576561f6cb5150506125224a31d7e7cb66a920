@@ -1,0 +1,20 @@
+apps/web/lib/novel-store.ts
+  s_f85c40cdf3eefb::t_25cf3da4561ece 5946
+  s_f85c40cdf3eefb::t_66844a394541f7 5945,5947-5977,5979
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "32576561f6cb5150506125224a31d7e7cb66a920",
+  "prompts": {},
+  "sessions": {
+    "s_f85c40cdf3eefb": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "70585916-dc96-41e0-950f-8316df746dfe",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
