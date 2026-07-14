@@ -1,0 +1,20 @@
+docs/superpowers/plans/2026-07-14-inkos-left-panel.md
+  s_746c92d6ba02f2::t_8ac495890951ef 1-338,340-341,344,346,348-350,366-367,369-380,382-383,402-404,406,408-411,414-417,420-502
+  s_746c92d6ba02f2::t_6f42be465828ee 339,342-343,345,347,351-365,368,381,384-401,405,407,412-413,418-419
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c1f5bb1ad2febbe48745438d48ec74956f6f3f14",
+  "prompts": {},
+  "sessions": {
+    "s_746c92d6ba02f2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee94951a-92e1-439f-80c5-e3f32c14c109",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
