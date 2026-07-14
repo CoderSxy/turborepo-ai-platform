@@ -1,4 +1,5 @@
 import type { InkosNovelProject } from "@repo/inkos-adapter";
+import { countSyncAttentionDiagnostics } from "#lib/novel-asset-auto-sync";
 import type { NovelProjectAssets } from "../../../../lib/novel-store";
 
 export type ParsedCharacter = {
@@ -117,7 +118,7 @@ function extractStoryBibleSection(content: string, pattern: RegExp): string {
 }
 
 export type AssetAlertCounts = {
-  pendingCount: number;
+  syncAttentionCount: number;
   conflictErrors: number;
   conflictWarnings: number;
 };
@@ -128,7 +129,7 @@ export function buildAssetAlertCounts(
   conflictWarnings: number,
 ): AssetAlertCounts {
   return {
-    pendingCount: assets.pendingAssetDeltas.length,
+    syncAttentionCount: countSyncAttentionDiagnostics(assets),
     conflictErrors,
     conflictWarnings,
   };
@@ -283,7 +284,7 @@ function upsertCharacterCard(
 
 /**
  * Unified character-card source for the right panel.
- * Priority: chapter pending deltas → knowledgeAssets → matrix/tracking text → protagonist fallback.
+ * Priority: knowledgeAssets → matrix/tracking text → protagonist fallback.
  */
 export function buildCharacterStateCards(
   assets: NovelProjectAssets,
@@ -292,35 +293,6 @@ export function buildCharacterStateCards(
   limit = 4,
 ): ParsedCharacter[] {
   const cards = new Map<string, ParsedCharacter>();
-
-  for (const delta of assets.pendingAssetDeltas ?? []) {
-    if (
-      activeChapterNumber != null &&
-      delta.chapterNumber !== activeChapterNumber
-    ) {
-      continue;
-    }
-
-    for (const state of delta.characterStates) {
-      const name = state.title.trim();
-      if (!name) {
-        continue;
-      }
-      upsertCharacterCard(
-        cards,
-        {
-          name,
-          role: "待确认",
-          tags: `第 ${delta.chapterNumber} 章`,
-          current: state.content.trim(),
-          pending: true,
-          chapterNumber: delta.chapterNumber,
-          chapterTitle: delta.chapterTitle,
-        },
-        { preferIncoming: true },
-      );
-    }
-  }
 
   for (const asset of assets.knowledgeAssets ?? []) {
     if (asset.category !== "character" || !asset.title.trim()) {
@@ -391,12 +363,9 @@ export function buildCharacterStateCards(
     }
   }
 
-  ranked.sort((left, right) => {
-    if (Boolean(left.pending) !== Boolean(right.pending)) {
-      return left.pending ? -1 : 1;
-    }
-    return left.name.localeCompare(right.name, "zh-CN");
-  });
+  ranked.sort((left, right) =>
+    left.name.localeCompare(right.name, "zh-CN"),
+  );
 
   return ranked.slice(0, limit);
 }
@@ -413,23 +382,14 @@ export function buildCharactersSectionSummary(
     8,
   );
   const chapterNames = getCurrentChapterCharacterNames(assets, chapterNumber);
-  const pendingCount = characters.filter((character) => character.pending).length;
 
   if (chapterNames.length > 0) {
     const label = chapterNames.slice(0, 2).join("、");
     return chapterNames.length > 2 ? `${label} 等` : label;
   }
 
-  if (pendingCount > 0) {
-    return `待确认 ${pendingCount} 人`;
-  }
-
   if (characters.length > 0) {
     return `${characters.length} 位角色`;
-  }
-
-  if (assets.pendingAssetDeltas.length > 0) {
-    return `待确认 ${assets.pendingAssetDeltas.length} 项`;
   }
 
   return "暂无角色";

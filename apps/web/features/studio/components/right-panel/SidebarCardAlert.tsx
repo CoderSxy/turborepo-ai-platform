@@ -10,21 +10,25 @@ export function SidebarCardAlert({
   alerts: AssetAlertCounts;
   onClick?: () => void;
 }) {
-  const { pendingCount, conflictErrors, conflictWarnings } = alerts;
+  const { syncAttentionCount, conflictErrors, conflictWarnings } = alerts;
 
-  if (pendingCount === 0 && conflictErrors === 0 && conflictWarnings === 0) {
+  if (
+    syncAttentionCount === 0 &&
+    conflictErrors === 0 &&
+    conflictWarnings === 0
+  ) {
     return null;
   }
 
   const label =
-    pendingCount > 0
-      ? `${pendingCount} 待确认`
+    syncAttentionCount > 0
+      ? `${syncAttentionCount} 需关注`
       : conflictErrors > 0
         ? `${conflictErrors} 冲突`
         : `${conflictWarnings} 提醒`;
 
   const tone =
-    pendingCount > 0 || conflictErrors > 0
+    syncAttentionCount > 0 || conflictErrors > 0
       ? styles.sidebarCardAlertDanger
       : styles.sidebarCardAlertWarning;
 

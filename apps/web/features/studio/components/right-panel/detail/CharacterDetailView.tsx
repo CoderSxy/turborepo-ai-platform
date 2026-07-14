@@ -75,12 +75,6 @@ export function CharacterDetailView({
               <dd>{profile.tags}</dd>
             </>
           ) : null}
-          {profile.pending ? (
-            <>
-              <dt>状态</dt>
-              <dd>待确认</dd>
-            </>
-          ) : null}
           {profile.current ? (
             <>
               <dt>当前状态</dt>

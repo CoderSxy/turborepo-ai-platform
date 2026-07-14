@@ -65,7 +65,7 @@ describe("buildCharacterStateCards", () => {
     assert.match(cards[0]?.current ?? "", /档案修复师/);
   });
 
-  it("shows pending chapter character states immediately as 待确认", () => {
+  it("does not surface pending deltas as 待确认 cards", () => {
     const assets = emptyAssets({
       characters: "林照，档案修复师。",
       pendingAssetDeltas: [
@@ -92,13 +92,9 @@ describe("buildCharacterStateCards", () => {
       1,
     );
 
-    assert.equal(cards.length, 2);
-    assert.equal(cards[0]?.name, "林照");
-    assert.equal(cards[0]?.pending, true);
-    assert.match(cards[0]?.role || cards[0]?.tags || "", /待确认/);
-    assert.equal(cards[0]?.current, "决定追查裂缝档案");
-    assert.equal(cards[1]?.name, "沈雪");
-    assert.equal(cards[1]?.pending, true);
+    const labels = cards.flatMap((card) => [card.role, card.tags, card.current]);
+    assert.equal(labels.some((label) => /待确认/.test(label ?? "")), false);
+    assert.equal(cards.some((card) => card.pending === true), false);
   });
 
   it("reads confirmed knowledgeAssets character cards", () => {
@@ -147,17 +143,25 @@ describe("buildCharacterStateCards", () => {
 
   it("pickCharactersForChapterPreview uses the unified builder", () => {
     const assets = emptyAssets({
-      pendingAssetDeltas: [
+      outlineNodes: [
         {
-          id: "pending-1",
-          createdAt: "2026-01-02T00:00:00.000Z",
+          id: "outline-1",
           chapterNumber: 1,
-          chapterTitle: "雨夜来信",
+          title: "雨夜来信",
           summary: "开章",
-          characterStates: [{ title: "林照", content: "决定追查" }],
-          newForeshadowing: [],
-          resolvedForeshadowing: [],
-          worldIncrements: [],
+          characters: "林照",
+          beats: "",
+        },
+      ],
+      knowledgeAssets: [
+        {
+          id: "c1",
+          category: "character",
+          title: "林照",
+          content: "决定追查裂缝档案。",
+          status: "active",
+          tags: ["主角"],
+          updatedAt: "2026-01-01T00:00:00.000Z",
         },
       ],
     });
@@ -165,5 +169,6 @@ describe("buildCharacterStateCards", () => {
     const preview = pickCharactersForChapterPreview(assets, 1);
     assert.equal(preview.length, 1);
     assert.equal(preview[0]?.name, "林照");
+    assert.equal(preview[0]?.role, "主角");
   });
 });
