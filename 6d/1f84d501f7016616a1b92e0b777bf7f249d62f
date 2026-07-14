@@ -1,0 +1,21 @@
+apps/web/features/studio/actions/run-core-action.ts
+  s_167a8f37c5be5f::t_ce03622853761d 447-459,461-463
+  s_167a8f37c5be5f::t_cd7c0a52261acc 30-32
+  s_167a8f37c5be5f::t_384031753e1769 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6d1f84d501f7016616a1b92e0b777bf7f249d62f",
+  "prompts": {},
+  "sessions": {
+    "s_167a8f37c5be5f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "52d50245-cfa6-4f0c-8706-8054a656d208",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
