@@ -4,29 +4,19 @@ import { useMemo, useState } from "react";
 import type { InkosNovelProject } from "@repo/inkos-adapter";
 import {
   applyNovelAssetConflictFixes,
-  applyNovelPendingAssetDelta,
   buildNovelAssetConflictReport,
   buildNovelOutlineNodesFromOutlineText,
   buildNovelOutlineNodesFromProject,
   buildNovelOutlineSyncDriftReport,
-  dismissNovelPendingAssetDelta,
   syncNovelOutlineNodesFromChapters,
   syncNovelProjectFromOutlineNodes,
-  updateNovelPendingAssetDelta,
   type NovelAssetConflictReport,
   type NovelKnowledgeAsset,
   type NovelOutlineNode,
-  type NovelPendingAssetDelta,
   type NovelProjectAssets,
   type StoredNovelChapter,
 } from "../../../lib/novel-store";
-import {
-  formatPendingAssetLines,
-  formatPendingCharacterStates,
-  isNovelKnowledgeAssetCategory,
-  parsePendingAssetLines,
-  parsePendingCharacterStates,
-} from "../helpers/novel-helpers";
+import { isNovelKnowledgeAssetCategory } from "../helpers/novel-helpers";
 import { KNOWLEDGE_ASSET_LABELS } from "../state/studio-constants";
 
 export function useNovelBookWorkspace({
@@ -390,65 +380,6 @@ export function useNovelBookWorkspace({
     });
   }
 
-  async function confirmPendingAssetDelta(item: NovelPendingAssetDelta) {
-    await saveAssets(applyNovelPendingAssetDelta(assets, item.id));
-  }
-
-  async function dismissPendingAssetDelta(item: NovelPendingAssetDelta) {
-    await saveAssets(dismissNovelPendingAssetDelta(assets, item.id));
-  }
-
-  async function editPendingAssetDelta(
-    item: NovelPendingAssetDelta,
-    field:
-      | "summary"
-      | "characterStates"
-      | "newForeshadowing"
-      | "resolvedForeshadowing"
-      | "worldIncrements",
-  ) {
-    const titleMap = {
-      summary: "编辑章节摘要",
-      characterStates: "编辑角色状态",
-      newForeshadowing: "编辑新增伏笔",
-      resolvedForeshadowing: "编辑回收伏笔",
-      worldIncrements: "编辑世界观增量",
-    };
-    const initialValue =
-      field === "characterStates"
-        ? formatPendingCharacterStates(item.characterStates)
-        : field === "summary"
-          ? item.summary
-          : formatPendingAssetLines(item[field]);
-    const nextValue = await onRequestPrompt({
-      title: titleMap[field],
-      message:
-        field === "characterStates"
-          ? "一行一个，格式：角色名：状态变化。"
-          : field === "summary"
-            ? undefined
-            : "一行一个，可直接删除误提取的条目。",
-      initialValue,
-      multiline: true,
-      confirmLabel: "保存",
-    });
-
-    if (nextValue === null) {
-      return;
-    }
-
-    await saveAssets(
-      updateNovelPendingAssetDelta(assets, item.id, {
-        [field]:
-          field === "characterStates"
-            ? parsePendingCharacterStates(nextValue)
-            : field === "summary"
-              ? nextValue.trim()
-              : parsePendingAssetLines(nextValue),
-      }),
-    );
-  }
-
   return {
     assetConflictPreview,
     isOutlineEditorOpen,
@@ -474,8 +405,5 @@ export function useNovelBookWorkspace({
     createKnowledgeAsset,
     editKnowledgeAsset,
     deleteKnowledgeAsset,
-    confirmPendingAssetDelta,
-    dismissPendingAssetDelta,
-    editPendingAssetDelta,
   };
 }

@@ -3,7 +3,6 @@
 import { INKOS_STATUS_LABELS } from "@repo/inkos-adapter";
 import styles from "../studio.module.css";
 import {
-  buildNovelPendingAssetDeltaMatchReport,
   buildNovelRecoverableErrorNotice,
   buildNovelTaskResumePreview,
   deriveNovelChapterProgress,
@@ -11,7 +10,6 @@ import {
   type NovelAssetConflictReport,
   type NovelKnowledgeAsset,
   type NovelOutlineNode,
-  type NovelPendingAssetDelta,
   type NovelProjectAssets,
   type StoredNovelTask,
 } from "../../../lib/novel-store";
@@ -62,17 +60,6 @@ export type WorkspaceMoreSectionsProps = {
     field: keyof Pick<NovelKnowledgeAsset, "title" | "content" | "status" | "tags">,
   ) => void;
   onDeleteKnowledgeAsset: (item: NovelKnowledgeAsset) => void;
-  onConfirmPendingAssetDelta: (item: NovelPendingAssetDelta) => void;
-  onDismissPendingAssetDelta: (item: NovelPendingAssetDelta) => void;
-  onEditPendingAssetDelta: (
-    item: NovelPendingAssetDelta,
-    field:
-      | "summary"
-      | "characterStates"
-      | "newForeshadowing"
-      | "resolvedForeshadowing"
-      | "worldIncrements",
-  ) => void;
   onRetryTask: (task: StoredNovelTask) => void;
 };
 
@@ -93,11 +80,12 @@ export function WorkspaceMoreSections({
   onCreateKnowledgeAsset,
   onEditKnowledgeAsset,
   onDeleteKnowledgeAsset,
-  onConfirmPendingAssetDelta,
-  onDismissPendingAssetDelta,
-  onEditPendingAssetDelta,
   onRetryTask,
 }: WorkspaceMoreSectionsProps) {
+  const syncDiagnostics = (assets.diagnostics ?? []).filter(
+    (entry) => !entry.ok && entry.label.startsWith("同步诊断"),
+  );
+
   return (
     <WorkspaceMoreMenu
       groups={[
@@ -252,129 +240,17 @@ export function WorkspaceMoreSections({
                     </div>
                   </div>
                 ) : null}
-                {assets.pendingAssetDeltas.length > 0 ? (
-                  <div className={styles.pendingAssetDeltaList}>
-                    {assets.pendingAssetDeltas.slice(0, 4).map((item) => {
-                      const matchReport = buildNovelPendingAssetDeltaMatchReport(
-                        assets,
-                        item,
-                      );
-
-                      return (
-                        <article
-                          key={item.id}
-                          className={styles.pendingAssetDeltaCard}
-                        >
-                          <div>
-                            <strong>
-                              第 {item.chapterNumber} 章《{item.chapterTitle}》
-                            </strong>
-                            <span>待确认</span>
-                          </div>
-                          <p>{item.summary || "暂无摘要。"}</p>
-                          {matchReport.newForeshadowing.length > 0 ||
-                          matchReport.resolvedForeshadowing.length > 0 ? (
-                            <div className={styles.pendingAssetMatchPreview}>
-                              <strong>{matchReport.summary}</strong>
-                              <ul>
-                                {matchReport.newForeshadowing.map((entry) => (
-                                  <li key={`match-new-${entry.text}`}>
-                                    新增：{entry.text} → {entry.preview.label}
-                                    {entry.preview.score > 0
-                                      ? ` (${Math.round(entry.preview.score * 100)}%)`
-                                      : ""}
-                                  </li>
-                                ))}
-                                {matchReport.resolvedForeshadowing.map((entry) => (
-                                  <li key={`match-resolved-${entry.text}`}>
-                                    回收：{entry.text} → {entry.preview.label}
-                                    {entry.preview.score > 0
-                                      ? ` (${Math.round(entry.preview.score * 100)}%)`
-                                      : ""}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null}
-                          <ul>
-                            {item.characterStates.map((state) => (
-                              <li key={`character-${state.title}`}>
-                                角色：{state.title} - {state.content}
-                              </li>
-                            ))}
-                            {item.newForeshadowing.map((entry) => (
-                              <li key={`new-${entry}`}>新增伏笔：{entry}</li>
-                            ))}
-                            {item.resolvedForeshadowing.map((entry) => (
-                              <li key={`resolved-${entry}`}>回收伏笔：{entry}</li>
-                            ))}
-                            {item.worldIncrements.map((entry) => (
-                              <li key={`world-${entry}`}>世界观：{entry}</li>
-                            ))}
-                          </ul>
-                          <div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void onConfirmPendingAssetDelta(item)
-                              }
-                            >
-                              确认写入
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void onEditPendingAssetDelta(item, "summary")
-                              }
-                            >
-                              摘要
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void onEditPendingAssetDelta(item, "characterStates")
-                              }
-                            >
-                              角色
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void onEditPendingAssetDelta(item, "newForeshadowing")
-                              }
-                            >
-                              新伏笔
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void onEditPendingAssetDelta(
-                                  item,
-                                  "resolvedForeshadowing",
-                                )
-                              }
-                            >
-                              回收
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void onEditPendingAssetDelta(item, "worldIncrements")
-                              }
-                            >
-                              世界观
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.dangerTextButton}
-                              onClick={() => void onDismissPendingAssetDelta(item)}
-                            >
-                              忽略
-                            </button>
-                          </div>
+                {syncDiagnostics.length > 0 ? (
+                  <div className={styles.assetChangeTimeline}>
+                    <strong>同步诊断</strong>
+                    <div className={styles.modelCallLogList}>
+                      {syncDiagnostics.slice(0, 6).map((entry) => (
+                        <article key={entry.id} className={styles.modelCallLogItem}>
+                          <strong>{entry.label}</strong>
+                          <span>{entry.detail}</span>
                         </article>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                 ) : null}
                 <div className={styles.knowledgeAssetList}>

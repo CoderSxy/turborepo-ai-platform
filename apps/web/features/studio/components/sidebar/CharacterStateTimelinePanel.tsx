@@ -45,7 +45,7 @@ export function CharacterStateTimelinePanel({
                         {entry.source === "asset"
                           ? "角色卡"
                           : entry.source === "pending-delta"
-                            ? "待确认"
+                            ? "章节同步"
                             : entry.source === "change-event"
                               ? "变更记录"
                               : "状态追踪"}

@@ -181,15 +181,6 @@ export function NovelBookPanel({
             onDeleteKnowledgeAsset={(item) =>
               void workspace.deleteKnowledgeAsset(item)
             }
-            onConfirmPendingAssetDelta={(item) =>
-              void workspace.confirmPendingAssetDelta(item)
-            }
-            onDismissPendingAssetDelta={(item) =>
-              void workspace.dismissPendingAssetDelta(item)
-            }
-            onEditPendingAssetDelta={(item, field) =>
-              void workspace.editPendingAssetDelta(item, field)
-            }
             onRetryTask={onRetryTask}
           />
         }
