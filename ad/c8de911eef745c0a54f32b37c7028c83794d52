@@ -1,0 +1,26 @@
+apps/web/lib/write-chapter-recovery.test.ts
+  s_2112bf00890e41::t_10f47a94ceaf73 1-462
+apps/web/features/studio/actions/run-core-action.ts
+  s_2112bf00890e41::t_afb1babd81937b 545,555-558,561,563,566-577
+  s_2112bf00890e41::t_dcb6c80955c1b5 719-733,741-751,753-756,759
+apps/web/package.json
+  s_2112bf00890e41::t_ffe462620d7586 19
+docs/superpowers/plans/2026-07-14-inkos-p1-sync-identity-commit.md
+  s_2112bf00890e41::t_f7e614dc0fc3e7 312-313,319,326,330,338,349
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "adc8de911eef745c0a54f32b37c7028c83794d52",
+  "prompts": {},
+  "sessions": {
+    "s_2112bf00890e41": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "f7694ff7-d641-4029-975a-4f4c5ae054d6",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
