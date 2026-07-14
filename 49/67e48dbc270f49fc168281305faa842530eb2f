@@ -1,0 +1,21 @@
+apps/web/features/studio/components/SessionActionsMenu.tsx
+  s_746c92d6ba02f2::t_0fbdff9d22d2d2 53,64
+apps/web/features/studio/components/BookActionsMenu.tsx
+  s_746c92d6ba02f2::t_c39aa8b0800aa7 59,70,82,94,105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4967e48dbc270f49fc168281305faa842530eb2f",
+  "prompts": {},
+  "sessions": {
+    "s_746c92d6ba02f2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee94951a-92e1-439f-80c5-e3f32c14c109",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
