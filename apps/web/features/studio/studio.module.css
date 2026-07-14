@@ -1548,10 +1548,30 @@
 
 .novelBookList {
   padding: 14px;
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   overflow: hidden;
+}
+
+.bookTreeSearchRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.bookTreeSearchRow input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid #cbd6d9;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #162326;
+  font: inherit;
+  font-size: 12px;
+  padding: 0 10px;
+  outline: none;
 }
 
 .bookListHeader {
@@ -1655,6 +1675,7 @@
 }
 
 .bookListBody {
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   display: grid;

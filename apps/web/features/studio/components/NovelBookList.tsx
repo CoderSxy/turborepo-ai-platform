@@ -1,8 +1,11 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import styles from "../studio.module.css";
 import type { NovelBookEntry } from "../state/studio-types";
+import { BookSidebarHeader } from "./BookSidebarHeader";
+import { BookTreeItem } from "./BookTreeItem";
+import { ensureExpanded, toggleExpanded } from "./book-tree-expand";
 
 export function NovelBookList({
   books,
@@ -11,7 +14,7 @@ export function NovelBookList({
   searchQuery,
   selectedBookIds,
   showArchived,
-  totalBooks,
+  totalBooks: _totalBooks,
   searchInputRef,
   onBulkArchive,
   onBulkDelete,
@@ -26,7 +29,7 @@ export function NovelBookList({
   onMoveBook,
   onRenameBook,
   onRenameSession,
-  onSelectAllVisible,
+  onSelectAllVisible: _onSelectAllVisible,
   onSelectBook,
   onSearchQueryChange,
   onSessionSelect,
@@ -59,137 +62,148 @@ export function NovelBookList({
   onSessionSelect: (bookId: string, sessionId: string) => void;
   onShowArchivedChange: (value: boolean) => void;
 }) {
+  const [expandedBookIds, setExpandedBookIds] = useState<Set<string>>(() =>
+    activeBookId ? new Set([activeBookId]) : new Set(),
+  );
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [manageMode, setManageMode] = useState(false);
+
   const selectedCount = selectedBookIds.length;
-  const visibleSelected =
-    books.length > 0 && books.every((book) => selectedBookIds.includes(book.id));
+
+  useEffect(() => {
+    if (!activeBookId) return;
+    setExpandedBookIds((current) => ensureExpanded(current, activeBookId));
+  }, [activeBookId]);
+
+  function openSearch() {
+    setSearchOpen(true);
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  }
+
+  function handleSelectBook(bookId: string) {
+    setExpandedBookIds((current) => ensureExpanded(current, bookId));
+    onBookSelect(bookId);
+  }
+
+  function handleToggleExpand(bookId: string) {
+    setExpandedBookIds((current) => toggleExpanded(current, bookId));
+  }
+
+  function handleSessionSelect(bookId: string, sessionId: string) {
+    setExpandedBookIds((current) => ensureExpanded(current, bookId));
+    onSessionSelect(bookId, sessionId);
+  }
+
+  function handleCreateSession(bookId: string) {
+    setExpandedBookIds((current) => ensureExpanded(current, bookId));
+    onCreateSession(bookId);
+  }
+
+  function exitManageMode() {
+    setManageMode(false);
+    onClearSelection();
+  }
 
   return (
     <aside className={styles.novelBookList}>
-      <div className={styles.bookListHeader}>
-        <span>书籍</span>
-        <button onClick={onCreateBook}>+ 新建书籍</button>
-      </div>
-      <div className={styles.bookListFilters}>
-        <input
-          ref={searchInputRef}
-          value={searchQuery}
-          placeholder='搜索书名、题材或设定'
-          onChange={(event) => onSearchQueryChange(event.target.value)}
-        />
-        <div>
-          <button onClick={() => onShowArchivedChange(!showArchived)}>
-            {showArchived ? "显示进行中" : "显示归档"} · {totalBooks}
-          </button>
-          <button onClick={onSelectAllVisible}>
-            {visibleSelected ? "取消全选" : "全选当前"}
+      <BookSidebarHeader
+        manageMode={manageMode}
+        showArchived={showArchived}
+        onCreateBook={onCreateBook}
+        onToggleSearch={openSearch}
+        onToggleArchived={() => onShowArchivedChange(!showArchived)}
+        onEnterManageMode={() => setManageMode(true)}
+        onExitManageMode={exitManageMode}
+      />
+      {searchOpen ? (
+        <div className={styles.bookTreeSearchRow}>
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            placeholder="搜索书名、题材或设定"
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+          />
+          <button
+            type="button"
+            className={styles.bookSidebarIconButton}
+            aria-label="关闭搜索"
+            title="关闭搜索"
+            onClick={() => setSearchOpen(false)}
+          >
+            ✕
           </button>
         </div>
-        <p>/ 搜索 · N 新建 · Esc 取消选择</p>
-      </div>
-
-      {selectedCount > 0 ? (
+      ) : null}
+      {manageMode && selectedCount > 0 ? (
         <div className={styles.bulkActionBar}>
           <strong>已选 {selectedCount}</strong>
           {showArchived ? (
-            <button onClick={onBulkRestore}>还原</button>
+            <button type="button" onClick={onBulkRestore}>
+              还原
+            </button>
           ) : (
-            <button onClick={onBulkArchive}>归档</button>
+            <button type="button" onClick={onBulkArchive}>
+              归档
+            </button>
           )}
-          <button onClick={onBulkDelete}>删除</button>
-          <button onClick={onClearSelection}>取消</button>
+          <button type="button" onClick={onBulkDelete}>
+            删除
+          </button>
+          <button type="button" onClick={onClearSelection}>
+            取消
+          </button>
+          <button type="button" onClick={exitManageMode}>
+            完成管理
+          </button>
         </div>
       ) : null}
-
       <div className={styles.bookListBody}>
         {books.length === 0 ? (
           <div className={styles.emptyBookList}>
-            <strong>{searchQuery ? "没有匹配的书籍" : "这里暂时没有书籍"}</strong>
-            <span>
-              {searchQuery
-                ? "换一个关键词，或者清空搜索条件。"
-                : "创建一本书后，会在这里管理会话、归档和导出。"}
-            </span>
-            <button onClick={searchQuery ? () => onSearchQueryChange("") : onCreateBook}>
-              {searchQuery ? "清空搜索" : "新建书籍"}
-            </button>
-          </div>
-        ) : null}
-        {books.map((book) => (
-          <section key={book.id} className={styles.bookListGroup}>
-            <div
-              className={`${styles.bookListItem} ${
-                activeBookId === book.id ? styles.activeBookButton : ""
-              }`}
-            >
-              <label className={styles.bookSelectBox}>
-                <input
-                  type='checkbox'
-                  checked={selectedBookIds.includes(book.id)}
-                  onChange={() => onSelectBook(book.id)}
-                />
-                <span>选择</span>
-              </label>
-              <button onClick={() => onBookSelect(book.id)}>
-                <strong>{book.title}</strong>
-                <span>{book.meta}</span>
-                <em>
-                  {book.sessions.length} 个会话
-                  {book.archived ? " · 已归档" : ""}
-                </em>
+            <strong>{searchQuery ? "没有匹配的书籍" : "还没有书籍"}</strong>
+            {searchQuery ? (
+              <>
+                <span>换一个关键词，或者清空搜索条件。</span>
+                <button type="button" onClick={() => onSearchQueryChange("")}>
+                  清空搜索
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={onCreateBook}>
+                新建书籍
               </button>
-              <div className={styles.bookActions}>
-                <button title='上移' onClick={() => onMoveBook(book.id, -1)}>
-                  ↑
-                </button>
-                <button title='下移' onClick={() => onMoveBook(book.id, 1)}>
-                  ↓
-                </button>
-                <button title='重命名' onClick={() => onRenameBook(book.id)}>
-                  改
-                </button>
-                <button title='归档' onClick={() => onArchiveBook(book.id)}>
-                  {book.archived ? "还原" : "归档"}
-                </button>
-                <button title='删除' onClick={() => onDeleteBook(book.id)}>
-                  删
-                </button>
-              </div>
-            </div>
-            {activeBookId === book.id ? (
-              <div className={styles.sessionList}>
-                {book.sessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className={
-                      activeSessionId === session.id
-                        ? styles.activeSessionButton
-                        : ""
-                    }
-                  >
-                    <button onClick={() => onSessionSelect(book.id, session.id)}>
-                      <span>{session.title}</span>
-                      <em>{session.summary} · {session.age}</em>
-                    </button>
-                    <div>
-                      <button onClick={() => onRenameSession(session.id)}>改</button>
-                      <button
-                        onClick={() => onDeleteSession(book.id, session.id)}
-                      >
-                        删
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <button
-                  className={styles.newSessionButton}
-                  onClick={() => onCreateSession(book.id)}
-                >
-                  + 新建会话
-                </button>
-              </div>
-            ) : null}
-          </section>
-        ))}
+            )}
+          </div>
+        ) : (
+          books.map((book, index) => (
+            <BookTreeItem
+              key={book.id}
+              book={book}
+              expanded={expandedBookIds.has(book.id)}
+              active={activeBookId === book.id}
+              manageMode={manageMode}
+              selected={selectedBookIds.includes(book.id)}
+              canMoveUp={index > 0}
+              canMoveDown={index < books.length - 1}
+              activeSessionId={activeSessionId}
+              onToggleExpand={() => handleToggleExpand(book.id)}
+              onSelectBook={() => handleSelectBook(book.id)}
+              onToggleSelect={() => onSelectBook(book.id)}
+              onCreateSession={() => handleCreateSession(book.id)}
+              onSessionSelect={(sessionId) =>
+                handleSessionSelect(book.id, sessionId)
+              }
+              onRenameBook={() => onRenameBook(book.id)}
+              onArchiveBook={() => onArchiveBook(book.id)}
+              onMoveBook={(direction) => onMoveBook(book.id, direction)}
+              onDeleteBook={() => onDeleteBook(book.id)}
+              onRenameSession={onRenameSession}
+              onDeleteSession={(sessionId) =>
+                onDeleteSession(book.id, sessionId)
+              }
+            />
+          ))
+        )}
       </div>
     </aside>
   );
