@@ -1,0 +1,20 @@
+apps/web/features/studio/components/BookTreeItem.tsx
+  s_746c92d6ba02f2::t_ab83704984468a 54-58
+  s_746c92d6ba02f2::t_0955ca758db6f6 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cfd3da633d4c83a4dbf5d838f129ae9eac093566",
+  "prompts": {},
+  "sessions": {
+    "s_746c92d6ba02f2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee94951a-92e1-439f-80c5-e3f32c14c109",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
