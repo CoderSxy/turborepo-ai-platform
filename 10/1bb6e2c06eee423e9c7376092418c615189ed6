@@ -1,0 +1,90 @@
+apps/web/features/studio/helpers/novel-helpers.ts
+  s_a71f006bf891ea::t_4035c8f4fa92fc 16
+apps/web/features/studio/actions/writing/run-write-chapter-pipeline.test.ts
+  s_a71f006bf891ea::t_c7f683b4e4d399 106,116,121
+  s_a71f006bf891ea::t_62ae945e102397 102,105
+  s_a71f006bf891ea::t_68d165113c4459 75,78-80
+  s_a71f006bf891ea::t_7607e04aa1dde0 2,4-5
+  s_a71f006bf891ea::t_5ebf2a76f9d449 7-9,13-18
+  s_a71f006bf891ea::t_aa1cd493e9bd31 157,185-187
+  s_a71f006bf891ea::t_2d2a2a01fb3a0c 1,3,6,10-12,19-60,64-74,76-77,81-101,103-104,107-115,117-120,122-138,140-153,155-156,158-184,188-450
+  s_a71f006bf891ea::t_263e465a981eeb 154
+  s_a71f006bf891ea::t_f5280dd9857de2 61-63
+  s_a71f006bf891ea::t_a5fad7f4c3dbb1 139
+docs/superpowers/specs/2026-07-14-inkos-p1-sync-identity-commit-design.md
+  s_29b27874f3cc36::t_9878015c6b4d85 1,12,15-17,28,32-33
+  s_29b27874f3cc36::t_e5cd7dd3ecce18 204-206,208-252,254-321,329-331,333,352-367,377,379
+  s_29b27874f3cc36::t_8e1dcbe20a2abb 100-131,151-152,156-183,185,191-193,197-202,342-343,347-351
+  s_29b27874f3cc36::t_42e50ecb2e6ca8 5
+  s_29b27874f3cc36::t_8f77f267d6761c 203
+apps/web/features/studio/actions/writing/run-write-chapter-pipeline.ts
+  s_a71f006bf891ea::t_5489ba54f47ac0 43
+  s_a71f006bf891ea::t_82f34039e10e25 1002
+  s_a71f006bf891ea::t_be5d6282373fe4 450,453
+  s_a71f006bf891ea::t_5ce2c2dffa203b 36
+  s_a71f006bf891ea::t_2af8bf334df915 886-888
+  s_a71f006bf891ea::t_e990404eed8b16 1-21,23-35,37-42,44-449,451-452,454-885,889-965,971-980,982-1001,1003-1012
+  s_a71f006bf891ea::t_c5c8202d36335a 22
+  s_a71f006bf891ea::t_6a3f0d8b9439a5 966-970
+  s_a71f006bf891ea::t_fa6297afae839b 981
+apps/web/features/studio/actions/types.ts
+  s_a71f006bf891ea::t_d4309a10a765ba 73-74
+  s_a71f006bf891ea::t_eb3e8b57d7f814 7-8
+  s_a71f006bf891ea::t_f1a32e9faec892 62-66,75-192
+  s_a71f006bf891ea::t_80ec9f72bc29bd 67-72
+apps/web/package.json
+  s_a71f006bf891ea::t_b00a6d9e1bb8dc 20
+apps/web/features/studio/actions/node-test-resolve.mjs
+  s_a71f006bf891ea::t_2bba12e168adad 19-21,25-29
+apps/web/features/studio/actions/writing/commit-write-chapter-result.ts
+  s_a71f006bf891ea::t_83ba8511e7504f 224-231
+  s_a71f006bf891ea::t_75f747e970c550 256-261
+  s_a71f006bf891ea::t_04d8da64425e66 106-111,113-124,133-136,140,145-148,154
+apps/web/lib/novel-store.ts
+  s_a71f006bf891ea::t_663121e3cdaad8 367-381,383-402
+  s_a71f006bf891ea::t_b62991fff9494c 872-875
+  s_a71f006bf891ea::t_1cfd58415fc25d 7330-7360
+  s_a71f006bf891ea::t_bfa69c8ce6e82a 366,382,403,408
+  s_a71f006bf891ea::t_27a5daae3c80c8 846
+  s_a71f006bf891ea::t_837a917afbe08c 7215-7218,7220
+docs/superpowers/plans/2026-07-14-inkos-p1-sync-identity-commit.md
+  s_0edb22de7cef83::t_42dd8a34308646 410
+  s_0edb22de7cef83::t_0abeeaea960640 422
+  s_0edb22de7cef83::t_d37ed6494acc99 434
+  s_a71f006bf891ea::t_32dd887a34c2f3 447-448,458,462,466,470,474,478
+  s_0edb22de7cef83::t_fb025a4037165c 426
+  s_0edb22de7cef83::t_f5b72869b9d158 409,418
+  s_0edb22de7cef83::t_0246880fce3267 430
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "101bb6e2c06eee423e9c7376092418c615189ed6",
+  "prompts": {},
+  "sessions": {
+    "s_0edb22de7cef83": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "f5c87529-9de7-4f30-bf0e-c6597d9bad9f",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    },
+    "s_29b27874f3cc36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5a43-7fd1-76b3-81bf-8a329a8d5bbd",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    },
+    "s_a71f006bf891ea": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "fd913be7-8b0e-4859-ae8d-daa45369af46",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
