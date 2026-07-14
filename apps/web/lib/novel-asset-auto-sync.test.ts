@@ -32,6 +32,7 @@ function emptyAssets(overrides: Partial<NovelProjectAssets> = {}): NovelProjectA
     importedMaterials: [],
     marketRadars: [],
     diagnostics: [],
+    pendingMigration: { schemaVersion: 1, appliedChapters: [] },
     ...overrides,
   };
 }
@@ -91,8 +92,8 @@ describe("mergeNovelChapterAssetDeltaSafely", () => {
     const result = mergeNovelChapterAssetDeltaSafely(before, empty, {
       source: "chapter-pipeline",
     });
-    assert.equal(result.knowledgeAssets.length, 0);
-    assert.equal(result.pendingMigration?.appliedChapters?.length ?? 0, 0);
+    assert.equal(result, before);
+    assert.equal(result.pendingMigration, before.pendingMigration);
   });
 });
 
