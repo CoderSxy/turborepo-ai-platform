@@ -296,7 +296,7 @@ Call `commitWriteChapterResult` once. Only after it resolves may the code set ac
 
 Before commit: honor abort and persist no final assets. From `committing` until transaction completion: ignore/disable cancellation, then either complete or roll back. A cancelled task must never later report success.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 git add apps/web/features/studio/actions/writing/commit-write-chapter-result.ts apps/web/features/studio/actions/run-core-action.ts apps/web/features/studio/actions
