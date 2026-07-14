@@ -1,0 +1,31 @@
+apps/web/lib/novel-asset-auto-sync.test.ts
+  s_cab76e1caf9070::t_5b3d49634c1fd9 383,391-468,472-489,491-552
+  s_cab76e1caf9070::t_89c6e876a39634 12
+  s_cab76e1caf9070::t_583765551da44e 469-471,490
+  s_cab76e1caf9070::t_5f191a64a58183 553,581-601
+  s_cab76e1caf9070::t_5dd5d5f7a951ca 13
+  s_cab76e1caf9070::t_07be20aa3871ac 554
+apps/web/lib/novel-asset-auto-sync.ts
+  s_cab76e1caf9070::t_a95141e36a0c77 166-208
+  s_cab76e1caf9070::t_005bf3d6e9f071 235-236
+  s_cab76e1caf9070::t_3876cffad89d09 36-46
+  s_cab76e1caf9070::t_6d76a43a7f0f83 270-274,281,285,288,291,296-297,301-304,320,325,330,333-334
+apps/web/lib/novel-store.ts
+  s_cab76e1caf9070::t_db31626441ed89 6037-6038,6044
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8893a80002fbf6abf3cf8b6099746ba55ec2bf00",
+  "prompts": {},
+  "sessions": {
+    "s_cab76e1caf9070": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "616ec637-9923-46e2-867c-181aec27fbc2",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
