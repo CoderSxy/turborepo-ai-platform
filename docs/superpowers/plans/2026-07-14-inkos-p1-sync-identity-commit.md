@@ -309,23 +309,25 @@ git commit -m "refactor(studio): commit write chapter results atomically"
 
 ## Task 6: Test reload behavior and remove obsolete success writes
 
+**Status:** DONE
+
 **Files:**
 
 - Modify: `apps/web/features/studio/actions/run-core-action.ts`
 - Modify: `apps/web/lib/novel-store.ts` / tests as required
 
-- [ ] **Step 1: Add recovery tests**
+- [x] **Step 1: Add recovery tests**
 
 1. Reload after success: task is not `running`, message is not `streaming`, and chapter/assets appear once.
 2. Abort before commit: no final chapter/version/book assets/final message persists.
 3. Transaction abort: no partial state persists; retry produces one clean result.
 4. After failure, the next write targets the original next chapter.
 
-- [ ] **Step 2: Remove obsolete write success paths**
+- [x] **Step 2: Remove obsolete write success paths**
 
 In the write-chapter branch remove direct success-path calls to `upsertStoredNovelChapter`, final `updateStoredNovelBook`, final `finishStoredNovelTask`, and standalone final `persistMessage`. Retain them only for unrelated review/revise actions.
 
-- [ ] **Step 3: Verify identity search**
+- [x] **Step 3: Verify identity search**
 
 ```bash
 rg -n "appliedChapters|appliedSyncIds|legacyAppliedChapters|queueNovelPendingAssetDelta" apps/web/lib apps/web/features/studio
@@ -333,7 +335,7 @@ rg -n "appliedChapters|appliedSyncIds|legacyAppliedChapters|queueNovelPendingAss
 
 Only normalization/audit logic may read `legacyAppliedChapters`; no merge/migration early return may use it.
 
-- [ ] **Step 4: Run complete checks and manual acceptance**
+- [x] **Step 4: Run complete checks and manual acceptance**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use 22 >/dev/null
@@ -344,7 +346,7 @@ pnpm --filter web run lint
 
 Manual acceptance: migrate an old book with two same-chapter deltas; generate and reload after a normal chapter; force a transaction failure in the test harness and verify the next attempt targets the same chapter.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web/lib apps/web/features/studio docs/superpowers

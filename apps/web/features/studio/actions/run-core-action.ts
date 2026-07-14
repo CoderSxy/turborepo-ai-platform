@@ -227,8 +227,6 @@ export async function runCoreAction(
   const abortController = new AbortController();
   let taskId = "";
   let runningTask: StoredNovelTask | null = null;
-  let writeChapterCommitted = false;
-  let postCommitAssistantMessage: StudioMessage | null = null;
   let latestChapters = [...activeBook.chapters];
 
   store.startTask({
@@ -543,12 +541,8 @@ export async function runCoreAction(
         });
 
         await commitWriteChapterResultForStudio(commitInput);
-        writeChapterCommitted = true;
 
-        store.setActiveChapter(storedChapter.id);
-        progressMessages.push(savedProgressMessage);
-        setActiveCoreProgress([...progressMessages]);
-        postCommitAssistantMessage = buildFinalWriteChapterAssistantMessage({
+        const finalAssistantMessage = buildFinalWriteChapterAssistantMessage({
           assistantMessageId,
           sessionId: requestSessionId,
           label,
@@ -558,13 +552,29 @@ export async function runCoreAction(
           startedAt,
           now: commitNow,
         }).studio;
+
+        store.setActiveChapter(storedChapter.id);
+        progressMessages.push(savedProgressMessage);
+        setActiveCoreProgress([...progressMessages]);
         store.updateMessage(requestSessionId, assistantMessageId, (item) => ({
           ...item,
-          parts: postCommitAssistantMessage!.parts,
+          parts: finalAssistantMessage.parts,
           streaming: false,
-          createdAt: postCommitAssistantMessage!.createdAt,
+          createdAt: finalAssistantMessage.createdAt,
         }));
         await clearStoredNovelTaskCheckpoint(taskId).catch(() => undefined);
+
+        await ctx.refreshWorkspace();
+        ctx.trackModelCall(
+          bindingResult,
+          label,
+          "success",
+          startedAt,
+          new Date().toISOString(),
+          { latencyMs: Date.now() - Date.parse(startedAt) },
+        );
+        ctx.notify(result.message ?? savedProgressMessage, "success");
+        return true;
       }
     }
 
@@ -706,23 +716,21 @@ export async function runCoreAction(
       }
     }
 
-    if (!writeChapterCommitted) {
-      nextAssets = {
-        ...nextAssets,
-        outlineNodes: syncNovelOutlineNodesFromChapters(
-          nextAssets.outlineNodes,
-          latestChapters,
-          nextProject,
-        ),
-      };
-      await updateStoredNovelBook(activeBook.id, {
-        title: nextProject.title,
-        genre: nextProject.genre,
-        premise: nextProject.premise,
-        project: nextProject,
-        assets: nextAssets,
-      });
-    }
+    nextAssets = {
+      ...nextAssets,
+      outlineNodes: syncNovelOutlineNodesFromChapters(
+        nextAssets.outlineNodes,
+        latestChapters,
+        nextProject,
+      ),
+    };
+    await updateStoredNovelBook(activeBook.id, {
+      title: nextProject.title,
+      genre: nextProject.genre,
+      premise: nextProject.premise,
+      project: nextProject,
+      assets: nextAssets,
+    });
 
     const completionSummary =
       action === "write-chapter" && writeTarget
@@ -730,31 +738,25 @@ export async function runCoreAction(
           `第 ${writeTarget.number} 章已保存`
         : progressMessages.at(-1) ?? "任务完成。";
 
-    const assistantMessage: StudioMessage =
-      postCommitAssistantMessage ??
-      ({
-        id: assistantMessageId,
-        role: "assistant",
-        parts: buildFinalAssistantParts(
-          label,
-          progressMessages,
-          result.content || result.message || "",
-          { startedAt, summary: completionSummary },
-        ),
-        createdAt: new Date().toISOString(),
-      } satisfies StudioMessage);
+    const assistantMessage: StudioMessage = {
+      id: assistantMessageId,
+      role: "assistant",
+      parts: buildFinalAssistantParts(
+        label,
+        progressMessages,
+        result.content || result.message || "",
+        { startedAt, summary: completionSummary },
+      ),
+      createdAt: new Date().toISOString(),
+    };
 
-    if (!writeChapterCommitted) {
-      await persistMessage(requestSessionId, assistantMessage);
-      if (taskId) {
-        await finishStoredNovelTask(taskId, "success");
-        await clearStoredNovelTaskCheckpoint(taskId).catch(() => undefined);
-      }
+    await persistMessage(requestSessionId, assistantMessage);
+    if (taskId) {
+      await finishStoredNovelTask(taskId, "success");
+      await clearStoredNovelTaskCheckpoint(taskId).catch(() => undefined);
     }
     await ctx.refreshWorkspace();
-    if (!writeChapterCommitted) {
-      store.updateMessage(requestSessionId, assistantMessageId, () => assistantMessage);
-    }
+    store.updateMessage(requestSessionId, assistantMessageId, () => assistantMessage);
     ctx.trackModelCall(
       bindingResult,
       label,
