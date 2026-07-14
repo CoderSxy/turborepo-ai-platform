@@ -3,6 +3,7 @@ import type {
   StudioMessage,
   StudioMessagePart,
 } from "../../types";
+import type { WriteChapterPipelineTimelineView } from "../../pipeline-timeline-types";
 
 export function buildTextPart(content: string): StudioMessagePart {
   return { type: "text", content };
@@ -14,6 +15,7 @@ export type BuildProgressPartOptions = {
   startedAt?: string;
   completedAt?: string;
   summary?: string;
+  pipelineTimeline?: WriteChapterPipelineTimelineView;
 };
 
 export function buildProgressPart(
@@ -29,6 +31,7 @@ export function buildProgressPart(
     startedAt: options?.startedAt,
     completedAt: options?.completedAt,
     summary: options?.summary,
+    pipelineTimeline: options?.pipelineTimeline,
   };
 }
 
@@ -230,4 +233,34 @@ export function buildFinalAssistantParts(
   );
 
   return [completedProgress, buildResultPart(label, resultContent)];
+}
+
+export function buildWriteChapterFinalAssistantParts(input: {
+  label: string;
+  progressMessages: string[];
+  resultContent: string;
+  startedAt: string;
+  completionSummary: string;
+  pipelineTimeline: WriteChapterPipelineTimelineView;
+  attentionReason?: string;
+  terminal: "completed" | "completed_with_attention";
+}): StudioMessagePart[] {
+  const summary =
+    input.terminal === "completed_with_attention"
+      ? input.attentionReason || input.completionSummary
+      : input.completionSummary;
+
+  const completedProgress = completeProgressPart(
+    buildProgressPartFromMessages(input.label, input.progressMessages, {
+      status: "running",
+      startedAt: input.startedAt,
+      pipelineTimeline: input.pipelineTimeline,
+    }),
+    {
+      status: "completed",
+      summary,
+    },
+  );
+
+  return [completedProgress, buildResultPart(input.label, input.resultContent)];
 }

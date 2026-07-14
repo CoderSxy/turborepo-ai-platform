@@ -492,19 +492,19 @@ git commit -m "feat(studio): add quality controlled write chapter pipeline"
 - Modify: task progress/message components and chapter detail views
 - Modify/Create: integration tests
 
-- [ ] **Step 1: Replace write-chapter branch orchestration**
+- [x] **Step 1: Replace write-chapter branch orchestration**
 
 For `write-chapter`, `run-core-action.ts` only starts/resumes `runWriteChapterPipeline`, forwards stage events, and owns cancellation. It must not call Writer then persist directly. The pipeline’s `committing` stage must invoke the Batch 3 commit API exactly once.
 
-- [ ] **Step 2: Render a compact, expandable task timeline**
+- [x] **Step 2: Render a compact, expandable task timeline**
 
 Show context readiness, draft word count, audit total/dimensions, revision count, re-audit outcome, sync outcome, and final save. Keep audit issues/details collapsed by default; do not dump raw warnings into chapter prose.
 
-- [ ] **Step 3: Implement terminal behavior**
+- [x] **Step 3: Implement terminal behavior**
 
 `completed` displays successful final save. `completed_with_attention` stores best final version plus audit report and allows the next chapter unless state validation failed. `failed`/`cancelled` do not synchronize final assets. Stage terminal status, final assistant message, and chapter version must be written by the same Batch 3 transaction on successful terminals.
 
-- [ ] **Step 4: Add integration/recovery tests**
+- [x] **Step 4: Add integration/recovery tests**
 
 Test a successful no-revision write, a critical-issue auto-revision, unrepaired-but-saveable attention, parser failure, cancellation, model failure, refresh after commit, and prevention of writing the next chapter when state validation failed.
 

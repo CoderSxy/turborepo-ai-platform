@@ -7,6 +7,7 @@ import {
   shouldExpandTaskCard,
 } from "../../store/slices/message/parts-builder";
 import type { StudioMessagePart } from "../../store/types";
+import { WriteChapterPipelineTimeline } from "./WriteChapterPipelineTimeline";
 import styles from "../../studio.module.css";
 
 const STATUS_LABELS = {
@@ -98,6 +99,9 @@ export function ProgressSteps({
               ))
             )}
           </ul>
+          {part.pipelineTimeline ? (
+            <WriteChapterPipelineTimeline timeline={part.pipelineTimeline} />
+          ) : null}
         </div>
       ) : null}
     </section>

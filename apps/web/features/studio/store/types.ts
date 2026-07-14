@@ -1,5 +1,6 @@
 import type { InkosCoreAction } from "@repo/inkos-adapter";
 import type { NovelBookEntry } from "../state/studio-types";
+import type { WriteChapterPipelineTimelineView } from "./pipeline-timeline-types";
 
 export type ProgressPartStatus = "running" | "completed" | "error" | "paused";
 
@@ -14,6 +15,7 @@ export type StudioMessagePart =
       startedAt?: string;
       completedAt?: string;
       summary?: string;
+      pipelineTimeline?: WriteChapterPipelineTimelineView;
     }
   | {
       type: "tool";

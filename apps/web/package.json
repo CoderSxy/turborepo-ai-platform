@@ -17,7 +17,7 @@
     "start": "next start",
     "lint": "eslint --max-warnings 0",
     "check-types": "next typegen && tsc --noEmit",
-    "test": "node --test --experimental-strip-types lib/novel-asset-auto-sync.test.ts lib/novel-character-profiles.test.ts lib/commit-write-chapter-result.test.ts lib/write-chapter-recovery.test.ts features/studio/actions/writing/commit-write-chapter-result.test.ts features/studio/actions/writing/run-write-chapter-pipeline.test.ts features/studio/components/book-tree-expand.test.ts features/studio/components/right-panel/chapter-status-symbol.test.ts features/studio/components/right-panel/right-panel-width.test.ts features/studio/components/right-panel/detail/detail-title.test.ts features/studio/components/right-panel/right-panel-summaries.test.ts"
+    "test": "node --test --experimental-strip-types lib/novel-asset-auto-sync.test.ts lib/novel-character-profiles.test.ts lib/commit-write-chapter-result.test.ts lib/write-chapter-recovery.test.ts features/studio/actions/writing/commit-write-chapter-result.test.ts features/studio/actions/writing/run-write-chapter-pipeline.test.ts features/studio/actions/writing/run-write-chapter-integration.test.ts features/studio/store/slices/message/parts-builder.pipeline.test.ts features/studio/components/book-tree-expand.test.ts features/studio/components/right-panel/chapter-status-symbol.test.ts features/studio/components/right-panel/right-panel-width.test.ts features/studio/components/right-panel/detail/detail-title.test.ts features/studio/components/right-panel/right-panel-summaries.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.1",

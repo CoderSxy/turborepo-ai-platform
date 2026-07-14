@@ -445,6 +445,95 @@
   margin: 4px 0;
 }
 
+.pipelineTimeline {
+  display: grid;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.pipelineTimelineRow {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 12px;
+}
+
+.pipelineTimelineLabel {
+  font-weight: 700;
+  color: #516568;
+}
+
+.pipelineTimelineValue,
+.pipelineTimelineValueSuccess,
+.pipelineTimelineValueWarning {
+  color: #1f2937;
+}
+
+.pipelineTimelineValueSuccess {
+  color: #15803d;
+}
+
+.pipelineTimelineValueWarning {
+  color: #b45309;
+}
+
+.pipelineTimelineDimensions {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.pipelineTimelineAttention {
+  margin: 0;
+  font-size: 12px;
+  color: #b45309;
+}
+
+.pipelineTimelineIssues {
+  display: grid;
+  gap: 6px;
+}
+
+.pipelineTimelineIssuesToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #516568;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pipelineTimelineIssuesList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.pipelineTimelineIssueSeverity {
+  margin-right: 4px;
+  font-weight: 700;
+}
+
+.pipelineTimelineIssueDimension {
+  margin-right: 6px;
+  color: #6b7280;
+}
+
+.pipelineTimelineIssueSuggestion {
+  display: block;
+  margin-top: 2px;
+  color: #6b7280;
+}
+
 .resultBlock,
 .errorBlock,
 .toolBlock {
