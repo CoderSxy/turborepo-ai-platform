@@ -69,6 +69,7 @@ import {
   summarizeContextSelection,
 } from "./write-chapter";
 import {
+  assertCanCommitWriteChapter,
   buildFinalWriteChapterAssistantMessage,
   buildInMemoryChapterVersion,
   buildInMemoryStoredChapter,
@@ -439,18 +440,21 @@ export async function runCoreAction(
         target: writeTarget ?? undefined,
       });
 
-      if (generatedChapter) {
-        if (!runningTask) {
-          throw new Error("写章任务不存在，无法提交结果。");
-        }
+      if (!generatedChapter) {
+        throw new Error("未能从模型输出解析章节内容，无法保存。");
+      }
 
-        updateCoreProgress("正在提取章节摘要、角色状态、伏笔和世界观增量。");
-        const commitNow = new Date().toISOString();
-        const { chapterId, chapterVersionId } = preallocateWriteChapterIds(
-          activeBook.id,
-          generatedChapter.number,
-          commitNow,
-        );
+      if (!runningTask) {
+        throw new Error("写章任务不存在，无法提交结果。");
+      }
+
+      updateCoreProgress("正在提取章节摘要、角色状态、伏笔和世界观增量。");
+      const commitNow = new Date().toISOString();
+      const { chapterId, chapterVersionId } = preallocateWriteChapterIds(
+        activeBook.id,
+        generatedChapter.number,
+        runningTask.id,
+      );
         const assetDelta = buildNovelChapterAssetDelta({
           chapterNumber: generatedChapter.number,
           chapterTitle: generatedChapter.title,
@@ -484,11 +488,6 @@ export async function runCoreAction(
           { source: "chapter-pipeline", syncId },
         );
         nextAssets = mergeResult.assets;
-        updateCoreProgress(
-          mergeResult.status === "needs-attention"
-            ? "章节已完成；同步需关注，详见同步诊断"
-            : "已同步：章节摘要、角色状态、世界观、伏笔与大纲",
-        );
 
         latestChapters = latestChapters.some(
           (chapter) => chapter.id === storedChapter.id,
@@ -507,75 +506,84 @@ export async function runCoreAction(
           ),
         };
 
-        if (abortController.signal.aborted) {
-          throw new DOMException("The operation was aborted.", "AbortError");
-        }
+      assertCanCommitWriteChapter(abortController.signal);
 
-        updateCoreProgress("正在提交章节与资产…");
-        const savedProgressMessage = `第 ${storedChapter.number} 章《${storedChapter.title}》已保存`;
-        const progressForCommit = [...progressMessages, savedProgressMessage];
-        const chapterVersion = buildInMemoryChapterVersion({
-          chapter: storedChapter,
-          chapterVersionId,
-          now: commitNow,
-        });
-        const commitInput = buildWriteChapterCommitInput({
-          bookSnapshot: {
-            id: activeBook.id,
-            archived: activeBook.archived,
-            sortIndex: activeBook.sortIndex,
-          },
-          nextProject,
-          nextAssets,
-          storedChapter,
-          chapterVersion,
-          runningTask,
-          sessionId: requestSessionId,
-          label,
-          assistantMessageId,
-          progressMessages: progressForCommit,
-          resultContent: result.content || result.message || "",
-          completionSummary: savedProgressMessage,
-          startedAt,
-          now: commitNow,
-        });
+      updateCoreProgress("正在提交章节与资产…");
+      const syncProgressMessage =
+        mergeResult.status === "needs-attention"
+          ? "章节已完成；同步需关注，详见同步诊断"
+          : "已同步：章节摘要、角色状态、世界观、伏笔与大纲";
+      const savedProgressMessage = `第 ${storedChapter.number} 章《${storedChapter.title}》已保存`;
+      const progressForCommit = [
+        ...progressMessages,
+        syncProgressMessage,
+        savedProgressMessage,
+      ];
+      const chapterVersion = buildInMemoryChapterVersion({
+        chapter: storedChapter,
+        chapterVersionId,
+        now: commitNow,
+      });
+      const commitInput = buildWriteChapterCommitInput({
+        bookSnapshot: {
+          id: activeBook.id,
+          archived: activeBook.archived,
+          sortIndex: activeBook.sortIndex,
+        },
+        nextProject,
+        nextAssets,
+        storedChapter,
+        chapterVersion,
+        runningTask,
+        sessionId: requestSessionId,
+        label,
+        assistantMessageId,
+        progressMessages: progressForCommit,
+        resultContent: result.content || result.message || "",
+        completionSummary: savedProgressMessage,
+        startedAt,
+        now: commitNow,
+      });
 
-        await commitWriteChapterResultForStudio(commitInput);
+      assertCanCommitWriteChapter(abortController.signal);
+      await commitWriteChapterResultForStudio(commitInput);
 
-        const finalAssistantMessage = buildFinalWriteChapterAssistantMessage({
-          assistantMessageId,
-          sessionId: requestSessionId,
-          label,
-          progressMessages: progressForCommit,
-          resultContent: result.content || result.message || "",
-          completionSummary: savedProgressMessage,
-          startedAt,
-          now: commitNow,
-        }).studio;
+      updateCoreProgress(syncProgressMessage);
+      updateCoreProgress(savedProgressMessage);
 
-        store.setActiveChapter(storedChapter.id);
-        progressMessages.push(savedProgressMessage);
-        setActiveCoreProgress([...progressMessages]);
-        store.updateMessage(requestSessionId, assistantMessageId, (item) => ({
-          ...item,
-          parts: finalAssistantMessage.parts,
-          streaming: false,
-          createdAt: finalAssistantMessage.createdAt,
-        }));
-        await clearStoredNovelTaskCheckpoint(taskId).catch(() => undefined);
+      const finalAssistantMessage = buildFinalWriteChapterAssistantMessage({
+        assistantMessageId,
+        sessionId: requestSessionId,
+        label,
+        progressMessages: progressForCommit,
+        resultContent: result.content || result.message || "",
+        completionSummary: savedProgressMessage,
+        startedAt,
+        now: commitNow,
+      }).studio;
 
-        await ctx.refreshWorkspace();
-        ctx.trackModelCall(
-          bindingResult,
-          label,
-          "success",
-          startedAt,
-          new Date().toISOString(),
-          { latencyMs: Date.now() - Date.parse(startedAt) },
-        );
-        ctx.notify(result.message ?? savedProgressMessage, "success");
-        return true;
-      }
+      store.setActiveChapter(storedChapter.id);
+      progressMessages.push(syncProgressMessage, savedProgressMessage);
+      setActiveCoreProgress([...progressMessages]);
+      store.updateMessage(requestSessionId, assistantMessageId, (item) => ({
+        ...item,
+        parts: finalAssistantMessage.parts,
+        streaming: false,
+        createdAt: finalAssistantMessage.createdAt,
+      }));
+      await clearStoredNovelTaskCheckpoint(taskId).catch(() => undefined);
+
+      await ctx.refreshWorkspace();
+      ctx.trackModelCall(
+        bindingResult,
+        label,
+        "success",
+        startedAt,
+        new Date().toISOString(),
+        { latencyMs: Date.now() - Date.parse(startedAt) },
+      );
+      ctx.notify(result.message ?? savedProgressMessage, "success");
+      return true;
     }
 
     if (action === "review" && reviewTarget) {
@@ -732,11 +740,7 @@ export async function runCoreAction(
       assets: nextAssets,
     });
 
-    const completionSummary =
-      action === "write-chapter" && writeTarget
-        ? progressMessages.find((message) => message.includes("已保存")) ??
-          `第 ${writeTarget.number} 章已保存`
-        : progressMessages.at(-1) ?? "任务完成。";
+    const completionSummary = progressMessages.at(-1) ?? "任务完成。";
 
     const assistantMessage: StudioMessage = {
       id: assistantMessageId,

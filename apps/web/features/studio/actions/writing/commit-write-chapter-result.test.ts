@@ -7,6 +7,7 @@ import {
   validateCommitWriteChapterResultInput,
 } from "../../../../lib/novel-store.ts";
 import {
+  assertCanCommitWriteChapter,
   buildInMemoryChapterVersion,
   buildInMemoryStoredChapter,
   buildWriteChapterCommitInput,
@@ -14,6 +15,7 @@ import {
 } from "./commit-write-chapter-result.ts";
 
 const NOW = "2026-07-14T12:00:00.000Z";
+const TASK_ID = "task-1720000000-abc123";
 
 function buildFixtureTask() {
   return {
@@ -31,16 +33,42 @@ function buildFixtureTask() {
 }
 
 describe("preallocateWriteChapterIds", () => {
-  it("returns stable deterministic ids", () => {
-    const first = preallocateWriteChapterIds("book-1", 2, NOW);
-    const second = preallocateWriteChapterIds("book-1", 2, NOW);
+  it("returns stable deterministic ids from task identity", () => {
+    const first = preallocateWriteChapterIds("book-1", 2, TASK_ID);
+    const second = preallocateWriteChapterIds("book-1", 2, TASK_ID);
 
     assert.equal(first.chapterId, "book-1-chapter-0002");
     assert.equal(
       first.chapterVersionId,
-      "book-1-chapter-0002-version-generation-20260714120000000",
+      "book-1-chapter-0002-version-generation-task1720000000abc123",
     );
     assert.deepEqual(first, second);
+  });
+
+  it("returns different version ids for different tasks on the same chapter", () => {
+    const first = preallocateWriteChapterIds("book-1", 2, "task-1");
+    const second = preallocateWriteChapterIds("book-1", 2, "task-2");
+
+    assert.equal(first.chapterId, second.chapterId);
+    assert.notEqual(first.chapterVersionId, second.chapterVersionId);
+  });
+});
+
+describe("assertCanCommitWriteChapter", () => {
+  it("throws AbortError when the signal is already aborted", () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    assert.throws(
+      () => assertCanCommitWriteChapter(controller.signal),
+      (error: unknown) =>
+        error instanceof DOMException && error.name === "AbortError",
+    );
+  });
+
+  it("allows commit when the signal is active", () => {
+    const controller = new AbortController();
+    assert.doesNotThrow(() => assertCanCommitWriteChapter(controller.signal));
   });
 });
 
@@ -49,7 +77,7 @@ describe("buildWriteChapterCommitInput", () => {
     const { chapterId, chapterVersionId } = preallocateWriteChapterIds(
       "book-1",
       2,
-      NOW,
+      TASK_ID,
     );
     const generatedChapter = {
       bookId: "book-1",
@@ -149,7 +177,7 @@ describe("buildWriteChapterCommitInput", () => {
     const { chapterId, chapterVersionId } = preallocateWriteChapterIds(
       "book-1",
       1,
-      NOW,
+      TASK_ID,
     );
     const generatedChapter = {
       bookId: "book-1",

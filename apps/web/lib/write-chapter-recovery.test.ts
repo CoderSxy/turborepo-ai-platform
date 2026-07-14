@@ -12,6 +12,10 @@ import type {
   StoredNovelTask,
 } from "./novel-store.ts";
 import {
+  assertCanCommitWriteChapter,
+  preallocateWriteChapterIds,
+} from "../features/studio/actions/writing/commit-write-chapter-result.ts";
+import {
   commitWriteChapterResultWithDb,
   createDefaultNovelAssets,
   selectNextNovelChapterTarget,
@@ -153,10 +157,13 @@ function buildCommitInput(
   const now = "2026-07-14T10:00:00.000Z";
   const bookId = "book-1";
   const sessionId = "session-1";
-  const chapterId = "book-1-chapter-0002";
-  const versionId = "book-1-chapter-0002-version-generation-20260714100000000";
   const taskId = "task-1";
   const messageId = "assistant-core-1";
+  const { chapterId, chapterVersionId: versionId } = preallocateWriteChapterIds(
+    bookId,
+    2,
+    taskId,
+  );
 
   const book: StoredNovelBook = {
     id: bookId,
@@ -380,11 +387,19 @@ describe("write-chapter recovery", () => {
     const input = buildCommitInput();
     await seedPreCommitWriteState(db, input);
     const before = await readStoreSnapshot(db);
+    const controller = new AbortController();
+    controller.abort();
 
     assert.equal(before.chapters.length, 1);
     assert.equal(before.chapterVersions.length, 0);
     assert.equal(before.tasks[0]?.status, "running");
     assert.doesNotMatch(before.messages[0]?.content ?? "", /已保存/);
+
+    assert.throws(
+      () => assertCanCommitWriteChapter(controller.signal),
+      (error: unknown) =>
+        error instanceof DOMException && error.name === "AbortError",
+    );
 
     const after = await readStoreSnapshot(db);
     assert.deepEqual(after.chapters, before.chapters);
@@ -392,6 +407,7 @@ describe("write-chapter recovery", () => {
     assert.deepEqual(after.books, before.books);
     assert.deepEqual(after.tasks, before.tasks);
     assert.deepEqual(after.messages, before.messages);
+    assert.doesNotMatch(after.messages[0]?.content ?? "", /已保存/);
   });
 
   it("transaction abort leaves stores unchanged and retry produces one clean result", async () => {
@@ -415,6 +431,8 @@ describe("write-chapter recovery", () => {
 
     const afterAbort = await readStoreSnapshot(db);
     assert.deepEqual(afterAbort, before);
+    assert.doesNotMatch(afterAbort.messages[0]?.content ?? "", /已保存/);
+    assert.equal(afterAbort.tasks[0]?.status, "running");
 
     await commitWriteChapterResultWithDb(db, input);
 
@@ -425,6 +443,18 @@ describe("write-chapter recovery", () => {
     assert.equal(afterRetry.tasks.length, 1);
     assert.equal(afterRetry.tasks[0]?.status, "success");
     assert.equal(afterRetry.chapters.find((chapter) => chapter.number === 2)?.id, input.finalChapter.id);
+    assert.match(afterRetry.messages[0]?.content ?? "", /已保存/);
+  });
+
+  it("retry with the same task id keeps the chapter version id stable", () => {
+    const first = preallocateWriteChapterIds("book-1", 2, "task-1");
+    const second = preallocateWriteChapterIds("book-1", 2, "task-1");
+
+    assert.deepEqual(first, second);
+    assert.equal(
+      first.chapterVersionId,
+      "book-1-chapter-0002-version-generation-task1",
+    );
   });
 
   it("after failed commit the next write still targets the original next chapter", async () => {

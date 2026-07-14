@@ -16,15 +16,21 @@ import type { StudioMessage } from "../../store/types";
 export function preallocateWriteChapterIds(
   bookId: string,
   chapterNumber: number,
-  createdAt: string,
+  taskId: string,
 ): { chapterId: string; chapterVersionId: string } {
   const chapterId = `${bookId}-chapter-${String(chapterNumber).padStart(4, "0")}`;
-  const suffix = createdAt.replace(/[^0-9]/g, "");
+  const suffix = taskId.replace(/[^a-zA-Z0-9]/g, "");
 
   return {
     chapterId,
     chapterVersionId: `${chapterId}-version-generation-${suffix}`,
   };
+}
+
+export function assertCanCommitWriteChapter(signal: AbortSignal): void {
+  if (signal.aborted) {
+    throw new DOMException("The operation was aborted.", "AbortError");
+  }
 }
 
 export function buildInMemoryStoredChapter(input: {
