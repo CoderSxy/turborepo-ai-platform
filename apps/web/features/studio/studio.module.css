@@ -1767,6 +1767,147 @@
   font-style: normal;
 }
 
+.bookSidebarHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  position: relative;
+}
+
+.bookSidebarHeaderTitle {
+  color: #142023;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.bookSidebarHeaderActions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  position: relative;
+}
+
+.bookSidebarHeaderActions > button:not(.bookSidebarIconButton) {
+  border: 0;
+  background: transparent;
+  color: #66777a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.bookSidebarHeaderActions > button:not(.bookSidebarIconButton):hover,
+.bookSidebarIconButton:hover,
+.bookSidebarIconButton:focus-visible {
+  color: #14342f;
+}
+
+.bookSidebarIconButton {
+  flex: 0 0 24px;
+  width: 24px;
+  min-height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #66777a;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+.bookTreeRow,
+.sessionTreeRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  border-radius: 7px;
+  padding: 0 4px;
+}
+
+.bookTreeRow:hover,
+.bookTreeRow:focus-within,
+.sessionTreeRow:hover,
+.sessionTreeRow:focus-within {
+  background: #eef7f2;
+}
+
+.bookTreeRowActive,
+.sessionTreeRow.activeSessionButton {
+  background: #eef7f2;
+  color: #14342f;
+}
+
+.bookTreeExpandButton {
+  flex: 0 0 18px;
+  width: 18px;
+  min-height: 24px;
+  border: none;
+  background: transparent;
+  color: #66777a;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+}
+
+.bookTreeFolderGlyph {
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.bookTreeTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 800;
+  color: #152225;
+  padding: 0;
+}
+
+.sessionTreeRowMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.sessionTreeRowTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bookTreeAge {
+  flex: 0 0 auto;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  opacity: 0.72;
+}
+
 .bookTreeMoreButton {
   flex: 0 0 24px;
   width: 24px;
