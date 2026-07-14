@@ -152,6 +152,7 @@ import { CreateBookPanel } from "./CreateBookPanel";
 import { NovelBookList } from "./NovelBookList";
 import { NovelToolPanel } from "./NovelToolPanel";
 import { NovelBookPanel } from "./NovelBookPanel";
+import { RightPanelShell } from "./right-panel/RightPanelShell";
 import { WriteChapterOptionsSheet } from "./writing/WriteChapterOptionsSheet";
 
 type WritingSheetState =
@@ -2303,7 +2304,8 @@ export function NovelStudio({
             />
           </section>
 
-          <NovelBookPanel
+          <RightPanelShell>
+            <NovelBookPanel
             project={project}
             assets={activeBook.assets}
             chapters={activeBook.chapters}
@@ -2369,6 +2371,7 @@ export function NovelStudio({
             onRequestConfirm={requestConfirm}
             onShowToast={showToast}
           />
+          </RightPanelShell>
         </section>
       ) : activeTool !== "AI创作" ? (
         <NovelToolPanel

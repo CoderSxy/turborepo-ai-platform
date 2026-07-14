@@ -99,7 +99,7 @@
 .novelChatLayout {
   min-height: 0;
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr) 326px;
+  grid-template-columns: 248px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: stretch;
   overflow: hidden;
@@ -1870,24 +1870,365 @@
 }
 
 .bookContextPanel {
-  padding: 14px;
+  padding: 12px;
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: 8px;
   overflow-y: auto;
+  min-height: 0;
+  height: 100%;
 }
 
-.bookContextPanel section {
-  border: 1px solid #e0e7e9;
-  border-radius: 8px;
-  background: #fbfdfd;
-  padding: 14px;
+.bookContextPanel section.inkosSidebarCard {
+  border: none;
+  border-radius: 10px;
+  background: #f3f6f7;
+  padding: 0;
+  overflow: hidden;
 }
 
 .bookContextPanel h2 {
-  margin: 0 0 12px;
+  margin: 0;
   color: #142023;
-  font-size: 15px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.rightPanelShell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.rightPanelContent {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rightPanelContent > .bookContextPanel {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.rightPanelResizeHandle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  transform: translateX(-50%);
+}
+
+.rightPanelResizeHandle:hover,
+.rightPanelResizeHandle:active {
+  background: rgba(47, 111, 120, 0.15);
+}
+
+.rightPanelShellNarrowSlot {
+  width: 0;
+  min-width: 0;
+  height: 0;
+  min-height: 0;
+  overflow: visible;
+  border: none;
+  background: transparent;
+}
+
+.rightPanelToggle {
+  position: fixed;
+  right: 12px;
+  bottom: 88px;
+  z-index: 25;
+  border: 1px solid #dbe4e7;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #14342f;
+  box-shadow: 0 8px 24px rgba(20, 52, 47, 0.12);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rightPanelDrawerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(20, 34, 37, 0.2);
+}
+
+.rightPanelMobileMount {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-left: 1px solid #dbe4e7;
+  box-shadow: -8px 0 24px rgba(20, 34, 37, 0.12);
+}
+
+.rightPanelMobileMountClosed {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: min(420px, 88vw);
+  height: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.rightPanelMobileMountOpen {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 41;
+  width: min(420px, 88vw);
+  height: 100%;
+}
+
+.rightPanelDrawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e4ebed;
+  flex-shrink: 0;
+}
+
+.rightPanelDrawerHeader strong {
+  color: #142023;
+  font-size: 14px;
+}
+
+.rightPanelDrawerHeader button {
+  border: none;
+  background: none;
+  color: #66777a;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.inkosBookHeader {
+  display: grid;
+  gap: 4px;
+  padding: 2px 2px 6px;
+}
+
+.inkosBookTitle {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #142023;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inkosBookMeta {
+  margin: 0;
+  color: #66777a;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.inkosSidebarCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.inkosSidebarCardHeader:hover,
+.inkosSidebarCardHeader:focus-visible {
+  background: rgba(20, 52, 47, 0.04);
+}
+
+.inkosSidebarCardChevron {
+  flex-shrink: 0;
+  width: 12px;
+  color: #8a9a9d;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.inkosSidebarCardBody {
+  padding: 0 12px 12px;
+}
+
+.inkosChapterList {
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.inkosChapterRow {
+  display: grid;
+  grid-template-columns: 14px 22px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  padding: 6px 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.inkosChapterStatusSymbol {
+  color: #66777a;
+  font-size: 11px;
+  line-height: 1;
+  text-align: center;
+}
+
+.inkosChapterRow:hover,
+.inkosChapterRowActive {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.inkosChapterBadge {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: #e3efef;
+  color: #14342f;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.inkosChapterTitle {
+  min-width: 0;
+  color: #172426;
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inkosChapterMeta {
+  color: #66777a;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.inkosCharacterList {
+  display: grid;
+  gap: 6px;
+}
+
+.inkosCharacterRow {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inkosCharacterRow:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.inkosCharacterRow strong {
+  color: #142023;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.inkosCharacterRow span {
+  color: #66777a;
+  font-size: 11px;
+}
+
+.inkosCharacterRow em {
+  color: #66777a;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.inkosFoundationList {
+  display: grid;
+  gap: 2px;
+}
+
+.inkosFoundationList button {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #2f6f78;
+  cursor: pointer;
+  padding: 5px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.inkosFoundationList button:hover {
+  background: rgba(255, 255, 255, 0.72);
+  color: #14342f;
+}
+
+.bookContextPanel .emptyMiniState {
+  margin: 0;
+  border: 1px dashed #cdd8da;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.45);
+  color: #66777a;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.inkosSidebarCardSummary {
+  flex: 1;
+  min-width: 0;
+  margin-left: 8px;
+  color: #8a9a9d;
+  font-size: 11px;
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inkosSidebarCardHeader .sidebarCardAlert {
+  flex-shrink: 0;
+  margin-left: 6px;
 }
 
 .bookProgress {
@@ -4177,6 +4518,12 @@
   accent-color: #14342f;
 }
 
+@media (max-width: 1024px) {
+  .novelChatLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 980px) {
 .metricsGrid,
   .twoColumn,
@@ -4208,13 +4555,403 @@
     overflow: visible;
   }
 
-.novelBookList {
+  .novelBookList {
     min-height: 220px;
   }
+}
 
-.bookContextPanel {
-    max-height: 520px;
-  }
+.sidebarCardSummary {
+  margin-left: auto;
+  color: #66777a;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 55%;
+}
+
+.sidebarCardAlert {
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+button.sidebarCardAlert {
+  cursor: pointer;
+}
+
+.sidebarCardAlertWarning {
+  border-color: #e8d4a8;
+  background: #fff8e8;
+  color: #8a6a1e;
+}
+
+.sidebarCardAlertDanger {
+  border-color: #e8c3bc;
+  background: #fff3f0;
+  color: #9a3b2e;
+}
+
+.bookSummaryHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  max-height: 44px;
+  overflow: hidden;
+}
+
+.bookSummaryHeaderMain {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bookSummaryTitleButton {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #142023;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookSummaryHeaderMain > span {
+  color: #66777a;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.bookSummaryTaskStatus {
+  margin: 0;
+  color: #2f6f78;
+  font-size: 12px;
+}
+
+.compactChapterListScroll {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.compactChapterRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.compactChapterOpenButton {
+  align-self: center;
+  border: 1px solid #dbe4e7;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #3d565a;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.characterStatusList {
+  display: grid;
+  gap: 8px;
+}
+
+.characterStatusCard {
+  display: grid;
+  gap: 2px;
+  border: 1px solid #e0e7e9;
+  border-radius: 8px;
+  background: #fbfdfd;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.characterStatusCard strong {
+  color: #142023;
+  font-size: 13px;
+}
+
+.characterStatusCard span {
+  color: #4f666a;
+  font-size: 12px;
+}
+
+.characterStatusCard em {
+  color: #66777a;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.worldSummaryPreview,
+.characterSummaryPreview {
+  display: grid;
+  gap: 6px;
+  color: #3d565a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.characterSummaryPreview strong {
+  color: #142023;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.worldSummaryViewAll {
+  margin-top: 6px;
+  border: none;
+  background: none;
+  color: #2f6f78;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.workspaceMoreFooter {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 0;
+}
+
+.workspaceMoreFooter button {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #66777a;
+  font-size: 11px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.workspaceMoreFooter button:hover {
+  background: rgba(20, 52, 47, 0.05);
+  color: #14342f;
+}
+
+.workspaceMoreSheet {
+  width: min(520px, 100%);
+  max-height: min(88vh, 900px);
+}
+
+.workspaceMoreSheetBody {
+  overflow-y: auto;
+  padding: 0 16px 16px;
+  display: grid;
+  gap: 0;
+}
+
+.workspaceMoreMenu {
+  display: grid;
+  gap: 16px;
+}
+
+.workspaceMoreGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.workspaceMoreGroupTitle {
+  margin: 0;
+  color: #142023;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.workspaceMoreGroupBody {
+  display: grid;
+  gap: 0;
+}
+
+.bookContextDetailView {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
+}
+
+.bookContextDetailHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 10px;
+  border-bottom: 1px solid #e8edef;
+  margin-bottom: 8px;
+}
+
+.bookContextDetailHeader button {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #66777a;
+  font-size: 12px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.bookContextDetailHeader button:hover {
+  background: #f3f6f7;
+  color: #14342f;
+}
+
+.bookContextDetailHeader strong {
+  color: #142023;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bookContextDetailBody {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.coreFileDetailView {
+  display: grid;
+  gap: 10px;
+}
+
+.coreFileDetailActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.coreFileDetailEditor {
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid #dbe4e7;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.characterDetailView {
+  display: grid;
+  gap: 12px;
+}
+
+.characterDetailFields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.characterDetailFields dt {
+  color: #66777a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.characterDetailFields dd {
+  margin: 0;
+  color: #142023;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.characterDetailSection h3 {
+  margin: 0 0 6px;
+  color: #142023;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.characterDetailSection p {
+  margin: 0;
+  color: #3d565a;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.characterDetailSection em {
+  display: block;
+  margin-top: 6px;
+  color: #66777a;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.outlineDetailView {
+  display: grid;
+  gap: 16px;
+}
+
+.outlineDetailNodes {
+  display: grid;
+  gap: 8px;
+}
+
+.outlineDetailNodesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.outlineDetailNodesHeader h3 {
+  margin: 0;
+  color: #142023;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.outlineDetailNodesHeader button {
+  border: 1px solid #dbe4e7;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #3d565a;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.outlineDetailNodeList {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.outlineDetailNodeCard {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e0e7e9;
+  border-radius: 8px;
+  background: #fbfdfd;
+  padding: 8px 10px;
+}
+
+.outlineDetailNodeCard strong {
+  color: #142023;
+  font-size: 12px;
+}
+
+.outlineDetailNodeCard span {
+  color: #66777a;
+  font-size: 11px;
+}
+
+.outlineDetailNodeCard p {
+  margin: 0;
+  color: #3d565a;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 @media (max-width: 760px) {

@@ -14,7 +14,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit"
+    "check-types": "next typegen && tsc --noEmit",
+    "test": "node --test --experimental-strip-types features/studio/components/right-panel/chapter-status-symbol.test.ts features/studio/components/right-panel/right-panel-width.test.ts features/studio/components/right-panel/detail/detail-title.test.ts features/studio/components/right-panel/right-panel-summaries.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.1",
