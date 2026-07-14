@@ -1,0 +1,83 @@
+apps/web/package.json
+  s_617043457fffb4::t_bd5419b0c8a2b3 19
+apps/web/features/studio/actions/run-core-action.ts
+  s_617043457fffb4::t_fbcc0b6f894bfe 755-757
+  s_617043457fffb4::t_3022373e91e80d 27
+  s_617043457fffb4::t_7a12cc9152bbe3 525-529
+  s_617043457fffb4::t_0c4ac002ac53ba 71-78
+  s_617043457fffb4::t_87d51c25e34154 229-231
+  s_617043457fffb4::t_27380c1ef43c44 261
+  s_617043457fffb4::t_f30379e2eb632b 445-448,450-455,462-469,479,494,502-524,530-567
+  s_617043457fffb4::t_2279b85e094d8d 709-725,733-745,747-752
+apps/web/features/studio/actions/writing/commit-write-chapter-result.ts
+  s_617043457fffb4::t_614c9c28961338 2-11,14-167,175,177-195,197-201,205-208,210-236
+  s_617043457fffb4::t_18befd23f81081 1
+  s_617043457fffb4::t_4ebef4919b9cd6 196,202-204,209
+  s_617043457fffb4::t_8ab0767a71fbfa 13
+  s_617043457fffb4::t_eea3cbc0402b7a 168-174,176
+  s_617043457fffb4::t_3762af45bb2255 12
+docs/superpowers/plans/2026-07-14-inkos-p1-sync-identity-commit.md
+  s_29b27874f3cc36::t_e1f823fca3e6fe 1,5,7,29
+  s_29b27874f3cc36::t_e95b14998f4cc8 24,27
+  s_617043457fffb4::t_feadd4736f8a9d 291
+  s_617043457fffb4::t_bb4a326320a1a3 279
+  s_399165c645dc66::t_e17348daabaccf 147
+  s_399165c645dc66::t_59e19ac50c12ac 98-99
+  s_399165c645dc66::t_188b9613ff6b97 106
+  s_399165c645dc66::t_f401bcc5c7264d 116
+  s_617043457fffb4::t_e576b4c1418d3f 295
+  s_29b27874f3cc36::t_184a532ef8fa5b 2-4,6,8-23,25-26,28,30-97,100-105,107-115,117-128,130-146,148-150,152-202,205-210,212-214,216-229,231-240,242-250,252-261,264-269,271-278,280-290,292-294,296-355,518-526,531
+  s_29b27874f3cc36::t_12e70b198a6acc 356-517,527-530
+  s_617043457fffb4::t_d075dfef14796d 270
+  s_399165c645dc66::t_2b4b96f662821d 151
+  s_8220551c5f4a97::t_bcc07cac5bdfa3 241
+  s_8220551c5f4a97::t_9bf73d572c5d59 251
+  s_8220551c5f4a97::t_8debc73d3f5565 230
+  s_617043457fffb4::t_6e5ef71b5ab034 262-263
+  s_8220551c5f4a97::t_e50d540056e2dc 203-204,211
+  s_399165c645dc66::t_0889f4e7001866 129
+  s_8220551c5f4a97::t_25137687628a42 215
+apps/web/features/studio/actions/writing/commit-write-chapter-result.test.ts
+  s_617043457fffb4::t_719bd2b74807c5 1-115,122-197,204-222
+  s_617043457fffb4::t_5d67ac3578950b 116-121,198-203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "85e37de1de4f426f2dfb4944253e834a89093518",
+  "prompts": {},
+  "sessions": {
+    "s_29b27874f3cc36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5a43-7fd1-76b3-81bf-8a329a8d5bbd",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    },
+    "s_399165c645dc66": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "03312dd7-e78c-489f-b1cd-c2afc9b8eec5",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    },
+    "s_617043457fffb4": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "37c41d3a-b37f-404a-b6f3-399517a962c1",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    },
+    "s_8220551c5f4a97": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8bdf27d1-915d-4e5b-9eb4-cf4a7250ec74",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
