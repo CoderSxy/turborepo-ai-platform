@@ -16,7 +16,6 @@ import {
   mergeNovelDiagnostics,
   parseNovelReviewNotes,
   pauseStoredNovelTaskWithCheckpoint,
-  queueNovelPendingAssetDelta,
   reconcileNovelReviewHistory,
   selectNextNovelChapterTarget,
   startStoredNovelTask,
@@ -27,6 +26,10 @@ import {
   upsertStoredNovelChapter,
   type NovelProjectAssets,
 } from "../../../lib/novel-store";
+import {
+  countSyncAttentionDiagnostics,
+  mergeNovelChapterAssetDeltaSafely,
+} from "../../../lib/novel-asset-auto-sync";
 import {
   extractGeneratedChapter,
   extractRevisedChapterContent,
@@ -441,17 +444,23 @@ export async function runCoreAction(
           versionNote: "InkOS WriterAgent 生成章节",
         });
         nextProject = syncNovelProjectChapterPlan(nextProject, storedChapter);
-        const pendingAssetCount = nextAssets.pendingAssetDeltas.length;
-        nextAssets = queueNovelPendingAssetDelta(nextAssets, {
-          ...assetDelta,
-          chapterNumber: storedChapter.number,
-          chapterTitle: storedChapter.title,
-          summary: storedChapter.summary,
-        });
+        const attentionBefore = countSyncAttentionDiagnostics(nextAssets);
+        nextAssets = mergeNovelChapterAssetDeltaSafely(
+          nextAssets,
+          {
+            ...assetDelta,
+            chapterNumber: storedChapter.number,
+            chapterTitle: storedChapter.title,
+            summary: storedChapter.summary,
+          },
+          { source: "chapter-pipeline" },
+        );
+        const attentionDelta =
+          countSyncAttentionDiagnostics(nextAssets) - attentionBefore;
         updateCoreProgress(
-          nextAssets.pendingAssetDeltas.length > pendingAssetCount
-            ? "章节资产增量已提取，等待人工确认后写入设定资产。"
-            : "本章未发现需要确认的资产增量。",
+          attentionDelta > 0
+            ? `章节已完成；${attentionDelta} 项同步需关注，详见同步诊断`
+            : "已同步：章节摘要、角色状态、世界观、伏笔与大纲",
         );
         store.setActiveChapter(storedChapter.id);
         latestChapters = latestChapters.some(
