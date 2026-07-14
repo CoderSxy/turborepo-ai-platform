@@ -1,0 +1,23 @@
+apps/web/features/studio/studio.module.css
+  s_098f27364af06c::t_d5a9ff6541d997 1678
+  s_098f27364af06c::t_e96b5f98158bee 1551-1552,1557-1575
+  s_098f27364af06c::t_646cbd6dd1c33f 1576
+apps/web/features/studio/components/NovelBookList.tsx
+  s_098f27364af06c::t_4faa6e2a7a02c2 3,6-8,17,32,65-70,72-105,109-133,136-137,141-143,145-147,149-157,163-168,170-206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "836da30e72ab07713463848a886ff3ffb45643c2",
+  "prompts": {},
+  "sessions": {
+    "s_098f27364af06c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1d7f0be1-dc51-41c1-b470-5e12f62a1ff8",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
