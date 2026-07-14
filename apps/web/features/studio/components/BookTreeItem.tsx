@@ -51,6 +51,12 @@ export function BookTreeItem({
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    if (manageMode) {
+      setMenuOpen(false);
+    }
+  }, [manageMode]);
+
+  useEffect(() => {
     if (!menuOpen) {
       return;
     }
