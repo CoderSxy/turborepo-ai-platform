@@ -1,0 +1,34 @@
+apps/web/features/studio/studio.module.css
+  s_746c92d6ba02f2::t_07ad81748efa08 1924-1929
+docs/INKOS_STUDIO_LEFT_PANEL_ALIGNMENT.md
+  s_29b27874f3cc36::t_5dbe41a56c86c0 1-167,174,177-184
+  s_746c92d6ba02f2::t_c4606fe39d961f 168-173,175-176
+docs/superpowers/specs/2026-07-14-inkos-left-panel-design.md
+  s_746c92d6ba02f2::t_1420c4e5f15d4c 155-162
+apps/web/features/studio/components/NovelBookList.tsx
+  s_746c92d6ba02f2::t_ada1f3b9163fe1 146,152-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3740e7ae53c5a95b532dcd57393720e63b34838f",
+  "prompts": {},
+  "sessions": {
+    "s_29b27874f3cc36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5a43-7fd1-76b3-81bf-8a329a8d5bbd",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    },
+    "s_746c92d6ba02f2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee94951a-92e1-439f-80c5-e3f32c14c109",
+        "model": "default"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
