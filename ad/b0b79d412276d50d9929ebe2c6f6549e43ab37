@@ -1,0 +1,21 @@
+apps/web/lib/novel-asset-auto-sync.ts
+  s_251f2e6bd5dfe0::t_1287429c6fd45e 127-129,131,148,154
+apps/web/lib/novel-asset-auto-sync.test.ts
+  s_251f2e6bd5dfe0::t_5f45a1d33d9a42 123-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "adb0b79d412276d50d9929ebe2c6f6549e43ab37",
+  "prompts": {},
+  "sessions": {
+    "s_251f2e6bd5dfe0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b2c97f61-53b8-4225-a553-68ff5d64d457",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
