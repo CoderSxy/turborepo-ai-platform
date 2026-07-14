@@ -33,6 +33,17 @@ export type MergeAssetDeltaResult = {
 const SYNC_DIAGNOSTIC_PREFIX = "同步诊断";
 const STABLE_DIAGNOSTIC_CREATED_AT = "1970-01-01T00:00:00.000Z";
 
+type ApplyNovelChapterAssetDelta = typeof applyNovelChapterAssetDelta;
+
+let testApplyDeltaOverride: ApplyNovelChapterAssetDelta | null = null;
+
+/** @internal Test hook for merge failure simulation. */
+export function setTestApplyDeltaOverride(
+  override: ApplyNovelChapterAssetDelta | null,
+): void {
+  testApplyDeltaOverride = override;
+}
+
 function normalizeWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
@@ -152,6 +163,49 @@ export function countSyncAttentionDiagnostics(
   ).length;
 }
 
+function hasSyncDiagnostic(
+  assets: NovelProjectAssets,
+  syncId: string,
+): boolean {
+  const diagnosticId = `sync-diag:${syncId}`;
+  return (assets.diagnostics ?? []).some((item) => item.id === diagnosticId);
+}
+
+function shouldSkipEmptyContentRetry(
+  assets: NovelProjectAssets,
+  delta: NovelChapterAssetDelta,
+  syncId: string,
+  retrySchemaVersion: number,
+): boolean {
+  if (hasDeltaContent(delta) || retrySchemaVersion > 0) {
+    return false;
+  }
+  return hasSyncDiagnostic(assets, syncId);
+}
+
+export function novelAssetMigrationChanged(
+  before: NovelProjectAssets,
+  after: NovelProjectAssets,
+): boolean {
+  if (
+    before.pendingAssetDeltas.length !== after.pendingAssetDeltas.length ||
+    before.worldNotes !== after.worldNotes ||
+    before.characters !== after.characters
+  ) {
+    return true;
+  }
+
+  return (
+    JSON.stringify(before.pendingMigration) !==
+      JSON.stringify(after.pendingMigration) ||
+    JSON.stringify(before.knowledgeAssets) !==
+      JSON.stringify(after.knowledgeAssets) ||
+    JSON.stringify(before.assetChangeEvents) !==
+      JSON.stringify(after.assetChangeEvents) ||
+    JSON.stringify(before.diagnostics) !== JSON.stringify(after.diagnostics)
+  );
+}
+
 export function mergeNovelChapterAssetDeltaSafely(
   assets: NovelProjectAssets,
   delta: NovelChapterAssetDelta,
@@ -178,7 +232,8 @@ export function mergeNovelChapterAssetDeltaSafely(
   }
 
   try {
-    const merged = applyNovelChapterAssetDelta(assets, delta);
+    const applyDelta = testApplyDeltaOverride ?? applyNovelChapterAssetDelta;
+    const merged = applyDelta(assets, delta);
     return {
       status: "applied",
       assets: {
@@ -212,33 +267,41 @@ export function migratePendingAssetDeltas(
     if (left.chapterNumber !== right.chapterNumber) {
       return left.chapterNumber - right.chapterNumber;
     }
-    return left.createdAt.localeCompare(right.createdAt);
+    const createdAtCompare = left.createdAt.localeCompare(right.createdAt);
+    if (createdAtCompare !== 0) {
+      return createdAtCompare;
+    }
+    return left.id.localeCompare(right.id);
   });
 
   if (pending.length === 0) {
     if (assets.pendingMigration?.migratedAt) {
       return assets;
     }
-    return {
+    const next = {
       ...assets,
       pendingMigration: withMigration(assets, {
         migratedAt: new Date().toISOString(),
+        skippedPendingIds: [],
       }),
     };
+    return novelAssetMigrationChanged(assets, next) ? next : assets;
   }
 
-  const skipped = new Set(assets.pendingMigration?.skippedPendingIds ?? []);
+  const retrySchemaVersion = assets.pendingMigration?.retrySchemaVersion ?? 0;
   let current = assets;
   const remaining: NovelPendingAssetDelta[] = [];
 
   for (const item of pending) {
-    if (skipped.has(item.id)) {
-      remaining.push(item);
+    const syncId = createLegacyPendingSyncId(item);
+    if (current.pendingMigration?.appliedSyncIds?.includes(syncId)) {
       continue;
     }
 
-    const syncId = createLegacyPendingSyncId(item);
-    if (current.pendingMigration?.appliedSyncIds?.includes(syncId)) {
+    if (
+      shouldSkipEmptyContentRetry(current, item, syncId, retrySchemaVersion)
+    ) {
+      remaining.push(item);
       continue;
     }
 
@@ -254,26 +317,19 @@ export function migratePendingAssetDeltas(
         break;
       case "needs-attention":
         remaining.push(item);
-        current = {
-          ...result.assets,
-          pendingMigration: withMigration(result.assets, {
-            skippedPendingIds: [
-              ...(result.assets.pendingMigration?.skippedPendingIds ?? []),
-              item.id,
-            ],
-          }),
-        };
+        current = result.assets;
         break;
     }
   }
 
-  const skippedPendingIds = current.pendingMigration?.skippedPendingIds;
-  return {
+  const next = {
     ...current,
     pendingAssetDeltas: remaining,
     pendingMigration: withMigration(current, {
       migratedAt: new Date().toISOString(),
-      ...(skippedPendingIds !== undefined ? { skippedPendingIds } : {}),
+      skippedPendingIds: [],
     }),
   };
+
+  return novelAssetMigrationChanged(assets, next) ? next : assets;
 }

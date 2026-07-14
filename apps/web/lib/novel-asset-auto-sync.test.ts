@@ -9,6 +9,8 @@ import {
   createLegacyPendingSyncId,
   mergeNovelChapterAssetDeltaSafely,
   migratePendingAssetDeltas,
+  novelAssetMigrationChanged,
+  setTestApplyDeltaOverride,
   stableHashCanonicalDelta,
 } from "./novel-asset-auto-sync.ts";
 
@@ -378,12 +380,176 @@ describe("migratePendingAssetDeltas", () => {
     assert.equal(result.pendingAssetDeltas.length, 1);
     assert.equal(result.pendingAssetDeltas[0]?.id, "p-empty");
     assert.deepEqual(result.pendingMigration?.appliedSyncIds, []);
-    assert.ok(result.pendingMigration?.skippedPendingIds?.includes("p-empty"));
+    assert.deepEqual(result.pendingMigration?.skippedPendingIds, []);
     assert.equal(countSyncAttentionDiagnostics(result), 1);
     assert.equal(
       result.diagnostics?.[0]?.id,
       "sync-diag:legacy:p-empty",
     );
+  });
+
+  it("does not multiply diagnostics across repeated empty migrates", () => {
+    const emptyContentPending = {
+      id: "p-empty",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      ...sampleDelta({
+        summary: "summary only",
+        characterStates: [],
+        newForeshadowing: [],
+        resolvedForeshadowing: [],
+        worldIncrements: [],
+      }),
+    };
+    const assets = emptyAssets({
+      pendingAssetDeltas: [emptyContentPending],
+    });
+    const once = migratePendingAssetDeltas(assets);
+    const twice = migratePendingAssetDeltas(once);
+    const thrice = migratePendingAssetDeltas(twice);
+
+    assert.equal(once.pendingAssetDeltas[0]?.id, "p-empty");
+    assert.equal(twice.pendingAssetDeltas[0]?.id, "p-empty");
+    assert.equal(thrice.pendingAssetDeltas[0]?.id, "p-empty");
+    assert.equal(countSyncAttentionDiagnostics(thrice), 1);
+    assert.equal(
+      thrice.knowledgeAssets.filter((asset) => asset.category === "character")
+        .length,
+      0,
+    );
+  });
+
+  it("removes already applied legacy syncId without reapply while sibling applies", () => {
+    const assets = emptyAssets({
+      pendingMigration: normalizePendingMigration({
+        schemaVersion: 2,
+        appliedSyncIds: ["legacy:p1"],
+      }),
+      pendingAssetDeltas: [
+        {
+          id: "p1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          ...sampleDelta({
+            characterStates: [{ title: "林照", content: "旧事实" }],
+            newForeshadowing: [],
+            worldIncrements: [],
+          }),
+        },
+        {
+          id: "p2",
+          createdAt: "2026-01-02T00:00:00.000Z",
+          ...sampleDelta({
+            characterStates: [{ title: "沈砚", content: "新事实" }],
+            newForeshadowing: [],
+            worldIncrements: [],
+          }),
+        },
+      ],
+    });
+    const result = migratePendingAssetDeltas(assets);
+
+    assert.equal(result.pendingAssetDeltas.length, 0);
+    assert.deepEqual(result.pendingMigration?.appliedSyncIds, [
+      "legacy:p1",
+      "legacy:p2",
+    ]);
+    assert.equal(
+      result.knowledgeAssets.filter((asset) => asset.category === "character")
+        .length,
+      1,
+    );
+    assert.ok(
+      result.knowledgeAssets.some(
+        (asset) =>
+          asset.category === "character" && asset.content.includes("新事实"),
+      ),
+    );
+  });
+
+  it("keeps merge failures in remaining without multiplying diagnostics", () => {
+    setTestApplyDeltaOverride(() => {
+      throw new Error("merge failed");
+    });
+    try {
+      const pending = {
+        id: "p-fail",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        ...sampleDelta(),
+      };
+      const first = migratePendingAssetDeltas(
+        emptyAssets({ pendingAssetDeltas: [pending] }),
+      );
+      const second = migratePendingAssetDeltas(first);
+
+      assert.equal(first.pendingAssetDeltas[0]?.id, "p-fail");
+      assert.equal(second.pendingAssetDeltas[0]?.id, "p-fail");
+      assert.equal(countSyncAttentionDiagnostics(first), 1);
+      assert.equal(countSyncAttentionDiagnostics(second), 1);
+      assert.equal(first.diagnostics?.[0]?.id, "sync-diag:legacy:p-fail");
+      assert.equal(second.diagnostics?.[0]?.id, "sync-diag:legacy:p-fail");
+    } finally {
+      setTestApplyDeltaOverride(null);
+    }
+  });
+
+  it("re-applies pending after payload fix even when diagnostic exists", () => {
+    const emptyContentPending = {
+      id: "p-fix",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      ...sampleDelta({
+        summary: "summary only",
+        characterStates: [],
+        newForeshadowing: [],
+        resolvedForeshadowing: [],
+        worldIncrements: [],
+      }),
+    };
+    const first = migratePendingAssetDeltas(
+      emptyAssets({ pendingAssetDeltas: [emptyContentPending] }),
+    );
+    const fixed = migratePendingAssetDeltas({
+      ...first,
+      pendingAssetDeltas: [
+        {
+          ...emptyContentPending,
+          characterStates: [{ title: "林照", content: "修复后的状态" }],
+        },
+      ],
+    });
+
+    assert.equal(fixed.pendingAssetDeltas.length, 0);
+    assert.deepEqual(fixed.pendingMigration?.appliedSyncIds, ["legacy:p-fix"]);
+    assert.equal(
+      fixed.knowledgeAssets.filter((asset) => asset.category === "character")
+        .length,
+      1,
+    );
+  });
+
+  it("re-attempts empty pending when retrySchemaVersion is bumped", () => {
+    const emptyContentPending = {
+      id: "p-retry",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      ...sampleDelta({
+        summary: "summary only",
+        characterStates: [],
+        newForeshadowing: [],
+        resolvedForeshadowing: [],
+        worldIncrements: [],
+      }),
+    };
+    const first = migratePendingAssetDeltas(
+      emptyAssets({ pendingAssetDeltas: [emptyContentPending] }),
+    );
+    const retried = migratePendingAssetDeltas({
+      ...first,
+      pendingMigration: {
+        ...first.pendingMigration!,
+        retrySchemaVersion: 1,
+      },
+    });
+
+    assert.equal(retried.pendingAssetDeltas[0]?.id, "p-retry");
+    assert.equal(countSyncAttentionDiagnostics(retried), 1);
   });
 
   it("does not re-apply already applied syncIds on second migrate", () => {
@@ -409,6 +575,27 @@ describe("migratePendingAssetDeltas", () => {
       charCount,
     );
     assert.deepEqual(twice.pendingMigration?.appliedSyncIds, ["legacy:p1"]);
+  });
+});
+
+describe("novelAssetMigrationChanged", () => {
+  it("detects knowledge asset and metadata changes beyond pending length", () => {
+    const before = emptyAssets({
+      pendingAssetDeltas: [
+        {
+          id: "p1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          ...sampleDelta(),
+        },
+      ],
+    });
+    const after = migratePendingAssetDeltas(before);
+
+    assert.ok(novelAssetMigrationChanged(before, after));
+    assert.equal(
+      novelAssetMigrationChanged(after, after),
+      false,
+    );
   });
 });
 

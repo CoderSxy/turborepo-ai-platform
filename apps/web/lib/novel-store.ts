@@ -6034,29 +6034,14 @@ export async function loadNovelWorkspace(): Promise<NovelWorkspaceSnapshot> {
       recoveredTasks.map((task) => putInStore(db, TASKS_STORE, task)),
     );
 
-    const { migratePendingAssetDeltas } = await import(
-      "./novel-asset-auto-sync"
-    );
+    const { migratePendingAssetDeltas, novelAssetMigrationChanged } =
+      await import("./novel-asset-auto-sync");
     const normalizedBooks = books.map(normalizeStoredNovelBook);
     const migratedBooks: StoredNovelBook[] = [];
 
     for (const book of normalizedBooks) {
       const nextAssets = migratePendingAssetDeltas(book.assets);
-      const pendingChanged =
-        nextAssets.pendingAssetDeltas.length !==
-          book.assets.pendingAssetDeltas.length ||
-        nextAssets.pendingMigration?.migratedAt !==
-          book.assets.pendingMigration?.migratedAt ||
-        JSON.stringify(nextAssets.pendingMigration?.appliedSyncIds) !==
-          JSON.stringify(book.assets.pendingMigration?.appliedSyncIds) ||
-        JSON.stringify(nextAssets.pendingMigration?.legacyAppliedChapters) !==
-          JSON.stringify(book.assets.pendingMigration?.legacyAppliedChapters) ||
-        JSON.stringify(nextAssets.pendingMigration?.appliedChapters) !==
-          JSON.stringify(book.assets.pendingMigration?.appliedChapters) ||
-        JSON.stringify(nextAssets.pendingMigration?.skippedPendingIds) !==
-          JSON.stringify(book.assets.pendingMigration?.skippedPendingIds) ||
-        (nextAssets.diagnostics?.length ?? 0) !==
-          (book.assets.diagnostics?.length ?? 0);
+      const pendingChanged = novelAssetMigrationChanged(book.assets, nextAssets);
 
       if (pendingChanged) {
         const nextBook = {
