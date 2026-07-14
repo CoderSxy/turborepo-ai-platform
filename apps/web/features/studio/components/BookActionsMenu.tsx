@@ -55,8 +55,8 @@ export function BookActionsMenu({
         role="menuitem"
         className={styles.bookTreeMenuItem}
         onClick={() => {
-          onClose();
           onRename();
+          onClose();
         }}
       >
         重命名
@@ -66,8 +66,8 @@ export function BookActionsMenu({
         role="menuitem"
         className={styles.bookTreeMenuItem}
         onClick={() => {
-          onClose();
           onArchive();
+          onClose();
         }}
       >
         {archived ? "还原" : "归档"}
@@ -78,8 +78,8 @@ export function BookActionsMenu({
         className={styles.bookTreeMenuItem}
         disabled={!canMoveUp}
         onClick={() => {
-          onClose();
           onMoveUp();
+          onClose();
         }}
       >
         上移
@@ -90,8 +90,8 @@ export function BookActionsMenu({
         className={styles.bookTreeMenuItem}
         disabled={!canMoveDown}
         onClick={() => {
-          onClose();
           onMoveDown();
+          onClose();
         }}
       >
         下移
@@ -101,8 +101,8 @@ export function BookActionsMenu({
         role="menuitem"
         className={`${styles.bookTreeMenuItem} ${styles.dangerTextButton}`}
         onClick={() => {
-          onClose();
           onDelete();
+          onClose();
         }}
       >
         删除

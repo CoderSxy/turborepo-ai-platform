@@ -49,8 +49,8 @@ export function SessionActionsMenu({
         role="menuitem"
         className={styles.bookTreeMenuItem}
         onClick={() => {
-          onClose();
           onRename();
+          onClose();
         }}
       >
         重命名
@@ -60,8 +60,8 @@ export function SessionActionsMenu({
         role="menuitem"
         className={`${styles.bookTreeMenuItem} ${styles.dangerTextButton}`}
         onClick={() => {
-          onClose();
           onDelete();
+          onClose();
         }}
       >
         删除
