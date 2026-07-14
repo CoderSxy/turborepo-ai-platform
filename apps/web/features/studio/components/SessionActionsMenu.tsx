@@ -1,48 +1,40 @@
 "use client";
 
-import { useEffect } from "react";
+import type { RefObject } from "react";
+import { createPortal } from "react-dom";
 import styles from "../studio.module.css";
+import { useBookTreeAnchoredMenu } from "./use-book-tree-anchored-menu";
 
 export function SessionActionsMenu({
   open,
   onClose,
+  anchorRef,
   onRename,
   onDelete,
   anchorLabel,
 }: {
   open: boolean;
   onClose: () => void;
+  anchorRef: RefObject<HTMLElement | null>;
   onRename: () => void;
   onDelete: () => void;
   anchorLabel?: string;
 }) {
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
+  const { menuRef, style } = useBookTreeAnchoredMenu({
+    open,
+    onClose,
+    anchorRef,
+  });
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        event.preventDefault();
-        onClose();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [open, onClose]);
-
-  if (!open) {
+  if (!open || typeof document === "undefined") {
     return null;
   }
 
-  return (
+  return createPortal(
     <div
-      className={styles.bookTreeMenu}
+      ref={menuRef}
+      className={`${styles.bookTreeMenu} ${styles.bookTreeMenuPortaled}`}
+      style={style}
       role="menu"
       aria-label={anchorLabel ?? "会话操作"}
     >
@@ -68,6 +60,7 @@ export function SessionActionsMenu({
       >
         删除
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import styles from "../studio.module.css";
 import { SessionActionsMenu } from "./SessionActionsMenu";
 
@@ -19,36 +19,8 @@ export function SessionTreeItem({
   onRename: () => void;
   onDelete: () => void;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        event.preventDefault();
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [menuOpen]);
 
   function closeMenu() {
     setMenuOpen(false);
@@ -56,7 +28,6 @@ export function SessionTreeItem({
 
   return (
     <div
-      ref={rootRef}
       className={`${styles.sessionTreeRow} ${
         active ? styles.activeSessionButton : ""
       }`}
@@ -70,6 +41,7 @@ export function SessionTreeItem({
         <span className={styles.bookTreeAge}>{age}</span>
       </button>
       <button
+        ref={moreButtonRef}
         type="button"
         className={styles.bookTreeMoreButton}
         aria-haspopup="menu"
@@ -86,6 +58,7 @@ export function SessionTreeItem({
       <SessionActionsMenu
         open={menuOpen}
         onClose={closeMenu}
+        anchorRef={moreButtonRef}
         onRename={onRename}
         onDelete={onDelete}
         anchorLabel="更多会话操作"

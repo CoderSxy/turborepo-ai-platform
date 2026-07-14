@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import type { RefObject } from "react";
+import { createPortal } from "react-dom";
 import styles from "../studio.module.css";
+import { useBookTreeAnchoredMenu } from "./use-book-tree-anchored-menu";
 
 export function BookActionsMenu({
   open,
   onClose,
+  anchorRef,
   archived,
   canMoveUp,
   canMoveDown,
@@ -17,6 +20,7 @@ export function BookActionsMenu({
 }: {
   open: boolean;
   onClose: () => void;
+  anchorRef: RefObject<HTMLElement | null>;
   archived: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -26,32 +30,24 @@ export function BookActionsMenu({
   onMoveDown: () => void;
   onDelete: () => void;
 }) {
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
+  const { menuRef, style } = useBookTreeAnchoredMenu({
+    open,
+    onClose,
+    anchorRef,
+  });
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        event.preventDefault();
-        onClose();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [open, onClose]);
-
-  if (!open) {
+  if (!open || typeof document === "undefined") {
     return null;
   }
 
-  return (
-    <div className={styles.bookTreeMenu} role="menu" aria-label="书籍操作">
+  return createPortal(
+    <div
+      ref={menuRef}
+      className={`${styles.bookTreeMenu} ${styles.bookTreeMenuPortaled}`}
+      style={style}
+      role="menu"
+      aria-label="书籍操作"
+    >
       <button
         type="button"
         role="menuitem"
@@ -109,6 +105,7 @@ export function BookActionsMenu({
       >
         删除
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }

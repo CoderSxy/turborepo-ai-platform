@@ -2157,8 +2157,13 @@ export function NovelStudio({
             onArchiveBook={(bookId) => void archiveBook(bookId)}
             onBookSelect={(bookId) => {
               const nextBook = books.find((book) => book.id === bookId);
+              const currentSessionBelongsToBook = Boolean(
+                nextBook?.sessions.some((session) => session.id === activeSessionId),
+              );
               setActiveBook(bookId);
-              setActiveSession(nextBook?.sessions[0]?.id ?? "");
+              if (!currentSessionBelongsToBook) {
+                setActiveSession(nextBook?.sessions[0]?.id ?? "");
+              }
             }}
             onDeleteBook={(bookId) => void removeBook(bookId)}
             onMoveBook={(bookId, direction) => void moveBook(bookId, direction)}

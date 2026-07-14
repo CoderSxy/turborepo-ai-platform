@@ -47,7 +47,7 @@ export function BookTreeItem({
   onRenameSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -56,34 +56,6 @@ export function BookTreeItem({
     }
   }, [manageMode]);
 
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        event.preventDefault();
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [menuOpen]);
-
   function closeMenu() {
     setMenuOpen(false);
   }
@@ -91,7 +63,6 @@ export function BookTreeItem({
   return (
     <section className={styles.bookListGroup}>
       <div
-        ref={rootRef}
         className={`${styles.bookTreeRow} ${
           active ? styles.bookTreeRowActive : ""
         }`}
@@ -132,6 +103,7 @@ export function BookTreeItem({
         {!manageMode ? (
           <>
             <button
+              ref={moreButtonRef}
               type="button"
               className={styles.bookTreeMoreButton}
               aria-haspopup="menu"
@@ -148,6 +120,7 @@ export function BookTreeItem({
             <BookActionsMenu
               open={menuOpen}
               onClose={closeMenu}
+              anchorRef={moreButtonRef}
               archived={book.archived}
               canMoveUp={canMoveUp}
               canMoveDown={canMoveDown}
