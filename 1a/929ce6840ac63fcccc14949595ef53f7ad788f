@@ -1,0 +1,25 @@
+apps/web/features/studio/components/SessionTreeItem.tsx
+  s_c15bb3d51482ec::t_7708d02a630fae 1-93
+apps/web/features/studio/studio.module.css
+  s_c15bb3d51482ec::t_b259227e5fe9c2 1770-1910
+apps/web/features/studio/components/BookTreeItem.tsx
+  s_c15bb3d51482ec::t_ffaef0ab2783da 1-179
+apps/web/features/studio/components/BookSidebarHeader.tsx
+  s_c15bb3d51482ec::t_f97cd88246bf8f 1-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1a929ce6840ac63fcccc14949595ef53f7ad788f",
+  "prompts": {},
+  "sessions": {
+    "s_c15bb3d51482ec": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "f8d466eb-d87c-458a-bbce-7bd1868d25f3",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
