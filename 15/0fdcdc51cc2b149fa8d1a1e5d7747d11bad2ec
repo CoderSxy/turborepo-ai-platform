@@ -1,0 +1,38 @@
+apps/web/features/studio/actions/run-core-action.ts
+  s_4016f32e849fb9::t_120b4d5fcf7b69 443-445,447-450
+  s_4016f32e849fb9::t_6d97453f53c5db 509-546,548-549,551-552,554-586
+  s_4016f32e849fb9::t_5e37baa7fa1260 72
+  s_4016f32e849fb9::t_d3e0f49831d1a9 743
+  s_4016f32e849fb9::t_4267ecb91bb188 451-457
+apps/web/features/studio/actions/writing/commit-write-chapter-result.test.ts
+  s_4016f32e849fb9::t_0c3188b3f9f94a 180
+  s_4016f32e849fb9::t_e006bb37494c4a 10,18
+  s_4016f32e849fb9::t_f0a6a1b6e057ca 36-38,43,47-72
+  s_4016f32e849fb9::t_7856334bfe933a 80
+apps/web/features/studio/actions/writing/commit-write-chapter-result.ts
+  s_4016f32e849fb9::t_d31c57640ab9ac 19,22,30-33
+  s_4016f32e849fb9::t_8a0668d71934bb 34-35
+apps/web/lib/write-chapter-recovery.test.ts
+  s_4016f32e849fb9::t_92ead963da7941 434-435
+  s_4016f32e849fb9::t_d5788910a17589 390-391,398-403,410
+  s_4016f32e849fb9::t_9f44e0d3044bf2 162-166
+  s_4016f32e849fb9::t_c14444e03d4cea 15-17
+  s_4016f32e849fb9::t_962c5f95cdf1d5 446-457
+  s_4016f32e849fb9::t_69e4bc39a75241 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "150fdcdc51cc2b149fa8d1a1e5d7747d11bad2ec",
+  "prompts": {},
+  "sessions": {
+    "s_4016f32e849fb9": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "95fa1400-07dd-4e0f-8128-f5a2f5d8b64f",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
