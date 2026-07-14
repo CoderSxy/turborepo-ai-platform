@@ -1,0 +1,67 @@
+apps/web/lib/novel-asset-auto-sync.ts
+  s_5140aaf42d2ac6::t_9338f763b57882 161
+  s_5140aaf42d2ac6::t_f9effc602bf07d 9
+  s_5140aaf42d2ac6::t_92a0f1cc53b30a 23-33
+  s_5140aaf42d2ac6::t_f49d77777a1801 287-293
+  s_5140aaf42d2ac6::t_5cfe0a0cf3b45c 255-257
+  s_5140aaf42d2ac6::t_3365f78ca4c3de 80-116
+apps/web/lib/novel-character-profiles.ts
+  s_5140aaf42d2ac6::t_892825d895bc78 41-42
+  s_5140aaf42d2ac6::t_b9d39a81426c50 10
+  s_5140aaf42d2ac6::t_36a730c0e247f6 149,152
+  s_5140aaf42d2ac6::t_56ee4a1e2bddc9 32-38
+  s_5140aaf42d2ac6::t_fd4a5279d119f1 210-213
+  s_5140aaf42d2ac6::t_091680d3595107 254
+  s_5140aaf42d2ac6::t_92ed3e3284654e 354,358
+  s_5140aaf42d2ac6::t_5b56c8e980c1b0 285-287,292
+  s_5140aaf42d2ac6::t_43989ec46ea93b 1-9,11-31,39-40,43-148,150-151,153-156,158-196,198-199,201-209,214-253,255-284,288-291,293-353,355-357,359-656
+  s_5140aaf42d2ac6::t_97a97644923327 157
+  s_5140aaf42d2ac6::t_71238406cd5f33 197,200
+apps/web/lib/novel-store.ts
+  s_5140aaf42d2ac6::t_a526f0fc97de37 99
+  s_5140aaf42d2ac6::t_b30809f9d9feda 4949,4959-4960,4966-4969,4986-4990,4997
+  s_5140aaf42d2ac6::t_e1a178e0e89068 425-495,504
+  s_5140aaf42d2ac6::t_1348936a0f22c0 7653
+  s_5140aaf42d2ac6::t_429235e9ca5009 2580
+  s_5140aaf42d2ac6::t_c53cff9d342fa3 13
+  s_5140aaf42d2ac6::t_228d16a8f01717 5079
+  s_5140aaf42d2ac6::t_1fe7562ca40048 6090
+  s_5140aaf42d2ac6::t_d702a92a48d981 6060-6089,6091,6099-6100
+  s_5140aaf42d2ac6::t_0b92fdacd5c377 6-9,11-12
+  s_5140aaf42d2ac6::t_8f7d9bbc59a3d2 5078,5080-5103,5114,5116
+  s_5140aaf42d2ac6::t_bb0024aec03acd 5206-5218,5227-5229
+  s_5140aaf42d2ac6::t_6a75e7ae7d5126 7642-7646,7648-7652
+  s_5140aaf42d2ac6::t_e4fdd0b6ec027e 10
+  s_5140aaf42d2ac6::t_70fa070ff07c91 7659
+apps/web/package.json
+  s_5140aaf42d2ac6::t_bf540fdcef45e3 9
+  s_5140aaf42d2ac6::t_3f5ba86cac96a0 20
+apps/web/lib/novel-asset-auto-sync.test.ts
+  s_5140aaf42d2ac6::t_2d2ff570d4c89b 42
+  s_5140aaf42d2ac6::t_3679c00d142d42 51-53,58-65
+apps/web/lib/novel-character-profiles.test.ts
+  s_5140aaf42d2ac6::t_db54e8f60737e3 6
+  s_5140aaf42d2ac6::t_df661fd8320199 65-69
+  s_5140aaf42d2ac6::t_321450b64bb8b9 81-92
+  s_5140aaf42d2ac6::t_0a922e0b4dc3e2 164
+  s_5140aaf42d2ac6::t_187fd152134158 209-214
+  s_5140aaf42d2ac6::t_3199fc0f09b385 1-5,7-64,70-80,93-112,114-163,165-208,215-234,236-380
+  s_5140aaf42d2ac6::t_aa8b9470742036 113
+  s_5140aaf42d2ac6::t_f153720ebc365d 235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ea8939bf3ed80606a0a27cd0ff2f3d7e587375de",
+  "prompts": {},
+  "sessions": {
+    "s_5140aaf42d2ac6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "2ad556b0-5e5a-4107-a155-2039ad259bf6",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
