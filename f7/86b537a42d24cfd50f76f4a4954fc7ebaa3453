@@ -1,0 +1,29 @@
+docs/INKOS_STUDIO_AUTONOMOUS_WRITING_AND_CHARACTER_ALIGNMENT.md
+  s_29b27874f3cc36::t_9649cbb15b5da9 1-386
+docs/superpowers/specs/2026-07-14-inkos-auto-asset-sync-design.md
+  s_1285fa636eb83e::t_0d82ae8a3b447a 173-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f786b537a42d24cfd50f76f4a4954fc7ebaa3453",
+  "prompts": {},
+  "sessions": {
+    "s_1285fa636eb83e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "beb0ee25-a025-4dd7-aaf3-a018c7f3f1cc",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    },
+    "s_29b27874f3cc36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5a43-7fd1-76b3-81bf-8a329a8d5bbd",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "sxy <545231960@qq.com>"
+    }
+  }
+}
