@@ -609,6 +609,78 @@ export function buildCharacterStateChangesFromLegacyStates(
   });
 }
 
+export type ManualCharacterProfileEdit = {
+  narrativeRole?: string;
+  coreTraits?: string[];
+  motivations?: string[];
+  goals?: string[];
+  relationships?: NovelCharacterProfile["relationships"];
+  currentStateSummary?: string;
+};
+
+export function applyManualCharacterProfileEdit(
+  profiles: NovelCharacterProfile[],
+  profileId: string,
+  edit: ManualCharacterProfileEdit,
+  now: string,
+): NovelCharacterProfile[] {
+  return profiles.map((profile) => {
+    if (profile.id !== profileId) {
+      return profile;
+    }
+
+    const locks = new Set(profile.manualLocks);
+    const next: NovelCharacterProfile = { ...profile, source: "manual" };
+
+    if (
+      edit.narrativeRole !== undefined &&
+      edit.narrativeRole !== profile.narrativeRole
+    ) {
+      next.narrativeRole = edit.narrativeRole;
+      locks.add("narrativeRole");
+    }
+
+    if (
+      edit.coreTraits !== undefined &&
+      JSON.stringify(edit.coreTraits) !== JSON.stringify(profile.coreTraits)
+    ) {
+      next.coreTraits = edit.coreTraits;
+      locks.add("coreTraits");
+    }
+
+    if (edit.motivations !== undefined) {
+      next.motivations = edit.motivations;
+    }
+
+    if (edit.goals !== undefined) {
+      next.goals = edit.goals;
+    }
+
+    if (
+      edit.relationships !== undefined &&
+      JSON.stringify(edit.relationships) !== JSON.stringify(profile.relationships)
+    ) {
+      next.relationships = edit.relationships;
+      locks.add("relationships");
+    }
+
+    if (
+      edit.currentStateSummary !== undefined &&
+      edit.currentStateSummary !== profile.currentState.summary
+    ) {
+      next.currentState = {
+        ...profile.currentState,
+        summary: edit.currentStateSummary,
+        updatedAt: now,
+      };
+      locks.add("currentState");
+    }
+
+    next.manualLocks = [...locks];
+    return next;
+  });
+}
+
 export function parseStructuredCharacterStateChanges(
   content: string,
   profiles: NovelCharacterProfile[] = [],

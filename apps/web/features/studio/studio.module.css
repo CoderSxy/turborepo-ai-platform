@@ -2305,7 +2305,21 @@
 
 .inkosCharacterList {
   display: grid;
+  gap: 10px;
+}
+
+.inkosCharacterGroup {
+  display: grid;
   gap: 6px;
+}
+
+.inkosCharacterGroupLabel {
+  margin: 0;
+  color: #8a9a9d;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .inkosCharacterRow {
@@ -2340,6 +2354,12 @@
   font-size: 11px;
   font-style: normal;
   line-height: 1.4;
+}
+
+.inkosCharacterRow small {
+  color: #8a9a9d;
+  font-size: 10px;
+  font-weight: 500;
 }
 
 .inkosFoundationList {
@@ -5048,6 +5068,58 @@ button.sidebarCardAlert {
   color: #66777a;
   font-size: 11px;
   font-style: normal;
+}
+
+.characterDetailEditor {
+  display: grid;
+  gap: 10px;
+}
+
+.characterDetailEditor label {
+  display: grid;
+  gap: 4px;
+  color: #66777a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.characterDetailEditor input,
+.characterDetailEditor textarea {
+  width: 100%;
+  border: 1px solid #dbe4e7;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #142023;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.characterDetailEditor textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.characterDetailRelationshipList,
+.characterDetailHistory,
+.characterDetailDiagnostics {
+  margin: 0;
+  padding-left: 18px;
+  color: #3d565a;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.characterDetailHistory li + li,
+.characterDetailDiagnostics li + li {
+  margin-top: 8px;
+}
+
+.characterDetailDiagnostics li[data-ok="false"] strong {
+  color: #9a4a2d;
+}
+
+.characterDetailDiagnostics li[data-ok="true"] strong {
+  color: #2f6f78;
 }
 
 .outlineDetailView {

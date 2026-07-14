@@ -146,6 +146,7 @@ export function NovelBookPanel({
             characterName={characterName}
             assets={assets}
             project={project}
+            onProjectChange={onProjectChange}
             onOpenCharacterMatrix={openCharacterMatrix}
           />
         )}

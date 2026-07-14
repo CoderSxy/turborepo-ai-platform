@@ -188,7 +188,6 @@ export function BookContextPanel({
         />
         <CharactersSection
           assets={assets}
-          project={project}
           activeChapterNumber={activeRow?.number ?? null}
           alerts={assetAlerts}
           onOpenCharacter={openCharacterDetail}
